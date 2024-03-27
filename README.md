@@ -233,8 +233,8 @@ Comparing with the AWS SDK call, the referenced architecture will bring addition
 test that own you own.
 
 Also, you can use Lambda Web Adapter + Function URL (
-See [Example](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming))
-> to replace ALB or AWS Fargate to replace Lambda to get better performance on streaming response.
+See [Example](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming)) to
+replace ALB or AWS Fargate to replace Lambda to get better performance on streaming response.
 
 ### Any plan to support SageMaker models?
 
