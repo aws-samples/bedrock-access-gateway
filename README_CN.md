@@ -39,7 +39,7 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 - mistral.mistral-7b-instruct-v0:2
 - mistral.mixtral-8x7b-instruct-v0:1
 
-> Note: 默认模型为 `anthropic.claude-3-sonnet-20240229-v1:0`， 可以通过更改Lambda环境变量进行更改。
+> 注意: 默认模型为 `anthropic.claude-3-sonnet-20240229-v1:0`， 可以通过更改Lambda环境变量进行更改。
 
 ## 使用指南
 
@@ -53,9 +53,13 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 
 ### 架构图
 
-下图展示了本方案的架构。请注意,它还包括一个新的**VPC**,其中只有两个公共子网用于应用程序负载均衡器(ALB)。
+下图展示了本方案的参考架构。请注意,它还包括一个新的**VPC**,其中只有两个公共子网用于应用程序负载均衡器(ALB)。
 
 ![Architecture](assets/arch.svg)
+
+> 注意: 你可以使用 Lambda Web Adapter + Function URL (
+> 参见[示例](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming))来代替
+> ALB,或者使用 AWS Fargate 来代替 Lambda,以获得更好的流响应性能。
 
 ### 部署
 
@@ -88,8 +92,7 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 3. 单击"下一步"。
 4. 在"指定堆栈详细信息"页面,提供以下信息:
     - 堆栈名称: 可以根据需要更改名称。
-    - ApiKeyParam(如果在步骤1中设置了API密钥):输入您用于存储API密钥的参数名称(例如"BedrockProxyAPIKey")
-      。如果您没有设置API密钥,请将此字段留空。
+    - ApiKeyParam(如果在步骤1中设置了API Key):输入您用于存储API密钥的参数名称(例如"BedrockProxyAPIKey")，否则,请将此字段留空。
       单击"下一步"。
 5. 在"配置堆栈选项"页面,您可以保留默认设置或根据需要进行自定义。
 6. 单击"下一步"。
@@ -213,7 +216,11 @@ print(response)
 
 ### 使用代理API会有任何性能牺牲或延迟增加吗?
 
-这还有待测试。但你应该只将此解决方案用于概念验证。
+与 AWS SDK 调用相比,本方案参考架构会在响应上会有额外的延迟,你可以自己部署并测试。
+
+另外,你也可以使用 Lambda Web Adapter + Function URL (
+参见 [示例](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming))来代替 ALB
+或使用 AWS Fargate 来代替 Lambda,以获得更好的流响应性能。
 
 ### 有计划支持SageMaker模型吗?
 

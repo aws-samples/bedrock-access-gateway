@@ -59,10 +59,14 @@ the [Set Up](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.h
 
 ### Architecture
 
-The following diagram illustrates the solution architecture. Note that it also includes a new **VPC** with two public
+The following diagram illustrates the reference architecture. Note that it also includes a new **VPC** with two public
 subnets only for the Application Load Balancer (ALB).
 
 ![Architecture](assets/arch.svg)
+
+> Note: You can use Lambda Web Adapter + Function URL (
+> See [Example](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming))
+> to replace ALB or AWS Fargate to replace Lambda to get better performance on streaming response.
 
 ### Deployment
 
@@ -225,7 +229,12 @@ Yes, you can run this locally, then the API base url should be like `http://loca
 
 ### Any performance sacrifice or latency increase by using the proxy APIs
 
-This is yet to be tested. But you should use this solution for PoC only.
+Comparing with the AWS SDK call, the referenced architecture will bring additional latency on response, you can try and
+test that own you own.
+
+Also, you can use Lambda Web Adapter + Function URL (
+See [Example](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming))
+> to replace ALB or AWS Fargate to replace Lambda to get better performance on streaming response.
 
 ### Any plan to support SageMaker models?
 
