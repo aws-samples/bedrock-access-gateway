@@ -1,0 +1,19 @@
+[flake8]
+max-line-length = 120
+ignore =
+    E203,W191,W503
+exclude =
+    build
+    .git
+    __pycache__
+    .tox
+    venv
+    .venv
+    .venv-test
+    tmp*
+    deployment
+    cdk.out
+    node_modules
+
+max-complexity = 10
+require-code = True
