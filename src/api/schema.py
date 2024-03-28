@@ -93,7 +93,6 @@ class EmbeddingsRequest(BaseModel):
 class BaseEmbeddingsResponse(BaseModel):
     created: int = Field(default_factory=lambda: int(time.time()))
     model: str
-    system_fingerprint: str = "fp_e97c09dd4e26"
 
 
 class Embedding(BaseModel):

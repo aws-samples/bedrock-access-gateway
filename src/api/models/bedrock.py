@@ -483,8 +483,12 @@ def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
 class CohereEmbeddingsModel(BedrockEmbeddingsModel):
 
     def _parse_args(self, embeddings_request: EmbeddingsRequest) -> dict:
+        if isinstance(embeddings_request.input, str):
+            texts = [embeddings_request.input]
+        elif isinstance(embeddings_request.input, list):
+            texts = embeddings_request.input
         args = {
-            "texts": embeddings_request.input,
+            "texts": texts,
             "input_type": embeddings_request.input_type if embeddings_request.input_type else "search_document",
             "truncate": embeddings_request.truncate if embeddings_request.truncate else "NONE",
         }
