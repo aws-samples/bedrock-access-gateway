@@ -82,7 +82,6 @@ Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS acc
 2. Click the following button to launch the CloudFormation Stack in that region.
 
    [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-proxy-api/latest/BedrockProxy.template)
-
 3. Click "Next".
 4. On the "Specify stack details" page, provide the following information:
     - Stack name: Change the stack name if needed.
@@ -134,19 +133,6 @@ client = OpenAI()
 completion = client.chat.completions.create(
     model="anthropic.claude-3-sonnet-20240229-v1:0",
     messages=[{"role": "user", "content": "Hello!"}],
-)
-
-print(completion.choices[0].message.content)
-```
-
-For older versions (`openai<1.0.0`), using `openai.ChatCompletion`
-
-```python
-import openai
-
-completion = openai.ChatCompletion.create(
-	model="anthropic.claude-3-sonnet-20240229-v1:0",
-	messages=[{"role": "user", "content": "Hello!"}],
 )
 
 print(completion.choices[0].message.content)
@@ -216,7 +202,7 @@ Note that not all models are available in those regions.
 
 ### Can I build and use my own ECR image
 
-Yes, you can clone the repo and build the container image by yourself (`src/Dockerfile`) and then push to your ECR repo.
+Yes, you can clone the repo and build the container image by yourself (`src/Dockerfile`) and then push to your ECR repo. You can use `scripts/push-to-ecr.sh`
 
 Replace the repo url in the CloudFormation template before you deploy.
 
@@ -228,7 +214,7 @@ The API base url should look like `http://localhost:8000/api/v1`.
 
 ### Any performance sacrifice or latency increase by using the proxy APIs
 
-Comparing with the AWS SDK call, the referenced architecture will bring additional latency on response, you can try and test that own you own.
+Comparing with the AWS SDK call, the referenced architecture will bring additional latency on response, you can try and test that on you own.
 
 Also, you can use Lambda Web Adapter + Function URL (see [example](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming)) to replace ALB or AWS Fargate to replace Lambda to get better performance on streaming response.
 

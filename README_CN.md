@@ -6,14 +6,13 @@
 
 ## 概述
 
-Amazon Bedrock提供了广泛的基础模型(如Claude 3 Sonnet/Haiku、Llama 2、Mistral/Mixtral等)
-,以及构建生成式AI应用程序的多种功能。更多详细信息,请查看[Amazon Bedrock](https://aws.amazon.com/bedrock)。
+Amazon Bedrock提供了广泛的基础模型(如Claude 3 Sonnet/Haiku、Llama 2、Mistral/Mixtral等),以及构建生成式AI应用程序的多种功能。更多详细信息,请查看[Amazon Bedrock](https://aws.amazon.com/bedrock)。
 
 有时,您可能已经使用OpenAI的API或SDK构建了应用程序,并希望在不修改代码的情况下试用Amazon
 Bedrock的模型。或者,您可能只是希望在AutoGen等工具中评估这些基础模型的功能。 好消息是, 这里提供了一种方便的途径,让您可以使用
 OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需对现有代码进行修改。
 
-如果您觉得这个项目有用,请考虑给它点个一个免费的小星星。
+如果您觉得这个项目有用,请考虑给它点个一个免费的小星星 ⭐。
 
 功能列表：
 
@@ -63,7 +62,7 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 
 ### 部署
 
-请按以下步骤将Bedrock代理API部署到您的AWS账户中。仅支持Amazon Bedrock可用的区域(如us-west-2)。
+请按以下步骤将Bedrock代理API部署到您的AWS账户中。仅支持Amazon Bedrock可用的区域(如us-west-2)。 部署预计用时**3-5分钟** 🕒。
 
 **第一步: 自定义您的API Key (可选)**
 
@@ -88,7 +87,6 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 2. 单击以下按钮在该区域启动CloudFormation堆栈。
 
    [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-proxy-api/latest/BedrockProxy.template)
-
 3. 单击"下一步"。
 4. 在"指定堆栈详细信息"页面,提供以下信息:
     - 堆栈名称: 可以根据需要更改名称。
@@ -99,7 +97,7 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 7. 在"审核"页面,查看您即将创建的堆栈详细信息。勾选底部的"我确认，AWS CloudFormation 可能创建 IAM 资源。"复选框。
 8. 单击"创建堆栈"。
 
-仅此而已。部署完成后,点击CloudFormation堆栈,进入"输出"选项卡,你可以从"APIBaseUrl"
+仅此而已 🎉 。部署完成后,点击CloudFormation堆栈,进入"输出"选项卡,你可以从"APIBaseUrl"
 中找到API Base URL,它应该类似于`http://xxxx.xxx.elb.amazonaws.com/api/v1` 这样的格式。
 
 ### SDK/API使用
@@ -111,9 +109,17 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 - **API 使用示例**
 
 ```bash
-curl https://<API base url>/chat/completions \
+export OPENAI_API_KEY=<API key>
+export OPENAI_BASE_URL=<API base url>
+# 旧版本请使用OPENAI_API_BASE
+# https://github.com/openai/openai-python/issues/624
+export OPENAI_API_BASE=<API base url>
+```
+
+```bash
+curl $OPENAI_BASE_URL/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <API Key>" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
   -d '{
     "model": "anthropic.claude-3-sonnet-20240229-v1:0",
     "messages": [
@@ -126,11 +132,6 @@ curl https://<API base url>/chat/completions \
 ```
 
 - **SDK 使用示例**
-
-```bash
-export OPENAI_API_KEY=<API key>
-export OPENAI_API_BASE=<API base url>
-```
 
 ```python
 from openai import OpenAI
@@ -158,6 +159,8 @@ print(completion.choices[0].message.content)
 
 ```python
 # pip install langchain-openai
+import os
+
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
@@ -165,8 +168,8 @@ from langchain_openai import ChatOpenAI
 chat = ChatOpenAI(
     model="anthropic.claude-3-sonnet-20240229-v1:0",
     temperature=0,
-    openai_api_key="xxxx",
-    openai_api_base="http://xxx.elb.amazonaws.com/api/v1",
+    openai_api_key=os.environ['OPENAI_API_KEY'],
+    openai_api_base=os.environ['OPENAI_BASE_URL'],
 )
 
 template = """Question: {question}
@@ -206,7 +209,7 @@ print(response)
 
 ### 我可以构建并使用自己的ECR镜像吗?
 
-是的,你可以克隆repo并自行构建容器镜像(src/Dockerfile),然后推送到你自己的ECR仓库。
+是的,你可以克隆repo并自行构建容器镜像(src/Dockerfile),然后推送到你自己的ECR仓库。 脚本可以参考`scripts/push-to-ecr.sh`。
 
 在部署之前,请在CloudFormation模板中替换镜像仓库URL。
 
