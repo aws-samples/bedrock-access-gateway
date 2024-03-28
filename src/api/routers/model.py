@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path
 
 from api.auth import api_key_auth
-from api.models import SUPPORTED_BEDROCK_MODELS
+from api.models import SUPPORTED_BEDROCK_MODELS, SUPPORTED_BEDROCK_EMBEDDING_MODELS
 from api.schema import Models, Model
 
 router = APIRouter()
@@ -17,13 +17,13 @@ router = APIRouter(
 
 
 async def validate_model_id(model_id: str):
-    if model_id not in SUPPORTED_BEDROCK_MODELS.keys():
+    if model_id not in (SUPPORTED_BEDROCK_MODELS | SUPPORTED_BEDROCK_EMBEDDING_MODELS).keys():
         raise HTTPException(status_code=400, detail="Unsupported Model Id")
 
 
 @router.get("/", response_model=Models)
 async def list_models():
-    model_list = [Model(id=model_id) for model_id in SUPPORTED_BEDROCK_MODELS.keys()]
+    model_list = [Model(id=model_id) for model_id in (SUPPORTED_BEDROCK_MODELS | SUPPORTED_BEDROCK_EMBEDDING_MODELS).keys()]
     return Models(data=model_list)
 
 

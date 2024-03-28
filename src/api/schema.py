@@ -78,3 +78,35 @@ class ChatResponse(BaseChatResponse):
 class ChatStreamResponse(BaseChatResponse):
     choices: list[ChoiceDelta]
     object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
+
+
+class EmbeddingsRequest(BaseModel):
+    input: str | list[str]
+    model: str
+    # Cohere Embed
+    input_type: Literal["search_document", "search_query", "classification", "clustering"] | None = None
+    truncate: Literal["NONE", "LEFT", "RIGHT"] | None = None
+    # Titan Embeddings
+    embedding_config: dict | None = None
+
+
+class BaseEmbeddingsResponse(BaseModel):
+    created: int = Field(default_factory=lambda: int(time.time()))
+    model: str
+
+
+class Embedding(BaseModel):
+    object: Literal["embedding"] = "embedding"
+    embedding: list[float]
+    index: int
+
+
+class EmbeddingsUsage(BaseModel):
+    prompt_tokens: int
+    total_tokens: int
+
+
+class EmbeddingsResponse(BaseEmbeddingsResponse):
+    data: list[Embedding]
+    object: Literal["list"] = "list"
+    usage: EmbeddingsUsage
