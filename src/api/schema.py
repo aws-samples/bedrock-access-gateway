@@ -16,10 +16,36 @@ class Models(BaseModel):
     data: list[Model] = []
 
 
+class TextContent(BaseModel):
+    type: Literal["text"] = "text"
+    text: str
+
+
+class ImageUrl(BaseModel):
+    url: str
+    detail: str | None = "auto"
+
+
+class ImageContent(BaseModel):
+    type: Literal["image_url"] = "image"
+    image_url: ImageUrl
+
+
 class ChatRequestMessage(BaseModel):
     name: str | None = None
     role: Literal["user", "assistant", "system"]
-    content: str
+    content: str | list[TextContent | ImageContent]
+
+
+class Function(BaseModel):
+    name: str
+    description: str | None = None
+    parameters: object
+
+
+class Tool(BaseModel):
+    type: Literal["function"] = "function"
+    function: Function
 
 
 class ChatRequest(BaseModel):
@@ -33,6 +59,8 @@ class ChatRequest(BaseModel):
     user: str | None = None  # Not used
     max_tokens: int | None = 2048
     n: int | None = 1  # Not used
+    tools: list[Tool] | None = None
+    tool_choice: str | object = "auto"
 
 
 class Usage(BaseModel):
@@ -41,10 +69,22 @@ class Usage(BaseModel):
     total_tokens: int
 
 
+class ResponseFunction(BaseModel):
+    name: str
+    arguments: str
+
+
+class ToolCall(BaseModel):
+    id: str
+    type: Literal["function"] = "function"
+    function: ResponseFunction
+
+
 class ChatResponseMessage(BaseModel):
     # tool_calls
     role: Literal["assistant"] | None = None
     content: str | None = None
+    tool_calls: list[ToolCall] | None = None
 
 
 class BaseChoice(BaseModel):
