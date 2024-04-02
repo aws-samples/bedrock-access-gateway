@@ -66,7 +66,7 @@ class BaseChatResponse(BaseModel):
     id: str
     created: int = Field(default_factory=lambda: int(time.time()))
     model: str
-    system_fingerprint: str = "fp_e97c09dd4e26"
+    system_fingerprint: str = "fp"
 
 
 class ChatResponse(BaseChatResponse):
@@ -81,7 +81,7 @@ class ChatStreamResponse(BaseChatResponse):
 
 
 class EmbeddingsRequest(BaseModel):
-    input: str | list[str] | Iterable[int] | Iterable[Iterable[int]]
+    input: str | list[str] | Iterable[int | Iterable[int]]
     model: str
     encoding_format: Literal["float", "base64"] = "float"  # not used.
     dimensions: int | None = None  # not used.
