@@ -12,7 +12,6 @@ router = APIRouter()
 
 router = APIRouter(
     prefix="/chat",
-    tags=["items"],
     dependencies=[Depends(api_key_auth)],
     # responses={404: {"description": "Not found"}},
 )

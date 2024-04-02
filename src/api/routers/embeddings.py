@@ -11,7 +11,6 @@ router = APIRouter()
 
 router = APIRouter(
     prefix="/embeddings",
-    tags=["items"],
     dependencies=[Depends(api_key_auth)],
 )
 
@@ -38,6 +37,7 @@ async def embeddings(
         raise HTTPException(status_code=400, detail="Unsupported Model Id " + embeddings_request.model)
     try:
         model = get_embeddings_model(embeddings_request.model)
+        # TODO: Check type of input
         return model.embed(embeddings_request)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

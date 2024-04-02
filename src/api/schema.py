@@ -1,5 +1,5 @@
 import time
-from typing import Literal
+from typing import Literal, Iterable
 
 from pydantic import BaseModel, Field
 
@@ -81,18 +81,11 @@ class ChatStreamResponse(BaseChatResponse):
 
 
 class EmbeddingsRequest(BaseModel):
-    input: str | list[str]
+    input: str | list[str] | Iterable[int] | Iterable[Iterable[int]]
     model: str
-    # Cohere Embed
-    input_type: Literal["search_document", "search_query", "classification", "clustering"] | None = None
-    truncate: Literal["NONE", "LEFT", "RIGHT"] | None = None
-    # Titan Embeddings
-    embedding_config: dict | None = None
-
-
-class BaseEmbeddingsResponse(BaseModel):
-    created: int = Field(default_factory=lambda: int(time.time()))
-    model: str
+    encoding_format: Literal["float", "base64"] = "float"  # not used.
+    dimensions: int | None = None  # not used.
+    user: str | None = None  # not used.
 
 
 class Embedding(BaseModel):
@@ -106,7 +99,8 @@ class EmbeddingsUsage(BaseModel):
     total_tokens: int
 
 
-class EmbeddingsResponse(BaseEmbeddingsResponse):
-    data: list[Embedding]
+class EmbeddingsResponse(BaseModel):
     object: Literal["list"] = "list"
+    data: list[Embedding]
+    model: str
     usage: EmbeddingsUsage
