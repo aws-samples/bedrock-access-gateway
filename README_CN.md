@@ -58,9 +58,9 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 
 ![Architecture](assets/arch.svg)
 
-> 注意: 你可以使用 Lambda Web Adapter + Function URL (
-> 参见[示例](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming))来代替
-> ALB,或者使用 AWS Fargate 来代替 Lambda,以获得更好的流响应性能。
+您也可以选择在 ALB 后面接 [AWS Fargate](https://aws.amazon.com/fargate/) 而不是 [AWS Lambda](https://aws.amazon.com/lambda/)，主要区别在于流响应的首字节延迟（Fargate更低）。
+
+或者,您可以使用 Lambda Function URL 来代替 ALB,请参阅[示例](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming)
 
 ### 部署
 
@@ -86,9 +86,13 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 **第二步: 部署CloudFormation堆栈**
 
 1. 登录AWS管理控制台,切换到要部署CloudFormation堆栈的区域。
-2. 单击以下按钮在该区域启动CloudFormation堆栈。
+2. 单击以下按钮在该区域启动CloudFormation堆栈，选择一种方式部署。
+   - **ALB + Lambda**
 
-   [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-proxy-api/latest/BedrockProxy.template)
+      [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxy.template)
+   - **ALB + Fargate**
+   
+      [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxyFargate.template)
 3. 单击"下一步"。
 4. 在"指定堆栈详细信息"页面,提供以下信息:
     - 堆栈名称: 可以根据需要更改名称。

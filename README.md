@@ -56,7 +56,9 @@ The following diagram illustrates the reference architecture. Note that it also 
 
 ![Architecture](assets/arch.svg)
 
-> Note: You can use Lambda Web Adapter + Function URL (see [example](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming) to replace ALB or AWS Fargate to replace Lambda to get better performance on streaming response.
+You can also choose to use [AWS Fargate](https://aws.amazon.com/fargate/) behind the ALB instead of [AWS Lambda](https://aws.amazon.com/lambda/), the main difference is the latency of the first byte for streaming response (Fargate is lower).
+
+Alternatively, you can use Lambda Function URL to replace ALB, see [example](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming)
 
 ### Deployment
 
@@ -81,9 +83,13 @@ Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS acc
 **Step 2: Deploy the CloudFormation stack**
 
 1. Sign in to AWS Management Console, switch to the region to deploy the CloudFormation Stack to.
-2. Click the following button to launch the CloudFormation Stack in that region.
+2. Click the following button to launch the CloudFormation Stack in that region. Choose one of the following:
+   - **ALB + Lambda**
 
-   [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-proxy-api/latest/BedrockProxy.template)
+      [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxy.template)
+   - **ALB + Fargate**
+   
+      [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxyFargate.template)
 3. Click "Next".
 4. On the "Specify stack details" page, provide the following information:
     - Stack name: Change the stack name if needed.
