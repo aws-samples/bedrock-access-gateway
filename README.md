@@ -17,24 +17,26 @@ If you find this GitHub repository useful, please consider giving it a free star
 - [x] Support streaming response via server-sent events (SSE)
 - [x] Support Model APIs
 - [x] Support Chat Completion APIs
-- [ ] Support Function Call/Tool Call
-- [ ] Support Embedding APIs
-- [ ] Support Image APIs
+- [x] Support Function Call/Tool Call (**beta**)
+- [x] Support Embedding APIs (**beta**)
+- [x] Support Multimodal API (**beta**)
 
-> **Important notes:** 1/ The legacy [text completion](https://platform.openai.com/docs/api-reference/completions) API is not
-> supported, you should move to chat completion API. 2/ May support other APIs such as fine-tuning, Assistants API, etc. in the future.
+> **Note:** The legacy [text completion](https://platform.openai.com/docs/api-reference/completions) API is not supported, you should change to use chat completion API.
 
 Supported Amazon Bedrock models (Model IDs):
 
-- `anthropic.claude-instant-v1`
-- `anthropic.claude-v2:1`
-- `anthropic.claude-v2`
-- `anthropic.claude-3-sonnet-20240229-v1:0`
-- `anthropic.claude-3-haiku-20240307-v1:0`
-- `meta.llama2-13b-chat-v1`
-- `meta.llama2-70b-chat-v1`
-- `mistral.mistral-7b-instruct-v0:2`
-- `mistral.mixtral-8x7b-instruct-v0:1`
+- anthropic.claude-instant-v1
+- anthropic.claude-v2:1
+- anthropic.claude-v2
+- anthropic.claude-3-sonnet-20240229-v1:0
+- anthropic.claude-3-haiku-20240307-v1:0
+- meta.llama2-13b-chat-v1
+- meta.llama2-70b-chat-v1
+- mistral.mistral-7b-instruct-v0:2
+- mistral.mixtral-8x7b-instruct-v0:1
+- mistral.mistral-large-2402-v1:0
+- cohere.embed-multilingual-v3 (embedding)
+- cohere.embed-english-v3 (embedding)
 
 > **Note:** The default model is set to `anthropic.claude-3-sonnet-20240229-v1:0` which can be changed via Lambda environment variables (`DEFAULT_MODEL`).
 

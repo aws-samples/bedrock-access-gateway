@@ -19,12 +19,11 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 - [x] 支持 server-sent events (SSE)的流式响应
 - [x] 支持 Model APIs
 - [x] 支持 Chat Completion APIs
-- [ ] 支持 Function Call/Tool Call
-- [ ] 支持 Embedding APIs
-- [ ] 支持 Image APIs
+- [x] 支持 Function Call/Tool Call (**beta**)
+- [x] 支持 Embedding APIs (**beta**)
+- [x] 支持 Multimodal APIs (**beta**)
 
-> 注意： 1，不支持旧的 [text completion](https://platform.openai.com/docs/api-reference/completions) API，请更改为使用Chat
-> Completion API。 2.未来可能支持其他API, 如Fine-tune、Assistants API等。
+> 注意： 不支持旧的 [text completion](https://platform.openai.com/docs/api-reference/completions) API，请更改为使用Chat Completion API。
 
 支持的Amazon Bedrock模型列表（Model IDs）：
 
@@ -37,7 +36,10 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 - meta.llama2-70b-chat-v1
 - mistral.mistral-7b-instruct-v0:2
 - mistral.mixtral-8x7b-instruct-v0:1
-
+- mistral.mistral-large-2402-v1:0
+- cohere.embed-multilingual-v3 (embedding)
+- cohere.embed-english-v3 (embedding)
+- 
 > 注意: 默认模型为 `anthropic.claude-3-sonnet-20240229-v1:0`， 可以通过更改Lambda环境变量进行更改。
 
 ## 使用指南
