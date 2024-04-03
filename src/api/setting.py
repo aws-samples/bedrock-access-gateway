@@ -22,6 +22,7 @@ List of Amazon Bedrock models currently supported:
 - meta.llama2-70b-chat-v1
 - mistral.mistral-7b-instruct-v0:2
 - mistral.mixtral-8x7b-instruct-v0:1
+- mistral.mistral-large-2402-v1:0
 
 # Embeddings
 - cohere.embed-multilingual-v3
