@@ -16,6 +16,17 @@ class Models(BaseModel):
     data: list[Model] = []
 
 
+class ResponseFunction(BaseModel):
+    name: str
+    arguments: str
+
+
+class ToolCall(BaseModel):
+    id: str
+    type: Literal["function"] = "function"
+    function: ResponseFunction
+
+
 class TextContent(BaseModel):
     type: Literal["text"] = "text"
     text: str
@@ -31,10 +42,29 @@ class ImageContent(BaseModel):
     image_url: ImageUrl
 
 
-class ChatRequestMessage(BaseModel):
+class SystemMessage(BaseModel):
     name: str | None = None
-    role: Literal["user", "assistant", "system"]
+    role: Literal["system"] = "system"
+    content: str
+
+
+class UserMessage(BaseModel):
+    name: str | None = None
+    role: Literal["user"] = "user"
     content: str | list[TextContent | ImageContent]
+
+
+class AssistantMessage(BaseModel):
+    name: str | None = None
+    role: Literal["assistant"] = "assistant"
+    content: str | None
+    tool_calls: list[ToolCall] | None = None
+
+
+class ToolMessage(BaseModel):
+    role: Literal["tool"] = "tool"
+    content: str
+    tool_call_id: str
 
 
 class Function(BaseModel):
@@ -49,7 +79,7 @@ class Tool(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    messages: list[ChatRequestMessage]
+    messages: list[SystemMessage | UserMessage | AssistantMessage | ToolMessage]
     model: str
     frequency_penalty: float | None = Field(default=0.0, le=2.0, ge=-2.0)  # Not used
     presence_penalty: float | None = Field(default=0.0, le=2.0, ge=-2.0)  # Not used
@@ -67,17 +97,6 @@ class Usage(BaseModel):
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
-
-
-class ResponseFunction(BaseModel):
-    name: str
-    arguments: str
-
-
-class ToolCall(BaseModel):
-    id: str
-    type: Literal["function"] = "function"
-    function: ResponseFunction
 
 
 class ChatResponseMessage(BaseModel):
