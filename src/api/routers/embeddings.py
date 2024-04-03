@@ -15,7 +15,7 @@ router = APIRouter(
 )
 
 
-@router.post("/", response_model=EmbeddingsResponse)
+@router.post("", response_model=EmbeddingsResponse)
 async def embeddings(
         embeddings_request: Annotated[
             EmbeddingsRequest,

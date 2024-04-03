@@ -20,7 +20,7 @@ async def validate_model_id(model_id: str):
         raise HTTPException(status_code=500, detail="Unsupported Model Id")
 
 
-@router.get("/", response_model=Models)
+@router.get("", response_model=Models)
 async def list_models():
     model_list = [Model(id=model_id) for model_id in
                   (SUPPORTED_BEDROCK_MODELS | SUPPORTED_BEDROCK_EMBEDDING_MODELS).keys()]
