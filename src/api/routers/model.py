@@ -10,7 +10,6 @@ router = APIRouter()
 
 router = APIRouter(
     prefix="/models",
-    tags=["items"],
     dependencies=[Depends(api_key_auth)],
     # responses={404: {"description": "Not found"}},
 )
@@ -18,12 +17,13 @@ router = APIRouter(
 
 async def validate_model_id(model_id: str):
     if model_id not in (SUPPORTED_BEDROCK_MODELS | SUPPORTED_BEDROCK_EMBEDDING_MODELS).keys():
-        raise HTTPException(status_code=400, detail="Unsupported Model Id")
+        raise HTTPException(status_code=500, detail="Unsupported Model Id")
 
 
 @router.get("/", response_model=Models)
 async def list_models():
-    model_list = [Model(id=model_id) for model_id in (SUPPORTED_BEDROCK_MODELS | SUPPORTED_BEDROCK_EMBEDDING_MODELS).keys()]
+    model_list = [Model(id=model_id) for model_id in
+                  (SUPPORTED_BEDROCK_MODELS | SUPPORTED_BEDROCK_EMBEDDING_MODELS).keys()]
     return Models(data=model_list)
 
 
@@ -32,10 +32,10 @@ async def list_models():
     response_model=Model,
 )
 async def get_model(
-    model_id: Annotated[
-        str,
-        Path(description="Model ID", example="anthropic.claude-3-sonnet-20240229-v1:0"),
-    ]
+        model_id: Annotated[
+            str,
+            Path(description="Model ID", example="anthropic.claude-3-sonnet-20240229-v1:0"),
+        ]
 ):
     await validate_model_id(model_id)
     return Model(id=model_id)
