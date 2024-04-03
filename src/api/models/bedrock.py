@@ -49,6 +49,7 @@ SUPPORTED_BEDROCK_MODELS = {
     "meta.llama2-70b-chat-v1": "Llama 2 Chat 70B",
     "mistral.mistral-7b-instruct-v0:2": "Mistral 7B Instruct",
     "mistral.mixtral-8x7b-instruct-v0:1": "Mixtral 8x7B Instruct",
+    "mistral.mistral-large-2402-v1:0": "Mistral Large",
 }
 
 SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
@@ -657,7 +658,7 @@ def get_model(model_id: str) -> BedrockModel:
         return ClaudeModel()
     elif model_name in ["Llama 2 Chat 13B", "Llama 2 Chat 70B"]:
         return Llama2Model()
-    elif model_name in ["Mistral 7B Instruct", "Mixtral 8x7B Instruct"]:
+    elif model_name in ["Mistral 7B Instruct", "Mixtral 8x7B Instruct", "Mistral Large"]:
         return MistralModel()
     else:
         logger.error("Unsupported model id " + model_id)
