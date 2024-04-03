@@ -39,7 +39,7 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 - mistral.mistral-large-2402-v1:0
 - cohere.embed-multilingual-v3 (embedding)
 - cohere.embed-english-v3 (embedding)
-- 
+
 > 注意: 默认模型为 `anthropic.claude-3-sonnet-20240229-v1:0`， 可以通过更改Lambda环境变量进行更改。
 
 ## 使用指南
