@@ -18,12 +18,12 @@
         "Tags": [
           {
             "Key": "Name",
-            "Value": "BedrockProxy/VPC"
+            "Value": "BedrockProxyFargate/VPC"
           }
         ]
       },
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/Resource"
+        "aws:cdk:path": "BedrockProxyFargate/VPC/Resource"
       }
     },
     "VPCPublicSubnet1SubnetB4246D30": {
@@ -50,7 +50,7 @@
           },
           {
             "Key": "Name",
-            "Value": "BedrockProxy/VPC/PublicSubnet1"
+            "Value": "BedrockProxyFargate/VPC/PublicSubnet1"
           }
         ],
         "VpcId": {
@@ -58,7 +58,7 @@
         }
       },
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet1/Subnet"
+        "aws:cdk:path": "BedrockProxyFargate/VPC/PublicSubnet1/Subnet"
       }
     },
     "VPCPublicSubnet1RouteTableFEE4B781": {
@@ -67,7 +67,7 @@
         "Tags": [
           {
             "Key": "Name",
-            "Value": "BedrockProxy/VPC/PublicSubnet1"
+            "Value": "BedrockProxyFargate/VPC/PublicSubnet1"
           }
         ],
         "VpcId": {
@@ -75,7 +75,7 @@
         }
       },
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet1/RouteTable"
+        "aws:cdk:path": "BedrockProxyFargate/VPC/PublicSubnet1/RouteTable"
       }
     },
     "VPCPublicSubnet1RouteTableAssociation0B0896DC": {
@@ -89,7 +89,7 @@
         }
       },
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet1/RouteTableAssociation"
+        "aws:cdk:path": "BedrockProxyFargate/VPC/PublicSubnet1/RouteTableAssociation"
       }
     },
     "VPCPublicSubnet1DefaultRoute91CEF279": {
@@ -107,7 +107,7 @@
         "VPCVPCGW99B986DC"
       ],
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet1/DefaultRoute"
+        "aws:cdk:path": "BedrockProxyFargate/VPC/PublicSubnet1/DefaultRoute"
       }
     },
     "VPCPublicSubnet2Subnet74179F39": {
@@ -134,7 +134,7 @@
           },
           {
             "Key": "Name",
-            "Value": "BedrockProxy/VPC/PublicSubnet2"
+            "Value": "BedrockProxyFargate/VPC/PublicSubnet2"
           }
         ],
         "VpcId": {
@@ -142,7 +142,7 @@
         }
       },
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet2/Subnet"
+        "aws:cdk:path": "BedrockProxyFargate/VPC/PublicSubnet2/Subnet"
       }
     },
     "VPCPublicSubnet2RouteTable6F1A15F1": {
@@ -151,7 +151,7 @@
         "Tags": [
           {
             "Key": "Name",
-            "Value": "BedrockProxy/VPC/PublicSubnet2"
+            "Value": "BedrockProxyFargate/VPC/PublicSubnet2"
           }
         ],
         "VpcId": {
@@ -159,7 +159,7 @@
         }
       },
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet2/RouteTable"
+        "aws:cdk:path": "BedrockProxyFargate/VPC/PublicSubnet2/RouteTable"
       }
     },
     "VPCPublicSubnet2RouteTableAssociation5A808732": {
@@ -173,7 +173,7 @@
         }
       },
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet2/RouteTableAssociation"
+        "aws:cdk:path": "BedrockProxyFargate/VPC/PublicSubnet2/RouteTableAssociation"
       }
     },
     "VPCPublicSubnet2DefaultRouteB7481BBA": {
@@ -191,7 +191,7 @@
         "VPCVPCGW99B986DC"
       ],
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet2/DefaultRoute"
+        "aws:cdk:path": "BedrockProxyFargate/VPC/PublicSubnet2/DefaultRoute"
       }
     },
     "VPCIGWB7E252D3": {
@@ -200,12 +200,12 @@
         "Tags": [
           {
             "Key": "Name",
-            "Value": "BedrockProxy/VPC"
+            "Value": "BedrockProxyFargate/VPC"
           }
         ]
       },
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/IGW"
+        "aws:cdk:path": "BedrockProxyFargate/VPC/IGW"
       }
     },
     "VPCVPCGW99B986DC": {
@@ -219,10 +219,10 @@
         }
       },
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/VPCGW"
+        "aws:cdk:path": "BedrockProxyFargate/VPC/VPCGW"
       }
     },
-    "ProxyApiHandlerServiceRoleBE71BFB1": {
+    "ProxyExecRole6947A5BE": {
       "Type": "AWS::IAM::Role",
       "Properties": {
         "AssumeRolePolicyDocument": {
@@ -231,32 +231,91 @@
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
               "Principal": {
-                "Service": "lambda.amazonaws.com"
+                "Service": "ecs-tasks.amazonaws.com"
               }
             }
           ],
           "Version": "2012-10-17"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/ExecRole/Resource"
+      }
+    },
+    "ProxyExecRoleDefaultPolicyED41DFE7": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Effect": "Allow",
+              "Resource": "*"
+            },
+            {
+              "Action": [
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage"
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::FindInMap": [
+                  "ProxyRegionTable03E5BEB3",
+                  {
+                    "Ref": "AWS::Region"
+                  },
+                  "repoArn"
+                ]
+              }
+            },
+            {
+              "Action": "ecr:GetAuthorizationToken",
+              "Effect": "Allow",
+              "Resource": "*"
+            }
+          ],
+          "Version": "2012-10-17"
         },
-        "ManagedPolicyArns": [
+        "PolicyName": "ProxyExecRoleDefaultPolicyED41DFE7",
+        "Roles": [
           {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition"
-                },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-              ]
-            ]
+            "Ref": "ProxyExecRole6947A5BE"
           }
         ]
       },
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ApiHandler/ServiceRole/Resource"
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/ExecRole/DefaultPolicy/Resource"
       }
     },
-    "ProxyApiHandlerServiceRoleDefaultPolicy86681202": {
+    "ProxyTaskRole5DB6A540": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/TaskRole/Resource"
+      }
+    },
+    "ProxyTaskRoleDefaultPolicy933321B8": {
       "Type": "AWS::IAM::Policy",
       "Properties": {
         "PolicyDocument": {
@@ -304,127 +363,279 @@
           ],
           "Version": "2012-10-17"
         },
-        "PolicyName": "ProxyApiHandlerServiceRoleDefaultPolicy86681202",
+        "PolicyName": "ProxyTaskRoleDefaultPolicy933321B8",
         "Roles": [
           {
-            "Ref": "ProxyApiHandlerServiceRoleBE71BFB1"
+            "Ref": "ProxyTaskRole5DB6A540"
           }
         ]
       },
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ApiHandler/ServiceRole/DefaultPolicy/Resource"
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/TaskRole/DefaultPolicy/Resource"
       }
     },
-    "ProxyApiHandlerEC15A492": {
-      "Type": "AWS::Lambda::Function",
+    "ProxyBedrockCluster893F4261": {
+      "Type": "AWS::ECS::Cluster",
+      "Metadata": {
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/BedrockCluster/Resource"
+      }
+    },
+    "ProxyBedrockClusterD9C31EFF": {
+      "Type": "AWS::ECS::ClusterCapacityProviderAssociations",
       "Properties": {
-        "Architectures": [
-          "arm64"
+        "CapacityProviders": [
+          "FARGATE",
+          "FARGATE_SPOT"
         ],
-        "Code": {
-          "ImageUri": {
-            "Fn::Join": [
-              "",
-              [
-                {
-                  "Fn::Select": [
-                    4,
+        "Cluster": {
+          "Ref": "ProxyBedrockCluster893F4261"
+        },
+        "DefaultCapacityProviderStrategy": []
+      },
+      "Metadata": {
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/BedrockCluster/BedrockCluster"
+      }
+    },
+    "ProxyTaskDef9F2A72E5": {
+      "Type": "AWS::ECS::TaskDefinition",
+      "Properties": {
+        "ContainerDefinitions": [
+          {
+            "Environment": [
+              {
+                "Name": "API_KEY_PARAM_NAME",
+                "Value": {
+                  "Ref": "ApiKeyParam"
+                }
+              },
+              {
+                "Name": "DEBUG",
+                "Value": "false"
+              },
+              {
+                "Name": "DEFAULT_MODEL",
+                "Value": {
+                  "Fn::FindInMap": [
+                    "ProxyRegionTable03E5BEB3",
                     {
-                      "Fn::Split": [
-                        ":",
-                        {
-                          "Fn::FindInMap": [
-                            "ProxyRegionTable03E5BEB3",
-                            {
-                              "Ref": "AWS::Region"
-                            },
-                            "repoArn"
-                          ]
-                        }
-                      ]
-                    }
+                      "Ref": "AWS::Region"
+                    },
+                    "model"
                   ]
-                },
-                ".dkr.ecr.",
-                {
-                  "Fn::Select": [
-                    3,
-                    {
-                      "Fn::Split": [
-                        ":",
-                        {
-                          "Fn::FindInMap": [
-                            "ProxyRegionTable03E5BEB3",
-                            {
-                              "Ref": "AWS::Region"
-                            },
-                            "repoArn"
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                },
-                ".",
-                {
-                  "Ref": "AWS::URLSuffix"
-                },
-                "/bedrock-proxy-api:latest"
+                }
+              },
+              {
+                "Name": "DEFAULT_EMBEDDING_MODEL",
+                "Value": "cohere.embed-multilingual-v3"
+              }
+            ],
+            "Essential": true,
+            "Image": {
+              "Fn::Join": [
+                "",
+                [
+                  {
+                    "Fn::Select": [
+                      4,
+                      {
+                        "Fn::Split": [
+                          ":",
+                          {
+                            "Fn::FindInMap": [
+                              "ProxyRegionTable03E5BEB3",
+                              {
+                                "Ref": "AWS::Region"
+                              },
+                              "repoArn"
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  ".dkr.ecr.",
+                  {
+                    "Fn::Select": [
+                      3,
+                      {
+                        "Fn::Split": [
+                          ":",
+                          {
+                            "Fn::FindInMap": [
+                              "ProxyRegionTable03E5BEB3",
+                              {
+                                "Ref": "AWS::Region"
+                              },
+                              "repoArn"
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  ".",
+                  {
+                    "Ref": "AWS::URLSuffix"
+                  },
+                  "/bedrock-proxy-api-ecs:latest"
+                ]
               ]
+            },
+            "Name": "proxy-api",
+            "PortMappings": [
+              {
+                "ContainerPort": 80,
+                "HostPort": 80,
+                "Protocol": "tcp"
+              }
+            ]
+          }
+        ],
+        "Cpu": "1024",
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
+            "ProxyExecRole6947A5BE",
+            "Arn"
+          ]
+        },
+        "Family": "BedrockProxyFargateProxyTaskDefCD902792",
+        "Memory": "2048",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": [
+          "FARGATE"
+        ],
+        "RuntimePlatform": {
+          "CpuArchitecture": "ARM64",
+          "OperatingSystemFamily": "LINUX"
+        },
+        "TaskRoleArn": {
+          "Fn::GetAtt": [
+            "ProxyTaskRole5DB6A540",
+            "Arn"
+          ]
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/TaskDef/Resource"
+      }
+    },
+    "ProxyApiService8651D882": {
+      "Type": "AWS::ECS::Service",
+      "Properties": {
+        "CapacityProviderStrategy": [
+          {
+            "CapacityProvider": "FARGATE",
+            "Weight": 1
+          }
+        ],
+        "Cluster": {
+          "Ref": "ProxyBedrockCluster893F4261"
+        },
+        "DeploymentConfiguration": {
+          "Alarms": {
+            "AlarmNames": [],
+            "Enable": false,
+            "Rollback": false
+          },
+          "MaximumPercent": 200,
+          "MinimumHealthyPercent": 50
+        },
+        "DesiredCount": 1,
+        "EnableECSManagedTags": false,
+        "HealthCheckGracePeriodSeconds": 60,
+        "LoadBalancers": [
+          {
+            "ContainerName": "proxy-api",
+            "ContainerPort": 80,
+            "TargetGroupArn": {
+              "Ref": "ProxyALBListenerTargetsGroup187739FA"
+            }
+          }
+        ],
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "AssignPublicIp": "ENABLED",
+            "SecurityGroups": [
+              {
+                "Fn::GetAtt": [
+                  "ProxyApiServiceSecurityGroup51EBD9B8",
+                  "GroupId"
+                ]
+              }
+            ],
+            "Subnets": [
+              {
+                "Ref": "VPCPublicSubnet1SubnetB4246D30"
+              },
+              {
+                "Ref": "VPCPublicSubnet2Subnet74179F39"
+              }
             ]
           }
         },
-        "Description": "Bedrock Proxy API Handler",
-        "Environment": {
-          "Variables": {
-            "API_KEY_PARAM_NAME": {
-              "Ref": "ApiKeyParam"
-            },
-            "DEBUG": "false",
-            "DEFAULT_MODEL": {
-              "Fn::FindInMap": [
-                "ProxyRegionTable03E5BEB3",
-                {
-                  "Ref": "AWS::Region"
-                },
-                "model"
-              ]
-            },
-            "DEFAULT_EMBEDDING_MODEL": "cohere.embed-multilingual-v3"
-          }
-        },
-        "MemorySize": 1024,
-        "PackageType": "Image",
-        "Role": {
-          "Fn::GetAtt": [
-            "ProxyApiHandlerServiceRoleBE71BFB1",
-            "Arn"
-          ]
-        },
-        "Timeout": 300
+        "TaskDefinition": {
+          "Ref": "ProxyTaskDef9F2A72E5"
+        }
       },
       "DependsOn": [
-        "ProxyApiHandlerServiceRoleDefaultPolicy86681202",
-        "ProxyApiHandlerServiceRoleBE71BFB1"
+        "ProxyALBListener933E9515",
+        "ProxyALBListenerTargetsGroup187739FA",
+        "ProxyTaskRoleDefaultPolicy933321B8",
+        "ProxyTaskRole5DB6A540"
       ],
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ApiHandler/Resource"
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/ApiService/Service"
       }
     },
-    "ProxyApiHandlerInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYF6C33779": {
-      "Type": "AWS::Lambda::Permission",
+    "ProxyApiServiceSecurityGroup51EBD9B8": {
+      "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
+        "GroupDescription": "BedrockProxyFargate/Proxy/ApiService/SecurityGroup",
+        "SecurityGroupEgress": [
+          {
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow all outbound traffic by default",
+            "IpProtocol": "-1"
+          }
+        ],
+        "VpcId": {
+          "Ref": "VPCB9E5F0B4"
+        }
+      },
+      "DependsOn": [
+        "ProxyTaskRoleDefaultPolicy933321B8",
+        "ProxyTaskRole5DB6A540"
+      ],
+      "Metadata": {
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/ApiService/SecurityGroup/Resource"
+      }
+    },
+    "ProxyApiServiceSecurityGroupfromBedrockProxyFargateProxyALBSecurityGroup9C12825880081F8FE2": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "Description": "Load balancer to target",
+        "FromPort": 80,
+        "GroupId": {
           "Fn::GetAtt": [
-            "ProxyApiHandlerEC15A492",
-            "Arn"
+            "ProxyApiServiceSecurityGroup51EBD9B8",
+            "GroupId"
           ]
         },
-        "Principal": "elasticloadbalancing.amazonaws.com"
+        "IpProtocol": "tcp",
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [
+            "ProxyALBSecurityGroup0D6CA3DA",
+            "GroupId"
+          ]
+        },
+        "ToPort": 80
       },
+      "DependsOn": [
+        "ProxyTaskRoleDefaultPolicy933321B8",
+        "ProxyTaskRole5DB6A540"
+      ],
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ApiHandler/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y="
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/ApiService/SecurityGroup/from BedrockProxyFargateProxyALBSecurityGroup9C128258:80"
       }
     },
     "ProxyALB87756780": {
@@ -462,22 +673,13 @@
         "VPCPublicSubnet2RouteTableAssociation5A808732"
       ],
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ALB/Resource"
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/ALB/Resource"
       }
     },
     "ProxyALBSecurityGroup0D6CA3DA": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
-        "GroupDescription": "Automatically created Security Group for ELB BedrockProxyALB1CE4CAD1",
-        "SecurityGroupEgress": [
-          {
-            "CidrIp": "255.255.255.255/32",
-            "Description": "Disallow all traffic",
-            "FromPort": 252,
-            "IpProtocol": "icmp",
-            "ToPort": 86
-          }
-        ],
+        "GroupDescription": "Automatically created Security Group for ELB BedrockProxyFargateProxyALB481672E7",
         "SecurityGroupIngress": [
           {
             "CidrIp": "0.0.0.0/0",
@@ -492,7 +694,31 @@
         }
       },
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ALB/SecurityGroup/Resource"
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/ALB/SecurityGroup/Resource"
+      }
+    },
+    "ProxyALBSecurityGrouptoBedrockProxyFargateProxyApiServiceSecurityGroupDDA1C56480393D1E44": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "Description": "Load balancer to target",
+        "DestinationSecurityGroupId": {
+          "Fn::GetAtt": [
+            "ProxyApiServiceSecurityGroup51EBD9B8",
+            "GroupId"
+          ]
+        },
+        "FromPort": 80,
+        "GroupId": {
+          "Fn::GetAtt": [
+            "ProxyALBSecurityGroup0D6CA3DA",
+            "GroupId"
+          ]
+        },
+        "IpProtocol": "tcp",
+        "ToPort": 80
+      },
+      "Metadata": {
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/ALB/SecurityGroup/to BedrockProxyFargateProxyApiServiceSecurityGroupDDA1C564:80"
       }
     },
     "ProxyALBListener933E9515": {
@@ -513,39 +739,38 @@
         "Protocol": "HTTP"
       },
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ALB/Listener/Resource"
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/ALB/Listener/Resource"
       }
     },
     "ProxyALBListenerTargetsGroup187739FA": {
       "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
       "Properties": {
-        "HealthCheckEnabled": false,
-        "TargetType": "lambda",
-        "Targets": [
+        "HealthCheckEnabled": true,
+        "HealthCheckPath": "/health",
+        "Port": 80,
+        "Protocol": "HTTP",
+        "TargetGroupAttributes": [
           {
-            "Id": {
-              "Fn::GetAtt": [
-                "ProxyApiHandlerEC15A492",
-                "Arn"
-              ]
-            }
+            "Key": "stickiness.enabled",
+            "Value": "false"
           }
-        ]
+        ],
+        "TargetType": "ip",
+        "VpcId": {
+          "Ref": "VPCB9E5F0B4"
+        }
       },
-      "DependsOn": [
-        "ProxyApiHandlerInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYF6C33779"
-      ],
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ALB/Listener/TargetsGroup/Resource"
+        "aws:cdk:path": "BedrockProxyFargate/Proxy/ALB/Listener/TargetsGroup/Resource"
       }
     },
     "CDKMetadata": {
       "Type": "AWS::CDK::Metadata",
       "Properties": {
-        "Analytics": "v2:deflate64:H4sIAAAAAAAA/1VRXW/CMAz8LbyHDMovAKZNSJtWFcTr5LpeZ0iTKHFAqOp/n1q+uief7y7ynZLp+WKhZxM4xylWx6nhUrdbATyq9Y/NIUBDQkHBOX63hJlu9x57aZ+vVZ5Kw7hNpSXpuScqXBLaQWnoyT+5ZYwOGYSdfZh7sLFCwZK8g9AZLrczt20pAvjbkBW1JUyB5fIeXPLDgTHRKcKgC/IusrhwWUEkZaApK9Dtq8MjhU0DNb0li/cIY5xTaDhGdrZTDI1uC3etMczcGcYh2hV1igxEYTQOqhIMWGRbnzLdLr03jEPLDwfVatAo9E//7WMfRyF789zxSN9BqEketUdr16mCoksBh6if4D3buodfSXy6fsrIsHa2Yhk6WleRPsSXUzbT87meTQ6ReRqSFW5IF9f5B/Z2H8goAgAA"
+        "Analytics": "v2:deflate64:H4sIAAAAAAAA/31S0W7bMAz8lr4rWpJ+Qep1RYEOM5yirwMtMy4bhRJEKkFg+N8H22njrkCfeDyecORBa7u6vbXLGzjJwjX7hafadlsFtzfFjktIcEDFZOAkfzt0a9u9RDeMXsrClLn25La5ZtSBu6IqZMVnqD1e+Su3EQmOQCnwh3gAj6yYGPUBFE9wvthcuo0quNcDspotupxIzw8p5DgafEs8cptQ5At/P9K9ITjYrgrTrmMtgyc3+k+oN+iSrTAGIQ3pfAeCBp3YrvBZhnyKHX+FBURwpOcyhSM1mGZ3i/kFqYUhENn/xB0xvcfxPxNYgRjTjLu83WI6kpsinmBv0IMoOR+gqcEDO+L2uLbdJkZPbvR+CtDcjbNp20/9XEeiyBfNO57NnyG1qB+Zz9q+NxVKyGla7jfESNwO8E/WmKcvMhMUgZvxst5waNC+yY/jemlXK7u8eROiRcqsdEBbTfUfruxAGrYCAAA="
       },
       "Metadata": {
-        "aws:cdk:path": "BedrockProxy/CDKMetadata/Default"
+        "aws:cdk:path": "BedrockProxyFargate/CDKMetadata/Default"
       },
       "Condition": "CDKMetadataAvailable"
     }
@@ -553,27 +778,27 @@
   "Mappings": {
     "ProxyRegionTable03E5BEB3": {
       "us-east-1": {
-        "repoArn": "arn:aws:ecr:us-east-1:366590864501:repository/bedrock-proxy-api",
+        "repoArn": "arn:aws:ecr:us-east-1:366590864501:repository/bedrock-proxy-api-ecs",
         "model": "anthropic.claude-3-sonnet-20240229-v1:0"
       },
       "us-west-2": {
-        "repoArn": "arn:aws:ecr:us-west-2:366590864501:repository/bedrock-proxy-api",
+        "repoArn": "arn:aws:ecr:us-west-2:366590864501:repository/bedrock-proxy-api-ecs",
         "model": "anthropic.claude-3-sonnet-20240229-v1:0"
       },
       "ap-southeast-1": {
-        "repoArn": "arn:aws:ecr:ap-southeast-1:366590864501:repository/bedrock-proxy-api",
+        "repoArn": "arn:aws:ecr:ap-southeast-1:366590864501:repository/bedrock-proxy-api-ecs",
         "model": "anthropic.claude-v2"
       },
       "ap-northeast-1": {
-        "repoArn": "arn:aws:ecr:ap-northeast-1:366590864501:repository/bedrock-proxy-api",
+        "repoArn": "arn:aws:ecr:ap-northeast-1:366590864501:repository/bedrock-proxy-api-ecs",
         "model": "anthropic.claude-v2:1"
       },
       "eu-central-1": {
-        "repoArn": "arn:aws:ecr:eu-central-1:366590864501:repository/bedrock-proxy-api",
+        "repoArn": "arn:aws:ecr:eu-central-1:366590864501:repository/bedrock-proxy-api-ecs",
         "model": "anthropic.claude-v2:1"
       },
       "eu-west-3": {
-        "repoArn": "arn:aws:ecr:eu-west-3:366590864501:repository/bedrock-proxy-api",
+        "repoArn": "arn:aws:ecr:eu-west-3:366590864501:repository/bedrock-proxy-api-ecs",
         "model": "anthropic.claude-3-sonnet-20240229-v1:0"
       }
     }
