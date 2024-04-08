@@ -17,9 +17,11 @@ If you find this GitHub repository useful, please consider giving it a free star
 - [x] Support streaming response via server-sent events (SSE)
 - [x] Support Model APIs
 - [x] Support Chat Completion APIs
-- [x] Support Function Call/Tool Call (**beta**)
-- [x] Support Embedding APIs (**beta**)
-- [x] Support Multimodal API (**beta**)
+- [x] Support Tool Call (**new**)
+- [x] Support Embedding API (**new**)
+- [x] Support Multimodal API (**new**)
+
+Please check [Usage Guide](./docs/Usage.md) for more details about how to use the new APIs.
 
 > **Note:** The legacy [text completion](https://platform.openai.com/docs/api-reference/completions) API is not supported, you should change to use chat completion API.
 
@@ -146,6 +148,8 @@ completion = client.chat.completions.create(
 print(completion.choices[0].message.content)
 ```
 
+Please check [Usage Guide](./docs/Usage.md) for more details about how to use embedding API, multimodal API and tool call.
+
 ## Other Examples
 
 ### AutoGen
@@ -200,11 +204,12 @@ Short answer is that API Gateway does not support server-sent events (SSE) for s
 
 This solution only supports the regions where Amazon Bedrock is available:
 
-- US East (N. Virginia)
-- US West (Oregon)
-- Asia Pacific (Singapore)
-- Asia Pacific (Tokyo)
-- Europe (Frankfurt)
+- US East (N. Virginia): us-east-1
+- US West (Oregon): us-west-2
+- Asia Pacific (Singapore): ap-southeast-1
+- Asia Pacific (Tokyo): ap-northeast-1
+- Europe (Frankfurt): eu-central-1
+- Europe (Paris): eu-west-3
 
 Note that not all models are available in those regions.
 

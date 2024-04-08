@@ -19,9 +19,11 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 - [x] 支持 server-sent events (SSE)的流式响应
 - [x] 支持 Model APIs
 - [x] 支持 Chat Completion APIs
-- [x] 支持 Function Call/Tool Call (**beta**)
-- [x] 支持 Embedding APIs (**beta**)
-- [x] 支持 Multimodal APIs (**beta**)
+- [x] 支持 Tool Call (**new**)
+- [x] 支持 Embedding API (**new**)
+- [x] 支持 Multimodal API (**new**)
+
+请查看[使用指南](./docs/Usage_CN.md)以获取有关如何使用新API的更多详细信息。
 
 > 注意： 不支持旧的 [text completion](https://platform.openai.com/docs/api-reference/completions) API，请更改为使用Chat Completion API。
 
@@ -151,6 +153,8 @@ completion = client.chat.completions.create(
 print(completion.choices[0].message.content)
 ```
 
+请查看[使用指南](./docs/Usage_CN.md)以获取有关如何使用Embedding API、多模态API和Tool Call的更多详细信息。
+
 ## 其他例子
 
 ### AutoGen
@@ -205,11 +209,12 @@ print(response)
 
 只支持Amazon Bedrock可用的区域,即:
 
-- 美国东部(弗吉尼亚北部)
-- 美国西部(俄勒冈州)
-- 亚太地区(新加坡)
-- 亚太地区(东京)
-- 欧洲(法兰克福)
+- 美国东部(弗吉尼亚北部)：us-east-1
+- 美国西部(俄勒冈州)：us-west-2
+- 亚太地区(新加坡)：ap-southeast-1
+- 亚太地区(东京)：ap-northeast-1
+- 欧洲(法兰克福)：eu-central-1
+- 欧洲(巴黎)：eu-west-3
 
 注意，并非所有模型都在上面区可用。
 
