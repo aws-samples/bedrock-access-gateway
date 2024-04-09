@@ -94,7 +94,6 @@ print(doc_result[0][:5])
 **Important Notice**: Please carefully review the following points before using this proxy API for Multimodal.
 
 1. This API is only supported by Claude 3 model.
-2. You should ensure the image url can be publicly accessible in the Lambda/Fargate.
 
 **Example Request**
 
@@ -116,6 +115,35 @@ curl $OPENAI_BASE_URL/chat/completions \
                     "type": "image_url",
                     "image_url": {
                         "url": "https://github.com/aws-samples/bedrock-access-gateway/blob/main/assets/obj-detect.png?raw=true"
+                    }
+                }
+            ]
+        }
+    ]
+}'
+```
+
+If you need to use this API with non-public images, you can do base64 the image first and pass the encoded string. 
+Replace `image/jpeg` with the actual content type. Currently, Only 'image/jpeg', 'image/png', 'image/gif' or 'image/webp' is supported.
+
+```bash
+curl $OPENAI_BASE_URL/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "model": "gpt-3.5-turbo",
+    "messages": [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "please identify and count all the objects in this images, list all the names"
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": "data:image/jpeg;base64,<your image data>"
                     }
                 }
             ]

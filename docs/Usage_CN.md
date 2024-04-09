@@ -93,7 +93,6 @@ print(doc_result[0][:5])
 **重要**:在使用此代理API进行多模态处理之前,请仔细阅读以下几点:
 
 1. 此API 仅支持Claude 3模型。
-2. 您应确保 Lambda/Fargate 可以公开访问该图片URL。
 
 **Request 示例**
 
@@ -115,6 +114,35 @@ curl $OPENAI_BASE_URL/chat/completions \
                     "type": "image_url",
                     "image_url": {
                         "url": "https://github.com/aws-samples/bedrock-access-gateway/blob/main/assets/obj-detect.png?raw=true"
+                    }
+                }
+            ]
+        }
+    ]
+}'
+```
+
+如果您需要使用此API处理非公开图像,您可以先对图像进行base64编码,然后传递编码后的字符串。
+将"image/jpeg"替换为实际的内容类型(content type)。目前仅支持"image/jpeg"、"image/png"、"image/gif"或"image/webp"。
+
+```bash
+curl $OPENAI_BASE_URL/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "model": "gpt-3.5-turbo",
+    "messages": [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "please identify and count all the objects in this images, list all the names"
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": "data:image/jpeg;base64,<your image data>"
                     }
                 }
             ]

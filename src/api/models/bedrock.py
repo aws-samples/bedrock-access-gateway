@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import re
 from abc import ABC
 from typing import AsyncIterable, Iterable
 
@@ -175,16 +176,32 @@ class ClaudeModel(BedrockModel):
             )
         ]
 
-    def _get_base64_image(self, image_url: str) -> str:
+    def _get_base64_image(self, image_url: str) -> tuple[str, str]:
+        """Try to get the base64 data from an image url.
+
+        returns a tuple of (Image Data, Content Type)
+        """
+        pattern = r"^data:(image/[a-z]*);base64,\s*"
+        content_type = re.search(pattern, image_url)
+        # if already base64 encoded.
+        # Only supports 'image/jpeg', 'image/png', 'image/gif' or 'image/webp'
+        if content_type:
+            image_data = re.sub(pattern, "", image_url)
+            return image_data, content_type.group(1)
+
         # Send a request to the image URL
         response = requests.get(image_url)
+        content_type = response.headers.get('Content-Type')
+        if not content_type.startswith("image"):
+            content_type = "image/jpeg"
+
         # Check if the request was successful
         if response.status_code == 200:
             # Get the image content
             image_content = response.content
             # Encode the image content as base64
             base64_image = base64.b64encode(image_content)
-            return base64_image.decode("utf-8")
+            return base64_image.decode("utf-8"), content_type
         else:
             raise HTTPException(
                 status_code=500, detail="Unable to access the image url"
@@ -199,13 +216,14 @@ class ClaudeModel(BedrockModel):
             if isinstance(part, TextContent):
                 content_parts.append(part.model_dump())
             else:
+                image_data, content_type = self._get_base64_image(part.image_url.url)
                 content_parts.append(
                     {
                         "type": "image",
                         "source": {
                             "type": "base64",
-                            "media_type": "image/jpeg",
-                            "data": self._get_base64_image(part.image_url.url),
+                            "media_type": content_type,
+                            "data": image_data,
                         },
                     }
                 )
