@@ -191,12 +191,12 @@ class ClaudeModel(BedrockModel):
 
         # Send a request to the image URL
         response = requests.get(image_url)
-        content_type = response.headers.get('Content-Type')
-        if not content_type.startswith("image"):
-            content_type = "image/jpeg"
-
         # Check if the request was successful
         if response.status_code == 200:
+
+            content_type = response.headers.get('Content-Type')
+            if not content_type.startswith("image"):
+                content_type = "image/jpeg"
             # Get the image content
             image_content = response.content
             # Encode the image content as base64
