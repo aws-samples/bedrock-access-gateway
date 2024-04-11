@@ -1,4 +1,5 @@
 import time
+import uuid
 from typing import Literal, Iterable
 
 from pydantic import BaseModel, Field
@@ -22,7 +23,7 @@ class ResponseFunction(BaseModel):
 
 
 class ToolCall(BaseModel):
-    id: str
+    id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
     type: Literal["function"] = "function"
     function: ResponseFunction
 
