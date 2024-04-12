@@ -212,6 +212,7 @@ print(response)
 - 美国东部(弗吉尼亚北部)：us-east-1
 - 美国西部(俄勒冈州)：us-west-2
 - 亚太地区(新加坡)：ap-southeast-1
+- 亚太地区(悉尼)：ap-southeast-2
 - 亚太地区(东京)：ap-northeast-1
 - 欧洲(法兰克福)：eu-central-1
 - 欧洲(巴黎)：eu-west-3

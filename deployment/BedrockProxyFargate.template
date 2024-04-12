@@ -1,5 +1,6 @@
 {
   "Description": "Bedrock Access Gateway - OpenAI-compatible RESTful APIs for Amazon Bedrock",
+  "Transform": "AWS::LanguageExtensions",
   "Parameters": {
     "ApiKeyParam": {
       "Type": "String",
@@ -267,12 +268,15 @@
               ],
               "Effect": "Allow",
               "Resource": {
-                "Fn::FindInMap": [
-                  "ProxyRegionTable03E5BEB3",
-                  {
-                    "Ref": "AWS::Region"
-                  },
-                  "repoArn"
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ecr:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":366590864501:repository/bedrock-proxy-api-ecs"
+                  ]
                 ]
               }
             },
@@ -420,7 +424,10 @@
                     {
                       "Ref": "AWS::Region"
                     },
-                    "model"
+                    "model",
+                    {
+                      "DefaultValue": "anthropic.claude-3-sonnet-20240229-v1:0"
+                    }
                   ]
                 }
               },
@@ -434,44 +441,9 @@
               "Fn::Join": [
                 "",
                 [
+                  "366590864501.dkr.ecr.",
                   {
-                    "Fn::Select": [
-                      4,
-                      {
-                        "Fn::Split": [
-                          ":",
-                          {
-                            "Fn::FindInMap": [
-                              "ProxyRegionTable03E5BEB3",
-                              {
-                                "Ref": "AWS::Region"
-                              },
-                              "repoArn"
-                            ]
-                          }
-                        ]
-                      }
-                    ]
-                  },
-                  ".dkr.ecr.",
-                  {
-                    "Fn::Select": [
-                      3,
-                      {
-                        "Fn::Split": [
-                          ":",
-                          {
-                            "Fn::FindInMap": [
-                              "ProxyRegionTable03E5BEB3",
-                              {
-                                "Ref": "AWS::Region"
-                              },
-                              "repoArn"
-                            ]
-                          }
-                        ]
-                      }
-                    ]
+                    "Ref": "AWS::Region"
                   },
                   ".",
                   {
@@ -778,28 +750,16 @@
   "Mappings": {
     "ProxyRegionTable03E5BEB3": {
       "us-east-1": {
-        "repoArn": "arn:aws:ecr:us-east-1:366590864501:repository/bedrock-proxy-api-ecs",
-        "model": "anthropic.claude-3-sonnet-20240229-v1:0"
-      },
-      "us-west-2": {
-        "repoArn": "arn:aws:ecr:us-west-2:366590864501:repository/bedrock-proxy-api-ecs",
         "model": "anthropic.claude-3-sonnet-20240229-v1:0"
       },
       "ap-southeast-1": {
-        "repoArn": "arn:aws:ecr:ap-southeast-1:366590864501:repository/bedrock-proxy-api-ecs",
         "model": "anthropic.claude-v2"
       },
       "ap-northeast-1": {
-        "repoArn": "arn:aws:ecr:ap-northeast-1:366590864501:repository/bedrock-proxy-api-ecs",
         "model": "anthropic.claude-v2:1"
       },
       "eu-central-1": {
-        "repoArn": "arn:aws:ecr:eu-central-1:366590864501:repository/bedrock-proxy-api-ecs",
         "model": "anthropic.claude-v2:1"
-      },
-      "eu-west-3": {
-        "repoArn": "arn:aws:ecr:eu-west-3:366590864501:repository/bedrock-proxy-api-ecs",
-        "model": "anthropic.claude-3-sonnet-20240229-v1:0"
       }
     }
   },

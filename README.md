@@ -207,6 +207,7 @@ This solution only supports the regions where Amazon Bedrock is available:
 - US East (N. Virginia): us-east-1
 - US West (Oregon): us-west-2
 - Asia Pacific (Singapore): ap-southeast-1
+- Asia Pacific (Sydney): ap-southeast-2
 - Asia Pacific (Tokyo): ap-northeast-1
 - Europe (Frankfurt): eu-central-1
 - Europe (Paris): eu-west-3
