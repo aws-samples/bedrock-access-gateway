@@ -1,14 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Body, HTTPException
+from fastapi import APIRouter, Depends, Body
 from fastapi.responses import StreamingResponse
 
 from api.auth import api_key_auth
-from api.models import get_model, SUPPORTED_BEDROCK_MODELS
+from api.models import get_model
 from api.schema import ChatRequest, ChatResponse, ChatStreamResponse
 from api.setting import DEFAULT_MODEL
-
-router = APIRouter()
 
 router = APIRouter(
     prefix="/chat",
@@ -36,15 +34,11 @@ async def chat_completions(
 ):
     if chat_request.model.lower().startswith("gpt-"):
         chat_request.model = DEFAULT_MODEL
-    if chat_request.model not in SUPPORTED_BEDROCK_MODELS.keys():
-        raise HTTPException(status_code=400, detail="Unsupported Model Id " + chat_request.model)
-    try:
-        model = get_model(chat_request.model)
-
-        if chat_request.stream:
-            return StreamingResponse(
-                content=model.chat_stream(chat_request), media_type="text/event-stream"
-            )
-        return model.chat(chat_request)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        
+    # Exception will be raised if model not supported.
+    model = get_model(chat_request.model)
+    if chat_request.stream:
+        return StreamingResponse(
+            content=model.chat_stream(chat_request), media_type="text/event-stream"
+        )
+    return model.chat(chat_request)

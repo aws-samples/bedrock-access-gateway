@@ -6,8 +6,6 @@ from api.auth import api_key_auth
 from api.models import SUPPORTED_BEDROCK_MODELS, SUPPORTED_BEDROCK_EMBEDDING_MODELS
 from api.schema import Models, Model
 
-router = APIRouter()
-
 router = APIRouter(
     prefix="/models",
     dependencies=[Depends(api_key_auth)],
