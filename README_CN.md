@@ -6,7 +6,8 @@
 
 ## 概述
 
-Amazon Bedrock提供了广泛的基础模型(如Claude 3 Sonnet/Haiku、Llama 2、Mistral/Mixtral等),以及构建生成式AI应用程序的多种功能。更多详细信息,请查看[Amazon Bedrock](https://aws.amazon.com/bedrock)。
+Amazon Bedrock提供了广泛的基础模型(如Claude 3 Opus/Sonnet/Haiku、Llama 2、Mistral/Mixtral等),以及构建生成式AI应用程序的多种功能。更多详细信息,请查看[Amazon 
+Bedrock](https://aws.amazon.com/bedrock)。
 
 有时,您可能已经使用OpenAI的API或SDK构建了应用程序,并希望在不修改代码的情况下试用Amazon
 Bedrock的模型。或者,您可能只是希望在AutoGen等工具中评估这些基础模型的功能。 好消息是, 这里提供了一种方便的途径,让您可以使用
@@ -32,6 +33,7 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 - anthropic.claude-instant-v1
 - anthropic.claude-v2:1
 - anthropic.claude-v2
+- anthropic.claude-3-opus-20240229-v1:0
 - anthropic.claude-3-sonnet-20240229-v1:0
 - anthropic.claude-3-haiku-20240307-v1:0
 - meta.llama2-13b-chat-v1

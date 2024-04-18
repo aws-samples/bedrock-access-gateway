@@ -44,6 +44,7 @@ SUPPORTED_BEDROCK_MODELS = {
     "anthropic.claude-v2:1": "Claude",
     "anthropic.claude-v2": "Claude",
     "anthropic.claude-3-sonnet-20240229-v1:0": "Claude 3 Sonnet",
+    "anthropic.claude-3-opus-20240229-v1:0": "Claude 3 Opus",
     "anthropic.claude-3-haiku-20240307-v1:0": "Claude 3 Haiku",
     "meta.llama2-13b-chat-v1": "Llama 2 Chat 13B",
     "meta.llama2-70b-chat-v1": "Llama 2 Chat 70B",
@@ -738,7 +739,7 @@ def get_model(model_id: str) -> BedrockModel:
     model_name = SUPPORTED_BEDROCK_MODELS.get(model_id, "")
     if DEBUG:
         logger.info("model name is " + model_name)
-    if model_name in ["Claude Instant", "Claude", "Claude 3 Sonnet", "Claude 3 Haiku"]:
+    if model_name in ["Claude Instant", "Claude", "Claude 3 Sonnet", "Claude 3 Haiku", "Claude 3 Opus"]:
         return ClaudeModel()
     elif model_name in ["Llama 2 Chat 13B", "Llama 2 Chat 70B"]:
         return Llama2Model()
