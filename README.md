@@ -6,7 +6,7 @@ OpenAI-compatible RESTful APIs for Amazon Bedrock
 
 ## Overview
 
-Amazon Bedrock offers a wide range of foundation models (such as Claude 3 Opus/Sonnet/Haiku, Llama 2, Mistral/Mixtral, 
+Amazon Bedrock offers a wide range of foundation models (such as Claude 3 Opus/Sonnet/Haiku, Llama 2/3, Mistral/Mixtral, 
 etc.) and a broad set of capabilities for you to build generative AI applications. Check the [Amazon Bedrock](https://aws.amazon.com/bedrock) landing page for additional information.
 
 Sometimes, you might have applications developed using OpenAI APIs or SDKs, and you want to experiment with Amazon Bedrock without modifying your codebase. Or you may simply wish to evaluate the capabilities of these foundation models in tools like AutoGen etc. Well, this repository allows you to access Amazon Bedrock models seamlessly through OpenAI APIs and SDKs, enabling you to test these models without code changes.
@@ -36,6 +36,8 @@ Supported Amazon Bedrock models (Model IDs):
 - anthropic.claude-3-haiku-20240307-v1:0
 - meta.llama2-13b-chat-v1
 - meta.llama2-70b-chat-v1
+- meta.llama3-8b-instruct-v1:0
+- meta.llama3-70b-instruct-v1:0
 - mistral.mistral-7b-instruct-v0:2
 - mistral.mixtral-8x7b-instruct-v0:1
 - mistral.mistral-large-2402-v1:0
