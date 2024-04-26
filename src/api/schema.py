@@ -143,14 +143,14 @@ class ChatStreamResponse(BaseChatResponse):
 class EmbeddingsRequest(BaseModel):
     input: str | list[str] | Iterable[int | Iterable[int]]
     model: str
-    encoding_format: Literal["float", "base64"] = "float"  # not used.
+    encoding_format: Literal["float", "base64"] = "float"
     dimensions: int | None = None  # not used.
     user: str | None = None  # not used.
 
 
 class Embedding(BaseModel):
     object: Literal["embedding"] = "embedding"
-    embedding: list[float]
+    embedding: list[float] | bytes
     index: int
 
 
