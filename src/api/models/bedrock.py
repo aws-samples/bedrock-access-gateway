@@ -54,6 +54,9 @@ SUPPORTED_BEDROCK_MODELS = {
     "mistral.mistral-7b-instruct-v0:2": "Mistral 7B Instruct",
     "mistral.mixtral-8x7b-instruct-v0:1": "Mixtral 8x7B Instruct",
     "mistral.mistral-large-2402-v1:0": "Mistral Large",
+    "cohere.command-r-plus-v1:0": "Command R+",
+    "cohere.command-r-v1:0": "Command R",
+    "amazon.titan-text-premier-v1:0": "Titan Text G1 Premier",
 }
 
 SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
