@@ -79,12 +79,17 @@ class Tool(BaseModel):
     function: Function
 
 
+class StreamOptions(BaseModel):
+    include_usage: bool = True
+
+
 class ChatRequest(BaseModel):
     messages: list[SystemMessage | UserMessage | AssistantMessage | ToolMessage]
     model: str
     frequency_penalty: float | None = Field(default=0.0, le=2.0, ge=-2.0)  # Not used
     presence_penalty: float | None = Field(default=0.0, le=2.0, ge=-2.0)  # Not used
     stream: bool | None = False
+    stream_options: StreamOptions | None = None
     temperature: float | None = Field(default=1.0, le=2.0, ge=0.0)
     top_p: float | None = Field(default=1.0, le=1.0, ge=0.0)
     user: str | None = None  # Not used
@@ -138,6 +143,7 @@ class ChatResponse(BaseChatResponse):
 class ChatStreamResponse(BaseChatResponse):
     choices: list[ChoiceDelta]
     object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
+    usage: Usage | None = None
 
 
 class EmbeddingsRequest(BaseModel):

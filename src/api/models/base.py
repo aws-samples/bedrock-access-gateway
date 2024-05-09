@@ -29,11 +29,17 @@ class BaseChatModel(ABC):
         """Handle a basic chat completion requests with stream response."""
         pass
 
-    def _generate_message_id(self) -> str:
+    @staticmethod
+    def generate_message_id() -> str:
         return "chatcmpl-" + str(uuid.uuid4())[:8]
 
-    def _stream_response_to_bytes(self, response: ChatStreamResponse) -> bytes:
-        return "data: {}\n\n".format(response.model_dump_json()).encode("utf-8")
+    @staticmethod
+    def stream_response_to_bytes(
+            response: ChatStreamResponse | None = None
+    ) -> bytes:
+        if response:
+            return "data: {}\n\n".format(response.model_dump_json()).encode("utf-8")
+        return "data: [DONE]\n\n".encode("utf-8")
 
 
 class BaseEmbeddingsModel(ABC):
@@ -46,6 +52,3 @@ class BaseEmbeddingsModel(ABC):
     def embed(self, embeddings_request: EmbeddingsRequest) -> EmbeddingsResponse:
         """Handle a basic embeddings request."""
         pass
-
-    def _generate_message_id(self) -> str:
-        return "embeddings-" + str(uuid.uuid4())[:8]
