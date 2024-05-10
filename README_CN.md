@@ -28,23 +28,15 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 
 > 注意： 不支持旧的 [text completion](https://platform.openai.com/docs/api-reference/completions) API，请更改为使用Chat Completion API。
 
-支持的Amazon Bedrock模型列表（Model IDs）：
+支持的Amazon Bedrock模型家族：
 
-- anthropic.claude-instant-v1
-- anthropic.claude-v2:1
-- anthropic.claude-v2
-- anthropic.claude-3-opus-20240229-v1:0
-- anthropic.claude-3-sonnet-20240229-v1:0
-- anthropic.claude-3-haiku-20240307-v1:0
-- meta.llama2-13b-chat-v1
-- meta.llama2-70b-chat-v1
-- meta.llama3-8b-instruct-v1:0
-- meta.llama3-70b-instruct-v1:0
-- mistral.mistral-7b-instruct-v0:2
-- mistral.mixtral-8x7b-instruct-v0:1
-- mistral.mistral-large-2402-v1:0
-- cohere.embed-multilingual-v3 (embedding)
-- cohere.embed-english-v3 (embedding)
+- Anthropic Claude 2 / 3 (Haiku/Sonnet/Opus)
+- Meta Llama 2 / 3
+- Mistral / Mixtral
+- Cohere Command R / R+
+- Cohere Embedding
+
+你可以先调用`models` API 获取支持的详细 model ID 列表。
 
 > 注意: 默认模型为 `anthropic.claude-3-sonnet-20240229-v1:0`， 可以通过更改Lambda环境变量进行更改。
 
@@ -211,7 +203,7 @@ print(response)
 
 ### 支持哪些区域?
 
-只支持Amazon Bedrock可用的区域,即:
+只支持Amazon Bedrock可用的区域, 截至当前，包括以下区域:
 
 - 美国东部(弗吉尼亚北部)：us-east-1
 - 美国西部(俄勒冈州)：us-west-2
@@ -220,6 +212,8 @@ print(response)
 - 亚太地区(东京)：ap-northeast-1
 - 欧洲(法兰克福)：eu-central-1
 - 欧洲(巴黎)：eu-west-3
+
+通常来说，所有Amazon Bedrock支持的区域都支持，如果不支持，请提个Github Issue。
 
 注意，并非所有模型都在上面区可用。
 
@@ -251,7 +245,12 @@ print(response)
 
 ### 如何升级?
 
-如果架构没有变化,你可以简单地将最新镜像部署到Lambda中,以使用新功能(手动),而无需重新部署整个CloudFormation堆栈。
+要使用最新功能,您无需重新部署CloudFormation堆栈。您只需拉取最新的镜像即可。
+
+具体操作方式取决于您部署的版本:
+
+- **Lambda版本**: 进入AWS Lambda控制台,找到Lambda 函数，然后找到并单击`部署新映像`按钮,然后单击保存。
+- **Fargate版本**: 进入ECS控制台,单击ECS集群,转到`任务`选项卡,选择正在运行的唯一任务,然后点击`停止所选`菜单, ECS会自动启动新任务并且使用最新镜像。
 
 ## 安全
 

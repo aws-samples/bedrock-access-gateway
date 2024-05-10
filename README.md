@@ -26,23 +26,15 @@ Please check [Usage Guide](./docs/Usage.md) for more details about how to use th
 
 > **Note:** The legacy [text completion](https://platform.openai.com/docs/api-reference/completions) API is not supported, you should change to use chat completion API.
 
-Supported Amazon Bedrock models (Model IDs):
+Supported Amazon Bedrock models family:
 
-- anthropic.claude-instant-v1
-- anthropic.claude-v2:1
-- anthropic.claude-v2
-- anthropic.claude-3-opus-20240229-v1:0
-- anthropic.claude-3-sonnet-20240229-v1:0
-- anthropic.claude-3-haiku-20240307-v1:0
-- meta.llama2-13b-chat-v1
-- meta.llama2-70b-chat-v1
-- meta.llama3-8b-instruct-v1:0
-- meta.llama3-70b-instruct-v1:0
-- mistral.mistral-7b-instruct-v0:2
-- mistral.mixtral-8x7b-instruct-v0:1
-- mistral.mistral-large-2402-v1:0
-- cohere.embed-multilingual-v3 (embedding)
-- cohere.embed-english-v3 (embedding)
+- Anthropic Claude 2 / 3 (Haiku/Sonnet/Opus)
+- Meta Llama 2 / 3
+- Mistral / Mixtral
+- Cohere Command R / R+
+- Cohere Embedding
+
+You can call the `models` API to get the full list of model IDs supported.
 
 > **Note:** The default model is set to `anthropic.claude-3-sonnet-20240229-v1:0` which can be changed via Lambda environment variables (`DEFAULT_MODEL`).
 
@@ -206,7 +198,7 @@ Short answer is that API Gateway does not support server-sent events (SSE) for s
 
 ### Which regions are supported?
 
-This solution only supports the regions where Amazon Bedrock is available:
+This solution only supports the regions where Amazon Bedrock is available, as for now, below are the list.
 
 - US East (N. Virginia): us-east-1
 - US West (Oregon): us-west-2
@@ -215,6 +207,8 @@ This solution only supports the regions where Amazon Bedrock is available:
 - Asia Pacific (Tokyo): ap-northeast-1
 - Europe (Frankfurt): eu-central-1
 - Europe (Paris): eu-west-3
+
+Generally speaking, all regions that Amazon Bedrock supports will also be supported, if not, please raise an issue in Github.
 
 Note that not all models are available in those regions.
 
@@ -246,7 +240,13 @@ Fine-tuned models and models with Provisioned Throughput are currently not suppo
 
 ### How to upgrade?
 
-If there is no changes on architecture, you can simply deploy the latest image to your Lambda to use the new features (manually) without redeploying the whole CloudFormation stack.
+To use the latest features, you don't need to redeploy the CloudFormation stack. You simply need to pull the latest image. 
+
+To do so, depends on which version you deployed:
+
+- **Lambda version**: Go to AWS Lambda console, find the Lambda function, then find and click the `Deploy new image` button and click save.
+- **Fargate version**: Go to ECS console, click the ECS cluster, go the `Tasks` tab, select the only task that is running and simply click `Stop selected` menu. A new task with latest image will start automatically.
+
 
 ## Security
 
