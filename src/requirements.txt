@@ -3,5 +3,5 @@ pydantic==2.7.1
 uvicorn==0.29.0
 mangum==0.17.0
 tiktoken==0.6.0
-requests==2.31.0
+requests==2.32.0
 numpy==1.26.4
