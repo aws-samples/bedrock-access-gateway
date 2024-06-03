@@ -109,7 +109,7 @@ curl $OPENAI_BASE_URL/chat/completions \
             "content": [
                 {
                     "type": "text",
-                    "text": "please identify and count all the objects in this images, list all the names"
+                    "text": "please identify and count all the objects in these images, list all the names"
                 },
                 {
                     "type": "image_url",
@@ -124,7 +124,7 @@ curl $OPENAI_BASE_URL/chat/completions \
 ```
 
 If you need to use this API with non-public images, you can do base64 the image first and pass the encoded string. 
-Replace `image/jpeg` with the actual content type. Currently, Only 'image/jpeg', 'image/png', 'image/gif' or 'image/webp' is supported.
+Replace `image/jpeg` with the actual content type. Currently, only 'image/jpeg', 'image/png', 'image/gif' or 'image/webp' is supported.
 
 ```bash
 curl $OPENAI_BASE_URL/chat/completions \
