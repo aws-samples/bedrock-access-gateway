@@ -62,7 +62,7 @@ Alternatively, you can use Lambda Function URL to replace ALB, see [example](htt
 
 Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS account. Only supports regions where Amazon Bedrock is available (such as `us-west-2`). The deployment will take approximately **3-5 minutes** 🕒.
 
-**Step 1: Create you own custom API key (Optional)**
+**Step 1: Create your own custom API key (Optional)**
 
 > **Note:** This step is to use any string (without spaces) you like to create a custom API Key (credential) that will be used to access the proxy API later. This key does not have to match your actual OpenAI key, and you don't need to have an OpenAI API key. It is recommended that you take this step and ensure that you keep the key safe and private.
 
