@@ -177,11 +177,6 @@ class BedrockModel(BaseChatModel):
             tool_call_info = "Tool call with streaming" if chat_request.stream else "Tool call"
             error = f"{tool_call_info} is currently not supported by {chat_request.model}"
 
-        # check if system prompt is supported
-        # nice to have an error rather than ignore it.
-        elif not self._is_system_prompt_supported(chat_request.model):
-            error = f"System message is currently not supported by {chat_request.model}"
-
         if error:
             raise HTTPException(
                 status_code=400,
