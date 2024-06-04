@@ -4,6 +4,13 @@
 
 OpenAI-compatible RESTful APIs for Amazon Bedrock
 
+## Breaking Changes
+
+The source code is refactored with the new [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) by bedrock which provides native support with tool calls.
+
+If you are facing any problems, please raise an issue.
+
+
 ## Overview
 
 Amazon Bedrock offers a wide range of foundation models (such as Claude 3 Opus/Sonnet/Haiku, Llama 2/3, Mistral/Mixtral, 

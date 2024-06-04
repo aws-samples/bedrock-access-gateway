@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY ./requirements.txt /app/requirements.txt
 
-RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt && pip install --no-cache-dir --upgrade boto3
+RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
 
 COPY ./api /app/api
 

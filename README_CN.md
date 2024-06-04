@@ -4,6 +4,12 @@
 
 使用兼容OpenAI的API访问Amazon Bedrock
 
+## 重大变更
+
+项目源代码已使用Bedrock提供的新 [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) 进行了重构,该API对工具调用提供了原生支持。
+
+如果您遇到任何问题,请提 Github Issue。
+
 ## 概述
 
 Amazon Bedrock提供了广泛的基础模型(如Claude 3 Opus/Sonnet/Haiku、Llama 2/3、Mistral/Mixtral等),以及构建生成式AI应用程序的多种功能。更多详细信息,请查看[Amazon 
