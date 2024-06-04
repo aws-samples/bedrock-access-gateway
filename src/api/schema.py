@@ -1,5 +1,4 @@
 import time
-import uuid
 from typing import Literal, Iterable
 
 from pydantic import BaseModel, Field
@@ -18,12 +17,12 @@ class Models(BaseModel):
 
 
 class ResponseFunction(BaseModel):
-    name: str
+    name: str | None = None
     arguments: str
 
 
 class ToolCall(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
+    id: str | None = None
     type: Literal["function"] = "function"
     function: ResponseFunction
 
@@ -113,8 +112,8 @@ class ChatResponseMessage(BaseModel):
 
 
 class BaseChoice(BaseModel):
-    index: int
-    finish_reason: str | None
+    index: int | None = 0
+    finish_reason: str | None = None
     logprobs: dict | None = None
 
 
