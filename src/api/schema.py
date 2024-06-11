@@ -22,6 +22,7 @@ class ResponseFunction(BaseModel):
 
 
 class ToolCall(BaseModel):
+    index: int | None = None
     id: str | None = None
     type: Literal["function"] = "function"
     function: ResponseFunction

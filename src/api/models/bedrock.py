@@ -463,6 +463,7 @@ class BedrockModel(BaseChatModel):
                 message = ChatResponseMessage(
                     tool_calls=[
                         ToolCall(
+                            index=0,
                             type="function",
                             id=delta["toolUse"]["toolUseId"],
                             function=ResponseFunction(
@@ -484,7 +485,7 @@ class BedrockModel(BaseChatModel):
                 message = ChatResponseMessage(
                     tool_calls=[
                         ToolCall(
-                            type="function",
+                            index=0,
                             function=ResponseFunction(
                                 arguments=delta["toolUse"]["input"],
                             )
