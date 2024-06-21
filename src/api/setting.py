@@ -11,7 +11,7 @@ DESCRIPTION = """
 Use OpenAI-Compatible RESTful APIs for Amazon Bedrock models.
 
 List of Amazon Bedrock models currently supported:
-- Anthropic Claude 2 / 3 (Haiku/Sonnet/Opus)
+- Anthropic Claude 2 / 3 /3.5 (Haiku/Sonnet/Opus)
 - Meta Llama 2 / 3
 - Mistral / Mixtral
 - Cohere Command R / R+
