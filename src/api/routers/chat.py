@@ -42,4 +42,4 @@ async def chat_completions(
         return StreamingResponse(
             content=model.chat_stream(chat_request), media_type="text/event-stream"
         )
-    return model.chat(chat_request)
+    return await model.chat(chat_request)

@@ -33,4 +33,4 @@ async def embeddings(
         embeddings_request.model = DEFAULT_EMBEDDING_MODEL
     # Exception will be raised if model not supported.
     model = get_embeddings_model(embeddings_request.model)
-    return model.embed(embeddings_request)
+    return await model.embed(embeddings_request)
