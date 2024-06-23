@@ -89,6 +89,12 @@ class BedrockModel(BaseChatModel):
             "tool_call": True,
             "stream_tool_call": True,
         },
+        "anthropic.claude-3-5-sonnet-20240620-v1:0": {
+            "system": True,
+            "multimodal": True,
+            "tool_call": True,
+            "stream_tool_call": True,
+        },
         "anthropic.claude-3-opus-20240229-v1:0": {
             "system": True,
             "multimodal": True,
