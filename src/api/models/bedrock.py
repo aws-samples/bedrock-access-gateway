@@ -354,7 +354,54 @@ class BedrockModel(BaseChatModel):
             else:
                 # ignore others, such as system messages
                 continue
-        return messages
+        return self._reframe_multi_payloard(messages)
+
+
+    def _reframe_multi_payloard(self, messages: list) -> list:
+        """ Reframe messages from OpenAI format to Bedrock conversational API format
+        
+```
+openai_format_messages=[
+{"role": "user", "content": "hogehoge"},
+{"role": "user", "content": "fugafuga"},
+]
+
+bedrock_format_messages=[
+{
+    "role": "user",
+    "content": [
+        {"text": "hogehoge"},
+        {"text": "fugafuga"}
+    ]
+},
+]
+```
+        """
+        
+        # Aggregate all messages by role
+        assistant_content = []
+        user_content = []
+        for message in messages:
+            if message["role"] == "assistant":
+                for content in message["content"]:
+                    assistant_content.append(content)
+            elif message["role"] == "user":
+                for content in message["content"]:
+                    user_content.append(content)
+
+        # Reframe messages into output format
+        output_messages = []
+        for message in messages:
+            if message["role"] == "user":
+                output_messages.append({"role": "user", "content": user_content})
+                break
+        for message in messages:
+            if message["role"] == "assistant":
+                output_messages.append({"role": "assistant", "content": assistant_content})
+                break
+            
+        return output_messages
+
 
     def _parse_request(self, chat_request: ChatRequest) -> dict:
         """Create default converse request body.
