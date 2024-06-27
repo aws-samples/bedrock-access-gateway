@@ -354,10 +354,10 @@ class BedrockModel(BaseChatModel):
             else:
                 # ignore others, such as system messages
                 continue
-        return self._reframe_multi_payloard(messages)
+        return self._merge_messages(messages)
 
 
-    def _reframe_multi_payloard(self, messages: list) -> list:
+    def _merge_messages(self, messages: list) -> list:
         """ Reframe messages from OpenAI format to Bedrock conversational API format
         
 ```
