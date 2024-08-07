@@ -58,7 +58,7 @@ class UserMessage(BaseModel):
 class AssistantMessage(BaseModel):
     name: str | None = None
     role: Literal["assistant"] = "assistant"
-    content: str | None
+    content: str | list[TextContent | ImageContent] | None
     tool_calls: list[ToolCall] | None = None
 
 
