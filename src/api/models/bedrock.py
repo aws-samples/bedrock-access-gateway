@@ -131,6 +131,24 @@ class BedrockModel(BaseChatModel):
             "tool_call": False,
             "stream_tool_call": False,
         },
+        "meta.llama3-1-8b-instruct-v1:0": {
+            "system": True,
+            "multimodal": False,
+            "tool_call": False,
+            "stream_tool_call": False,
+        },
+        "meta.llama3-1-70b-instruct-v1:0": {
+            "system": True,
+            "multimodal": False,
+            "tool_call": False,
+            "stream_tool_call": False,
+        },
+        "meta.llama3-1-405b-instruct-v1:0": {
+            "system": True,
+            "multimodal": False,
+            "tool_call": False,
+            "stream_tool_call": False,
+        },
         "mistral.mistral-7b-instruct-v0:2": {
             "system": False,
             "multimodal": False,
@@ -455,7 +473,7 @@ bedrock_format_messages=[
                 ]
             }
 
-            if chat_request.tool_choice:
+            if chat_request.tool_choice and not chat_request.model.startswith("meta.llama3-1-"):
                 if isinstance(chat_request.tool_choice, str):
                     # auto (default) is mapped to {"auto" : {}}
                     # required is mapped to {"any" : {}}
