@@ -452,7 +452,7 @@ class BedrockModel(BaseChatModel):
                     )
             message.tool_calls = tool_calls
             message.content = None
-        else:
+        elif content:
             message.content = content[0]["text"]
 
         response = ChatResponse(
