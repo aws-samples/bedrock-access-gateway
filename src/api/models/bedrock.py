@@ -173,6 +173,12 @@ class BedrockModel(BaseChatModel):
             "tool_call": True,
             "stream_tool_call": False,
         },
+        "mistral.mistral-large-2407-v1:0": {
+            "system": True,
+            "multimodal": False,
+            "tool_call": True,
+            "stream_tool_call": False,
+        },
         "cohere.command-r-v1:0": {
             "system": True,
             "multimodal": False,
