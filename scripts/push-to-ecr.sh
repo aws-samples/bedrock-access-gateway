@@ -1,35 +1,62 @@
-# Make sure you have created the Repo in AWS ECR in every regions you want to push to before executing this script.
+# NOTE: The script will try to create the ECR repository if it doesn't exist. Please grant the necessary permissions to the IAM user or role.
 # Usage:
 #    cd scripts
-#    chmod +x push-to-ecr.sh
-#    ./push-to-ecr.sh
+#    bash ./push-to-ecr.sh
 
+set -o errexit  # exit on first error
+set -o nounset  # exit on using unset variables
+set -o pipefail # exit on any error in a pipeline
 
 # Define variables
-IMAGE_NAME="bedrock-proxy-api"
 TAG="latest"
-AWS_REGIONS=("us-west-2") # List of AWS regions
-#AWS_REGIONS=("us-east-1" "us-west-2" "eu-central-1" "ap-southeast-1" "ap-northeast-1") # List of AWS regions
+ARCHS=("arm64" "amd64")
+AWS_REGIONS=("us-east-1") # List of AWS region, use below liest if you don't enable ECR repository replication
+# AWS_REGIONS=("us-east-1" "us-west-2" "eu-central-1" "ap-southeast-1" "ap-southeast-2" "ap-northeast-1" "eu-central-1" "eu-west-3") # List of supported AWS regions
 
-# Build Docker image
-docker build -t $IMAGE_NAME:$TAG ../src/
+build_and_push_images() {
+    local IMAGE_NAME=$1
+    local TAG=$2
 
-# Loop through each AWS region
-for REGION in "${AWS_REGIONS[@]}"
-do
-    # Get the account ID for the current region
-    ACCOUNT_ID=$(aws sts get-caller-identity --region $REGION --query Account --output text)
+    # Build Docker image for each architecture
+    for ARCH in "${ARCHS[@]}"
+    do
+        docker buildx build --platform linux/$ARCH -t $IMAGE_NAME:$TAG-$ARCH -f ../src/Dockerfile_ecs --load ../src/
+    done
 
-    # Create repository URI
-    REPOSITORY_URI="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE_NAME}"
+    # Push Docker image to ECR for each architecture in each AWS region
+    for REGION in "${AWS_REGIONS[@]}"
+    do
+        # Get the account ID for the current region
+        ACCOUNT_ID=$(aws sts get-caller-identity --region $REGION --query Account --output text)
 
-    # Log in to ECR
-    aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
+        # Create repository URI
+        REPOSITORY_URI="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE_NAME}"
 
-    # Tag the image for the current region
-    docker tag $IMAGE_NAME:$TAG $REPOSITORY_URI:$TAG
+        # Create ECR repository if it doesn't exist
+        aws ecr create-repository --repository-name "${IMAGE_NAME}" --region $REGION || true
 
-    # Push the image to ECR
-    docker push $REPOSITORY_URI:$TAG
-    echo "Pushed $IMAGE_NAME:$TAG to $REPOSITORY_URI"
-done
+        # Log in to ECR
+        aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
+
+        # Push the image to ECR for each architecture
+        for ARCH in "${ARCHS[@]}"
+        do
+            # Tag the image for the current region
+            docker tag $IMAGE_NAME:$TAG-$ARCH $REPOSITORY_URI:$TAG-$ARCH
+            # Push the image to ECR
+            docker push $REPOSITORY_URI:$TAG-$ARCH
+            # Create a manifest for the image
+            docker manifest create $REPOSITORY_URI:$TAG $REPOSITORY_URI:$TAG-$ARCH --amend
+            # Annotate the manifest with architecture information
+            docker manifest annotate $REPOSITORY_URI:$TAG "$REPOSITORY_URI:$TAG-$ARCH" --os linux --arch $ARCH
+        done
+
+        # Push the manifest to ECR
+        docker manifest push $REPOSITORY_URI:$TAG
+
+        echo "Pushed $IMAGE_NAME:$TAG to $REPOSITORY_URI"
+    done
+}
+
+build_and_push_images "bedrock-proxy-api" "$TAG"
+build_and_push_images "bedrock-proxy-api-ecs" "$TAG"
