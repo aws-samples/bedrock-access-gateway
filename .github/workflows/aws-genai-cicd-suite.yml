@@ -28,8 +28,10 @@ jobs:
       with:
         node-version: '20'
 
-    - name: Install dependencies
-      run: npm ci
+    - name: Install dependencies @actions/core and @actions/github
+      run: |
+        npm install @actions/core
+        npm install @actions/github
       shell: bash
 
     # check if required dependencies @actions/core and @actions/github are installed
