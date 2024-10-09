@@ -338,7 +338,12 @@ class BedrockModel(BaseChatModel):
                 if message.content:
                     # Text message
                     messages.append(
-                        {"role": message.role, "content": [{"text": message.content}]}
+                        {
+                            "role": message.role,
+                            "content": self._parse_content_parts(
+                                message, chat_request.model
+                            ),
+                        }
                     )
                 else:
                     # Tool use message
@@ -378,7 +383,69 @@ class BedrockModel(BaseChatModel):
             else:
                 # ignore others, such as system messages
                 continue
-        return messages
+        return self._reframe_multi_payloard(messages)
+
+
+    def _reframe_multi_payloard(self, messages: list) -> list:
+        """ Receive messages and reformat them to comply with the Claude format
+    
+With OpenAI format requests, it's not a problem to repeatedly receive messages from the same role, but
+with Claude format requests, you cannot repeatedly receive messages from the same role.
+
+This method searches through the OpenAI format messages in order and reformats them to the Claude format.
+
+```
+openai_format_messages=[
+{"role": "user", "content": "hogehoge"},
+{"role": "user", "content": "fugafuga"},
+]
+
+bedrock_format_messages=[
+{
+    "role": "user",
+    "content": [
+        {"text": "hogehoge"},
+        {"text": "fugafuga"}
+    ]
+},
+]
+```
+        """
+        reformatted_messages = []
+        current_role = None
+        current_content = []
+    
+        # Search through the list of messages and combine messages from the same role into one list
+        for message in messages:
+            next_role = message['role']
+            next_content = message['content']
+    
+            # If the next role is different from the previous message, add the previous role's messages to the list
+            if next_role != current_role:
+                if current_content:
+                    reformatted_messages.append({
+                        "role": current_role,
+                        "content": current_content
+                    })
+                # Switch to the new role
+                current_role = next_role
+                current_content = []
+    
+            # Add the message content to current_content
+            if isinstance(next_content, str):
+                current_content.append({"text": next_content})
+            elif isinstance(next_content, list):
+                current_content.extend(next_content)
+    
+        # Add the last role's messages to the list
+        if current_content:
+            reformatted_messages.append({
+                "role": current_role,
+                "content": current_content
+            })
+    
+        return reformatted_messages
+
 
     def _parse_request(self, chat_request: ChatRequest) -> dict:
         """Create default converse request body.
@@ -458,8 +525,10 @@ class BedrockModel(BaseChatModel):
                     )
             message.tool_calls = tool_calls
             message.content = None
-        elif content:
-            message.content = content[0]["text"]
+        else:
+            message.content = ""
+            if content:
+                message.content = content[0]["text"]
 
         response = ChatResponse(
             id=message_id,
