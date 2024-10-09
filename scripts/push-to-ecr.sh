@@ -16,16 +16,19 @@ AWS_REGIONS=("us-east-1") # List of AWS region, use below liest if you don't ena
 build_and_push_images() {
     local IMAGE_NAME=$1
     local TAG=$2
-    local ENABLE_MULTI_ARCH=${3:-true} # a parameter for enabling multi-arch build or not, the default is true
+    local ENABLE_MULTI_ARCH=${3:-true}  # Parameter for enabling multi-arch build, default is true
+    local DOCKERFILE_PATH=${4:-"../src/Dockerfile_ecs"}  # Parameter for Dockerfile path, default is "../src/Dockerfile_ecs"
 
     # Build Docker image for each architecture
     if [ "$ENABLE_MULTI_ARCH" == "true" ]; then
         for ARCH in "${ARCHS[@]}"
         do
-            docker buildx build --platform linux/$ARCH -t $IMAGE_NAME:$TAG-$ARCH -f ../src/Dockerfile_ecs --load ../src/
+            # Build multi-architecture Docker image
+            docker buildx build --platform linux/$ARCH -t $IMAGE_NAME:$TAG-$ARCH -f $DOCKERFILE_PATH --load ../src/
         done
     else
-        docker buildx build --platform linux/${ARCHS[0]} -t $IMAGE_NAME:$TAG -f ../src/Dockerfile_ecs --load ../src/
+        # Build single architecture Docker image
+        docker buildx build --platform linux/${ARCHS[0]} -t $IMAGE_NAME:$TAG -f $DOCKERFILE_PATH --load ../src/
     fi
 
     # Push Docker image to ECR for each architecture in each AWS region
@@ -70,5 +73,5 @@ build_and_push_images() {
     done
 }
 
-build_and_push_images "bedrock-proxy-api" "$TAG" "false"
+build_and_push_images "bedrock-proxy-api" "$TAG" "false" "../src/Dockerfile"
 build_and_push_images "bedrock-proxy-api-ecs" "$TAG"
