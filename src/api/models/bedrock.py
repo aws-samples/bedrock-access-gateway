@@ -49,7 +49,7 @@ SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
     "cohere.embed-multilingual-v3": "Cohere Embed Multilingual",
     "cohere.embed-english-v3": "Cohere Embed English",
     # Disable Titan embedding.
-    # "amazon.titan-embed-text-v1": "Titan Embeddings G1 - Text",
+    "amazon.titan-embed-text-v1": "Titan Embeddings G1 - Text",
     # "amazon.titan-embed-image-v1": "Titan Multimodal Embeddings G1"
 }
 
@@ -866,45 +866,53 @@ class CohereEmbeddingsModel(BedrockEmbeddingsModel):
 
 
 class TitanEmbeddingsModel(BedrockEmbeddingsModel):
-
     def _parse_args(self, embeddings_request: EmbeddingsRequest) -> dict:
         if isinstance(embeddings_request.input, str):
-            input_text = embeddings_request.input
-        elif (
-                isinstance(embeddings_request.input, list)
-                and len(embeddings_request.input) == 1
-        ):
-            input_text = embeddings_request.input[0]
+            input_texts = [embeddings_request.input]
+        elif isinstance(embeddings_request.input, list):
+            input_texts = embeddings_request.input
         else:
             raise ValueError(
-                "Amazon Titan Embeddings models support only single strings as input."
+                "Amazon Titan Embeddings models support only strings or lists of strings as input."
             )
-        args = {
-            "inputText": input_text,
-            # Note: inputImage is not supported!
-        }
-        if embeddings_request.model == "amazon.titan-embed-image-v1":
-            args["embeddingConfig"] = (
-                embeddings_request.embedding_config
-                if embeddings_request.embedding_config
-                else {"outputEmbeddingLength": 1024}
-            )
-        return args
+        
+        args_list = []
+        for input_text in input_texts:
+            args = {
+                "inputText": input_text,
+                # Note: inputImage is not supported!
+            }
+            if embeddings_request.model == "amazon.titan-embed-image-v1":
+                args["embeddingConfig"] = (
+                    embeddings_request.embedding_config
+                    if embeddings_request.embedding_config
+                    else {"outputEmbeddingLength": 1024}
+                )
+            args_list.append(args)
+        
+        return args_list
 
     def embed(self, embeddings_request: EmbeddingsRequest) -> EmbeddingsResponse:
-        response = self._invoke_model(
-            args=self._parse_args(embeddings_request), model_id=embeddings_request.model
-        )
-        response_body = json.loads(response.get("body").read())
-        if DEBUG:
-            logger.info("Bedrock response body: " + str(response_body))
+        args_list = self._parse_args(embeddings_request)
+        embeddings = []
+        total_input_tokens = 0
+
+        for args in args_list:
+            response = self._invoke_model(
+                args=args, model_id=embeddings_request.model
+            )
+            response_body = json.loads(response.get("body").read())
+            if DEBUG:
+                logger.info("Bedrock response body: " + str(response_body))
+            
+            embeddings.append(response_body["embedding"])
+            total_input_tokens += response_body["inputTextTokenCount"]
 
         return self._create_response(
-            embeddings=[response_body["embedding"]],
+            embeddings=embeddings,
             model=embeddings_request.model,
-            input_tokens=response_body["inputTextTokenCount"],
+            input_tokens=total_input_tokens,
         )
-
 
 def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
     model_name = SUPPORTED_BEDROCK_EMBEDDING_MODELS.get(model_id, "")
@@ -913,6 +921,8 @@ def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
     match model_name:
         case "Cohere Embed Multilingual" | "Cohere Embed English":
             return CohereEmbeddingsModel()
+        case "Titan Embeddings G1 - Text":
+            return TitanEmbeddingsModel()
         case _:
             logger.error("Unsupported model id " + model_id)
             raise HTTPException(
