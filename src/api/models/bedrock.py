@@ -5,6 +5,7 @@ import re
 import time
 from abc import ABC
 from typing import AsyncIterable, Iterable, Literal
+from api.setting import CURRENT_MODEL
 
 import boto3
 import numpy as np
@@ -37,6 +38,8 @@ from api.schema import (
     Embedding,
 )
 from api.setting import DEBUG, AWS_REGION
+
+CURRENT_MODEL_INDEX = 0
 
 logger = logging.getLogger(__name__)
 
@@ -231,10 +234,22 @@ class BedrockModel(BaseChatModel):
                 response = bedrock_runtime.converse(**args)
         except bedrock_runtime.exceptions.ValidationException as e:
             logger.error("Validation Error: " + str(e))
-            raise HTTPException(status_code=400, detail=str(e))
+            if CURRENT_MODEL_INDEX == len(CURRENT_MODEL) - 1:
+                # We've tried all models, raise the exception
+                raise HTTPException(status_code=400, detail=str(e))
+            else:
+                # Try the next model
+                CURRENT_MODEL_INDEX += 1
+                response = self._invoke_bedrock(chat_request,stream)
         except Exception as e:
             logger.error(e)
-            raise HTTPException(status_code=500, detail=str(e))
+            if CURRENT_MODEL_INDEX == len(CURRENT_MODEL) - 1:
+                # We've tried all models, raise the exception
+                raise HTTPException(status_code=500, detail=str(e))
+            else:
+                # Try the next model
+                CURRENT_MODEL_INDEX += 1
+                response = self._invoke_bedrock(chat_request, stream)
         return response
 
     def chat(self, chat_request: ChatRequest) -> ChatResponse:
