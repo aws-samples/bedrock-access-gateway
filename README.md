@@ -1,15 +1,14 @@
-[中文](./README_CN.md)
+# Bedrock Access Gateway with several models for fail safe
 
-# Bedrock Access Gateway
-
-OpenAI-compatible RESTful APIs for Amazon Bedrock
+**Modified from AWS Samples repository:** OpenAI-compatible RESTful APIs for Amazon Bedrock that will change models if it encounters the lately very recurrent error:
+```bash
+Code: 500
+Message: BedrockException: Rate Limit Error
+```
 
 ## Breaking Changes
 
-The source code is refactored with the new [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) by bedrock which provides native support with tool calls.
-
-If you are facing any problems, please raise an issue.
-
+This function switches from a set of predefined Bedrock Models when it encounters the aforementioned error until it produces a 200 success code.
 
 ## Overview
 
@@ -43,7 +42,15 @@ Supported Amazon Bedrock models family:
 
 You can call the `models` API to get the full list of model IDs supported.
 
-> **Note:** The default model is set to `anthropic.claude-3-sonnet-20240229-v1:0` which can be changed via Lambda environment variables (`DEFAULT_MODEL`).
+> **Note:** The default model list is set as follows using Lambda Environment variables, you can modify them after deployment in the Lambda function directly:
+```bash
+
+    "DEFAULT_MODEL" = "anthropic.claude-3-sonnet-20240229-v1:0"
+    "MODEL_2" = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+    "MODEL_3" = "meta.llama3-1-405b-instruct-v1:0"
+    "MODEL_4" = "anthropic.claude-3-sonnet-20240229-v1:0"
+
+```
 
 ## Get Started
 
@@ -85,24 +92,20 @@ Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS acc
 5. Click "Create parameter".
 6. Make a note of the parameter name you used (e.g., "BedrockProxyAPIKey"). You'll need this in the next step.
 
-**Step 2: Deploy the CloudFormation stack**
+**Step 2: Create your Docker Image and deploy to Amazon ECR**
 
-1. Sign in to AWS Management Console, switch to the region to deploy the CloudFormation Stack to.
-2. Click the following button to launch the CloudFormation Stack in that region. Choose one of the following:
-   - **ALB + Lambda**
+7. You can use the following script to create the Docker image and push it to ECR: `scripts/push-to-ecr.sh`
 
-      [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxy.template)
-   - **ALB + Fargate**
-   
-      [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxyFargate.template)
-3. Click "Next".
-4. On the "Specify stack details" page, provide the following information:
+**Step 3: Create and deploy your CloudFormation template**
+
+8. Use `deployment/BedrockProxy.template` or `deployment/BedrockProxyFargate.template` to deploy to AWS Cloudfront.
+9. On the "Specify stack details" page, provide the following information:
     - Stack name: Change the stack name if needed.
     - ApiKeyParam (if you set up an API key in Step 1): Enter the parameter name you used for storing the API key (e.g., `BedrockProxyAPIKey`). If you did not set up an API key, leave this field blank. Click "Next".
-5. On the "Configure stack options" page, you can leave the default settings or customize them according to your needs.
-6. Click "Next".
-7. On the "Review" page, review the details of the stack you're about to create. Check the "I acknowledge that AWS CloudFormation might create IAM resources" checkbox at the bottom.
-8. Click "Create stack".
+10. On the "Configure stack options" page, you can leave the default settings or customize them according to your needs.
+11. Click "Next".
+12. On the "Review" page, review the details of the stack you're about to create. Check the "I acknowledge that AWS CloudFormation might create IAM resources" checkbox at the bottom.
+13. Click "Create stack".
 
 That is it! 🎉 Once deployed, click the CloudFormation stack and go to **Outputs** tab, you can find the API Base URL from `APIBaseUrl`, the value should look like `http://xxxx.xxx.elb.amazonaws.com/api/v1`.
 
