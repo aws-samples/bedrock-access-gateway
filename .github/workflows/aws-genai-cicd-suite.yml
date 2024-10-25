@@ -51,29 +51,3 @@ jobs:
           echo "GitHub Token is not set"
         fi
         echo "AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME_VAR }}"
-
-    # assume the specified IAM role and set up the AWS credentials for use in subsequent steps.
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        # using repository environment variable to get the role arn
-        role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME_VAR }}
-        aws-region: us-east-1
-
-    - name: Intelligent GitHub Actions
-      uses: aws-samples/aws-genai-cicd-suite@stable
-      with:
-        # Automatic Provision: The GITHUB_TOKEN is automatically created and provided by GitHub for each workflow run. You don't need to manually create or store this token as a secret.
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        aws-region: us-east-1
-        model-id: anthropic.claude-3-sonnet-20240229-v1:0
-        generate-code-review: 'true'
-        generate-code-review-level: 'detailed'
-        generate-code-review-exclude-files: '*.md,*.json,*.js'
-        generate-pr-description: 'true'
-        generate-unit-test: 'false'
-        generate-unit-test-source-folder: 'debugging'
-        # Removed the invalid input 'generate-unit-test-exclude-files'
-        # output-language: 'zh'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
