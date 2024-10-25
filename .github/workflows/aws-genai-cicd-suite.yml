@@ -50,7 +50,10 @@ jobs:
         else
           echo "GitHub Token is not set"
         fi
-        echo "AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME_VAR }}"
+        if [ -n "${{ vars.AWS_ROLE_TO_ASSUME_VAR }}" ]; then
+          echo "Role to Assume is set"
+        else
+          echo "Role to Assume is not set"
 
     # assume the specified IAM role and set up the AWS credentials for use in subsequent steps.
     - name: Configure AWS Credentials
