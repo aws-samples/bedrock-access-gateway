@@ -43,13 +43,14 @@ jobs:
         npm list @actions/github
       shell: bash
 
-    - name: Debug GitHub Token
+    - name: Debug GitHub Token and environment variables
       run: |
         if [ -n "${{ secrets.GITHUB_TOKEN }}" ]; then
           echo "GitHub Token is set"
         else
           echo "GitHub Token is not set"
         fi
+        echo "AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME_VAR }}"
 
     # assume the specified IAM role and set up the AWS credentials for use in subsequent steps.
     - name: Configure AWS Credentials
