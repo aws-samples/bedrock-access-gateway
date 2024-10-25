@@ -56,6 +56,9 @@ jobs:
           echo "Role to Assume is not set"
         fi
 
+    - name: Debug Environment Variables
+      run: env | sort
+
     # assume the specified IAM role and set up the AWS credentials for use in subsequent steps.
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
