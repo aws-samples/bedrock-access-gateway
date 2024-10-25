@@ -54,6 +54,7 @@ jobs:
           echo "Role to Assume is set"
         else
           echo "Role to Assume is not set"
+        fi
 
     # assume the specified IAM role and set up the AWS credentials for use in subsequent steps.
     - name: Configure AWS Credentials
