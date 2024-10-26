@@ -21,7 +21,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
-app = FastAPI(**config)
+app = FastAPI(**config, root_path="/backend")
 
 app.add_middleware(
     CORSMiddleware,
