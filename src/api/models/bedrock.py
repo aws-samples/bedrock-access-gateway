@@ -36,13 +36,17 @@ from api.schema import (
     EmbeddingsUsage,
     Embedding,
 )
-from api.setting import DEBUG, AWS_REGION
+from api.setting import DEBUG, AWS_REGION, AWS_REGION_OPUS
 
 logger = logging.getLogger(__name__)
 
 bedrock_runtime = boto3.client(
     service_name="bedrock-runtime",
     region_name=AWS_REGION,
+)
+bedrock_runtime_opus = boto3.client(
+    service_name="bedrock-runtime",
+    region_name=AWS_REGION_OPUS,
 )
 
 SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
@@ -231,10 +235,16 @@ class BedrockModel(BaseChatModel):
             logger.info("Bedrock request: " + json.dumps(args))
 
         try:
-            if stream:
-                response = bedrock_runtime.converse_stream(**args)
+            if "opus" in chat_request.model.lower():
+                if stream:
+                    response = bedrock_runtime_opus.converse_stream(**args)
+                else:
+                    response = bedrock_runtime_opus.converse(**args)
             else:
-                response = bedrock_runtime.converse(**args)
+                if stream:
+                    response = bedrock_runtime.converse_stream(**args)
+                else:
+                    response = bedrock_runtime.converse(**args)
         except bedrock_runtime.exceptions.ValidationException as e:
             logger.error("Validation Error: " + str(e))
             raise HTTPException(status_code=400, detail=str(e))
