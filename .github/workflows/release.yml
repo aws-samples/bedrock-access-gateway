@@ -33,3 +33,26 @@ jobs:
         run: |-
           cd scripts
           bash push-to-ecr.sh
+  cfn_templates:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    needs: ecr_images
+    env:
+      iam_role_to_assume: ${{ secrets.ROLE_ARN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Configure AWS Credentials
+        if: ${{ env.iam_role_to_assume != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.iam_role_to_assume }}
+          aws-region: us-east-1
+      - name: Copy Deployment Templates to S3
+        env:
+          S3_BUCKET: ${{ secrets.ASSET_BUCKET }}
+          S3_PREFIX: bedrock-access-gateway/latest/
+        run: aws s3 sync deployment/ s3://$S3_BUCKET/$S3_PREFIX --acl public-read
