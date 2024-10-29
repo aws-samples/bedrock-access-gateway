@@ -265,10 +265,15 @@
             {
               "Action": [
                 "bedrock:InvokeModel",
-                "bedrock:InvokeModelWithResponseStream"
+                "bedrock:InvokeModelWithResponseStream",
+                "bedrock:GetInferenceProfile",
+                "bedrock:ListInferenceProfiles"
               ],
               "Effect": "Allow",
-              "Resource": "arn:aws:bedrock:*::foundation-model/*"
+              "Resource": [
+                "arn:aws:bedrock:*::foundation-model/*",
+                "arn:aws:bedrock:*:*:inference-profile/*"
+              ]
             },
             {
               "Action": [
