@@ -1,8 +1,12 @@
+import logging
 import time
 from typing import Literal, Iterable
 
 from pydantic import BaseModel, Field
 
+# Initialize logger
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 class Model(BaseModel):
     id: str
@@ -15,6 +19,7 @@ class Models(BaseModel):
     object: str | None = "list"
     data: list[Model] = []
 
+log.info("Model and Models schema initialized.")
 
 class ResponseFunction(BaseModel):
     name: str | None = None
@@ -170,3 +175,5 @@ class EmbeddingsResponse(BaseModel):
     data: list[Embedding]
     model: str
     usage: EmbeddingsUsage
+
+log.info("All schemas loaded.")

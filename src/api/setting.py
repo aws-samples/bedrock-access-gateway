@@ -1,4 +1,9 @@
 import os
+import logging 
+
+# Initialize logger
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 DEFAULT_API_KEYS = "bedrock"
 
@@ -27,3 +32,5 @@ DEFAULT_MODEL = os.environ.get(
 DEFAULT_EMBEDDING_MODEL = os.environ.get(
     "DEFAULT_EMBEDDING_MODEL", "cohere.embed-multilingual-v3"
 )
+
+log.info("Settings loaded with region: %s", AWS_REGION)

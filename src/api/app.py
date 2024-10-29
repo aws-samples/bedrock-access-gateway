@@ -9,6 +9,7 @@ from mangum import Mangum
 
 from api.routers import model, chat, embeddings
 from api.setting import API_ROUTE_PREFIX, TITLE, DESCRIPTION, SUMMARY, VERSION
+import sys
 
 config = {
     "title": TITLE,
@@ -17,10 +18,16 @@ config = {
     "version": VERSION,
 }
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
+
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+# Initialize logger
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+
+# Log a startup message
+log.info("Application has started")
+
 app = FastAPI(**config, root_path="/backend")
 
 app.add_middleware(
