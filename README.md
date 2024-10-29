@@ -28,6 +28,7 @@ If you find this GitHub repository useful, please consider giving it a free star
 - [x] Support Tool Call (**new**)
 - [x] Support Embedding API (**new**)
 - [x] Support Multimodal API (**new**)
+- [x] Support Cross-Region Inference (**new**)
 
 Please check [Usage Guide](./docs/Usage.md) for more details about how to use the new APIs.
 
@@ -35,7 +36,7 @@ Please check [Usage Guide](./docs/Usage.md) for more details about how to use th
 
 Supported Amazon Bedrock models family:
 
-- Anthropic Claude 2 / 3 (Haiku/Sonnet/Opus)
+- Anthropic Claude 2 / 3 (Haiku/Sonnet/Opus) / 3.5 Sonnet
 - Meta Llama 2 / 3
 - Mistral / Mixtral
 - Cohere Command R / R+
@@ -152,6 +153,51 @@ print(completion.choices[0].message.content)
 ```
 
 Please check [Usage Guide](./docs/Usage.md) for more details about how to use embedding API, multimodal API and tool call.
+
+### Bedrock Cross-Region Inference
+
+
+Cross-Region Inference supports accessing foundation models across regions, allowing users to invoke models hosted in different AWS regions for inference. Main advantages:
+- **Improved Availability**: Provides regional redundancy and enhanced fault tolerance. When issues occur in the primary region, services can failover to backup regions, ensuring continuous service availability and business continuity.
+- **Reduced Latency**: Enables selection of regions geographically closest to users, optimizing network paths and reducing transmission time, resulting in better user experience and response times.
+- **Better Performance and Capacity**: Implements load balancing to distribute request pressure, provides greater service capacity and throughput, and better handles traffic spikes.
+- **Flexibility**: Allows selection of models from different regions based on requirements, meets specific regional compliance requirements, and enables more flexible resource allocation and management.
+- **Cost Benefits**: Enables selection of more cost-effective regions, reduces overall operational costs through resource optimization, and improves resource utilization efficiency.
+
+
+Please check [Bedrock Cross-Region Inference](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html)
+
+**limitation:**
+Currently, Bedrock Access Gateway only supports cross-region Inference for the following models:
+- Claude 3 Haiku
+- Claude 3 Opus
+- Claude 3 Sonnet
+- Claude 3.5 Sonnet
+
+**Prerequisites:**
+- IAM policies must allow cross-region access,Callers need permissions to access models and inference profiles in both regions (added in cloudformation template)
+- Model access must be enabled in both regions, which defined in inference profiles 
+
+**Example API Usage:**
+- To use Bedrock cross-region inference, you include an inference profile when running model inference by specifying the ID of the inference profile as the modelId, such as `us.anthropic.claude-3-5-sonnet-20240620-v1:0`
+
+```bash
+curl $OPENAI_BASE_URL/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "model": "us.anthropic.claude-3-5-sonnet-20240620-v1:0",
+    "max_tokens": 2048,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello!"
+      }
+    ]
+  }'
+```
+
+
 
 ## Other Examples
 
