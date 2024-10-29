@@ -35,6 +35,8 @@ from api.schema import (
     EmbeddingsResponse,
     EmbeddingsUsage,
     Embedding,
+    
+    
 )
 from api.setting import DEBUG, AWS_REGION
 
@@ -196,6 +198,59 @@ class BedrockModel(BaseChatModel):
             "multimodal": False,
             "tool_call": True,
             "stream_tool_call": False,
+        },
+        # claude 3 Haiku cross-region inference profile
+        "us.anthropic.claude-3-haiku-20240307-v1:0": {
+            "system": True,
+            "multimodal": True,
+            "tool_call": True,
+            "stream_tool_call": True,
+        },
+        "eu.anthropic.claude-3-haiku-20240307-v1:0": {
+            "system": True,
+            "multimodal": True,
+            "tool_call": True,
+            "stream_tool_call": True,
+        },
+        # claude 3 Opus cross-region inference profile
+        "us.anthropic.claude-3-opus-20240229-v1:0": {
+            "system": True,
+            "multimodal": True,
+            "tool_call": True,
+            "stream_tool_call": True,
+        },
+        # claude 3 Sonnet cross-region inference profile
+        "us.anthropic.claude-3-sonnet-20240229-v1:0": {
+            "system": True,
+            "multimodal": True,
+            "tool_call": True,
+            "stream_tool_call": True,
+        },
+        "eu.anthropic.claude-3-sonnet-20240229-v1:0": {
+            "system": True,
+            "multimodal": True,
+            "tool_call": True,
+            "stream_tool_call": True,
+        },
+        # claude 3.5 Sonnet cross-region inference profile
+        "us.anthropic.claude-3-5-sonnet-20240620-v1:0": {
+            "system": True,
+            "multimodal": True,
+            "tool_call": True,
+            "stream_tool_call": True,
+        },
+        "eu.anthropic.claude-3-5-sonnet-20240620-v1:0": {
+            "system": True,
+            "multimodal": True,
+            "tool_call": True,
+            "stream_tool_call": True,
+        },
+        # claude 3.5 Sonnet v2 cross-region inference profile(Now only us-west-2)
+        "us.anthropic.claude-3-5-sonnet-20241022-v2:0": {
+            "system": True,
+            "multimodal": True,
+            "tool_call": True,
+            "stream_tool_call": True,
         },
     }
 
