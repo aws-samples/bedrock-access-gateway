@@ -26,6 +26,7 @@ List of Amazon Bedrock models currently supported:
 DEBUG = os.environ.get("DEBUG", "false").lower() != "false"
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 AWS_REGION_OPUS = os.environ.get("AWS_REGION_OPUS", "us-west-2")
+AWS_REGION_EU3 = os.environ.get("AWS_REGION_EU3", "eu-west-3")
 DEFAULT_MODEL = os.environ.get(
     "DEFAULT_MODEL", "anthropic.claude-3-sonnet-20240229-v1:0"
 )

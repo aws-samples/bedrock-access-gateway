@@ -38,7 +38,7 @@ from api.schema import (
     
     
 )
-from api.setting import DEBUG, AWS_REGION, AWS_REGION_OPUS
+from api.setting import DEBUG, AWS_REGION, AWS_REGION_OPUS, AWS_REGION_EU3
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,10 @@ bedrock_runtime_opus = boto3.client(
     service_name="bedrock-runtime",
     region_name=AWS_REGION_OPUS,
 )
-
+bedrock_runtime_eu3 = boto3.client(
+    service_name="bedrock-runtime",
+    region_name=AWS_REGION_EU3,
+)
 SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
     "cohere.embed-multilingual-v3": "Cohere Embed Multilingual",
     "cohere.embed-english-v3": "Cohere Embed English",
@@ -295,6 +298,11 @@ class BedrockModel(BaseChatModel):
                     response = bedrock_runtime_opus.converse_stream(**args)
                 else:
                     response = bedrock_runtime_opus.converse(**args)
+            elif chat_request.model.lower() in ['anthropic.claude-3-sonnet-20240229-v1:0', 'anthropic.claude-3-haiku-20240307-v1:0', 'mistral.mistral-7b-instruct-v0:2', 'mistral.mixtral-8x7b-instruct-v0:1','mistral.mistral-large-2402-v1:0']:
+                if stream:
+                    response = bedrock_runtime_eu3.converse_stream(**args)
+                else:
+                    response = bedrock_runtime_eu3.converse(**args)
             else:
                 if stream:
                     response = bedrock_runtime.converse_stream(**args)
