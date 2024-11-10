@@ -290,7 +290,7 @@ class BedrockModel(BaseChatModel):
         # convert OpenAI chat request to Bedrock SDK request
         args = self._parse_request(chat_request)
         if DEBUG:
-            logger.info("Bedrock request: " + json.dumps(args))
+            logger.info("Bedrock request: Done with the Parsing") #+ json.dumps(args))
 
         try:
             if "opus" in chat_request.model.lower():
