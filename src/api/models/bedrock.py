@@ -293,7 +293,7 @@ class BedrockModel(BaseChatModel):
             logger.info("Bedrock request: Done with the Parsing") #+ json.dumps(args))
         lower_model = chat_request.model.lower()
         if lower_model == 'anthropic.claude-3-5-sonnet-20241022-v2:0':
-            args.modelId = 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
+            args['modelId'] = 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
         try:
             if "opus" in lower_model:
                 if stream:
