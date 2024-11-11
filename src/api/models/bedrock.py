@@ -291,14 +291,16 @@ class BedrockModel(BaseChatModel):
         args = self._parse_request(chat_request)
         if DEBUG:
             logger.info("Bedrock request: Done with the Parsing") #+ json.dumps(args))
-
+        lower_model = chat_request.model.lower()
+        if lower_model == 'anthropic.claude-3-5-sonnet-20241022-v2:0':
+            args.modelId = 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
         try:
-            if "opus" in chat_request.model.lower():
+            if "opus" in lower_model:
                 if stream:
                     response = bedrock_runtime_opus.converse_stream(**args)
                 else:
                     response = bedrock_runtime_opus.converse(**args)
-            elif chat_request.model.lower() in ['anthropic.claude-3-sonnet-20240229-v1:0', 'anthropic.claude-3-haiku-20240307-v1:0', 'mistral.mistral-7b-instruct-v0:2', 'mistral.mixtral-8x7b-instruct-v0:1','mistral.mistral-large-2402-v1:0']:
+            elif lower_model in ['anthropic.claude-3-sonnet-20240229-v1:0', 'anthropic.claude-3-haiku-20240307-v1:0', 'mistral.mistral-7b-instruct-v0:2', 'mistral.mixtral-8x7b-instruct-v0:1','mistral.mistral-large-2402-v1:0']:
                 if stream:
                     response = bedrock_runtime_eu3.converse_stream(**args)
                 else:
