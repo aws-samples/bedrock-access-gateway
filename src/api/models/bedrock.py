@@ -277,6 +277,24 @@ class BedrockModel(BaseChatModel):
             "tool_call": True,
             "stream_tool_call": True,
         },
+        "ai21.jamba-1-5-mini-v1:0": {
+            "system": True,
+            "multimodal": False,
+            "tool_call": True,
+            "stream_tool_call": True,
+        },
+        "ai21.jamba-1-5-large-v1:0": {
+            "system": True,
+            "multimodal": False,
+            "tool_call": True,
+            "stream_tool_call": True,
+        },
+        "ai21.jamba-instruct-v1:0": {
+            "system": True,
+            "multimodal": False,
+            "tool_call": True,
+            "stream_tool_call": True,
+        },
     }
 
     def list_models(self) -> list[str]:
