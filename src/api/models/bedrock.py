@@ -35,8 +35,8 @@ from api.schema import (
     EmbeddingsResponse,
     EmbeddingsUsage,
     Embedding,
-    
-    
+
+
 )
 from api.setting import DEBUG, AWS_REGION
 
@@ -139,7 +139,21 @@ class BedrockModel(BaseChatModel):
             "tool_call": False,
             "stream_tool_call": False,
         },
+        # Llama 3.1 8b cross-region inference profile
+        "us.meta.llama3-1-8b-instruct-v1:0": {
+            "system": True,
+            "multimodal": False,
+            "tool_call": False,
+            "stream_tool_call": False,
+        },
         "meta.llama3-1-8b-instruct-v1:0": {
+            "system": True,
+            "multimodal": False,
+            "tool_call": False,
+            "stream_tool_call": False,
+        },
+        # Llama 3.1 70b cross-region inference profile
+        "us.meta.llama3-1-70b-instruct-v1:0": {
             "system": True,
             "multimodal": False,
             "tool_call": False,
@@ -467,7 +481,7 @@ class BedrockModel(BaseChatModel):
 
     def _reframe_multi_payloard(self, messages: list) -> list:
         """ Receive messages and reformat them to comply with the Claude format
-    
+
 With OpenAI format requests, it's not a problem to repeatedly receive messages from the same role, but
 with Claude format requests, you cannot repeatedly receive messages from the same role.
 
@@ -493,12 +507,12 @@ bedrock_format_messages=[
         reformatted_messages = []
         current_role = None
         current_content = []
-    
+
         # Search through the list of messages and combine messages from the same role into one list
         for message in messages:
             next_role = message['role']
             next_content = message['content']
-    
+
             # If the next role is different from the previous message, add the previous role's messages to the list
             if next_role != current_role:
                 if current_content:
@@ -509,20 +523,20 @@ bedrock_format_messages=[
                 # Switch to the new role
                 current_role = next_role
                 current_content = []
-    
+
             # Add the message content to current_content
             if isinstance(next_content, str):
                 current_content.append({"text": next_content})
             elif isinstance(next_content, list):
                 current_content.extend(next_content)
-    
+
         # Add the last role's messages to the list
         if current_content:
             reformatted_messages.append({
                 "role": current_role,
                 "content": current_content
             })
-    
+
         return reformatted_messages
 
 
