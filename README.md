@@ -13,7 +13,7 @@ If you are facing any problems, please raise an issue.
 
 ## Overview
 
-Amazon Bedrock offers a wide range of foundation models (such as Claude 3 Opus/Sonnet/Haiku, Llama 2/3, Mistral/Mixtral, 
+Amazon Bedrock offers a wide range of foundation models (such as Claude 3 Opus/Sonnet/Haiku, Llama 2/3, Mistral/Mixtral,
 etc.) and a broad set of capabilities for you to build generative AI applications. Check the [Amazon Bedrock](https://aws.amazon.com/bedrock) landing page for additional information.
 
 Sometimes, you might have applications developed using OpenAI APIs or SDKs, and you want to experiment with Amazon Bedrock without modifying your codebase. Or you may simply wish to evaluate the capabilities of these foundation models in tools like AutoGen etc. Well, this repository allows you to access Amazon Bedrock models seamlessly through OpenAI APIs and SDKs, enabling you to test these models without code changes.
@@ -94,7 +94,7 @@ Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS acc
 
       [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxy.template)
    - **ALB + Fargate**
-   
+
       [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxyFargate.template)
 3. Click "Next".
 4. On the "Specify stack details" page, provide the following information:
@@ -173,10 +173,12 @@ Currently, Bedrock Access Gateway only supports cross-region Inference for the f
 - Claude 3 Opus
 - Claude 3 Sonnet
 - Claude 3.5 Sonnet
+- Meta Llama 3.1 8b Instruct
+- Meta Llama 3.1 70b Instruct
 
 **Prerequisites:**
 - IAM policies must allow cross-region access,Callers need permissions to access models and inference profiles in both regions (added in cloudformation template)
-- Model access must be enabled in both regions, which defined in inference profiles 
+- Model access must be enabled in both regions, which defined in inference profiles
 
 **Example API Usage:**
 - To use Bedrock cross-region inference, you include an inference profile when running model inference by specifying the ID of the inference profile as the modelId, such as `us.anthropic.claude-3-5-sonnet-20240620-v1:0`
@@ -293,7 +295,7 @@ Fine-tuned models and models with Provisioned Throughput are currently not suppo
 
 ### How to upgrade?
 
-To use the latest features, you don't need to redeploy the CloudFormation stack. You simply need to pull the latest image. 
+To use the latest features, you don't need to redeploy the CloudFormation stack. You simply need to pull the latest image.
 
 To do so, depends on which version you deployed:
 

@@ -12,7 +12,7 @@
 
 ## 概述
 
-Amazon Bedrock提供了广泛的基础模型(如Claude 3 Opus/Sonnet/Haiku、Llama 2/3、Mistral/Mixtral等),以及构建生成式AI应用程序的多种功能。更多详细信息,请查看[Amazon 
+Amazon Bedrock提供了广泛的基础模型(如Claude 3 Opus/Sonnet/Haiku、Llama 2/3、Mistral/Mixtral等),以及构建生成式AI应用程序的多种功能。更多详细信息,请查看[Amazon
 Bedrock](https://aws.amazon.com/bedrock)。
 
 有时,您可能已经使用OpenAI的API或SDK构建了应用程序,并希望在不修改代码的情况下试用Amazon
@@ -96,7 +96,7 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 
       [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxy.template)
    - **ALB + Fargate**
-   
+
       [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxyFargate.template)
 3. 单击"下一步"。
 4. 在"指定堆栈详细信息"页面,提供以下信息:
@@ -175,6 +175,8 @@ Cross-Region Inference 支持跨区域访问的基础模型,即允许用户在�
 - Claude 3 Opus
 - Claude 3 Sonnet
 - Claude 3.5 Sonnet
+- Meta Llama 3.1 8b Instruct
+- Meta Llama 3.1 70b Instruct
 
 **使用前提:**
 - IAM Policy 有 inference profiles 相关的权限和调用模型的权限 (cloudformation template 中已添加)
