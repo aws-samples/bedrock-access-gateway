@@ -305,7 +305,7 @@ class BedrockModel(BaseChatModel):
         # convert OpenAI chat request to Bedrock SDK request
         args = self._parse_request(chat_request)
         if DEBUG:
-            logger.info("Bedrock request: " + json.dumps(args))
+            logger.info("Bedrock request: " + json.dumps(str(args)))
 
         try:
             if stream:
