@@ -312,6 +312,25 @@ class BedrockModel(BaseChatModel):
             "tool_call": True,
             "stream_tool_call": True,
         },
+        # Amazon Nova models - AWS's proprietary large language models
+        "us.amazon.nova-lite-v1:0": {
+            "system": True,      # Supports system prompts for context setting
+            "multimodal": True,  # Capable of processing both text and images
+            "tool_call": True,
+            "stream_tool_call": True,
+        },
+        "us.amazon.nova-micro-v1:0": {
+            "system": True,      # Supports system prompts for context setting
+            "multimodal": False, # Text-only model, no image processing capabilities
+            "tool_call": True,
+            "stream_tool_call": True,
+        },
+        "us.amazon.nova-pro-v1:0": {
+            "system": True,      # Supports system prompts for context setting
+            "multimodal": True,  # Capable of processing both text and images
+            "tool_call": True,
+            "stream_tool_call": True,
+        },
     }
 
     def list_models(self) -> list[str]:
