@@ -143,32 +143,60 @@ class BedrockModel(BaseChatModel):
         "us.meta.llama3-1-8b-instruct-v1:0": {
             "system": True,
             "multimodal": False,
-            "tool_call": False,
+            "tool_call": True,
             "stream_tool_call": False,
         },
         "meta.llama3-1-8b-instruct-v1:0": {
             "system": True,
             "multimodal": False,
-            "tool_call": False,
+            "tool_call": True,
             "stream_tool_call": False,
         },
         # Llama 3.1 70b cross-region inference profile
         "us.meta.llama3-1-70b-instruct-v1:0": {
             "system": True,
             "multimodal": False,
-            "tool_call": False,
+            "tool_call": True,
             "stream_tool_call": False,
         },
         "meta.llama3-1-70b-instruct-v1:0": {
             "system": True,
             "multimodal": False,
-            "tool_call": False,
+            "tool_call": True,
             "stream_tool_call": False,
         },
         "meta.llama3-1-405b-instruct-v1:0": {
             "system": True,
             "multimodal": False,
+            "tool_call": True,
+            "stream_tool_call": False,
+        },
+        # Llama 3.2 1B cross-region inference profile
+        "us.meta.llama3-2-1b-instruct-v1:0": {
+            "system": True,
+            "multimodal": False,
             "tool_call": False,
+            "stream_tool_call": False,
+        },
+        # Llama 3.2 3B cross-region inference profile
+        "us.meta.llama3-2-3b-instruct-v1:0": {
+            "system": True,
+            "multimodal": False,
+            "tool_call": False,
+            "stream_tool_call": False,
+        },
+        # Llama 3.2 11B cross-region inference profile
+        "us.meta.llama3-2-11b-instruct-v1:0": {
+            "system": True,
+            "multimodal": True,
+            "tool_call": True,
+            "stream_tool_call": False,
+        },
+        # Llama 3.2 90B cross-region inference profile
+        "us.meta.llama3-2-90b-instruct-v1:0": {
+            "system": True,
+            "multimodal": True,
+            "tool_call": True,
             "stream_tool_call": False,
         },
         "mistral.mistral-7b-instruct-v0:2": {

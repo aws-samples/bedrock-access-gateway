@@ -175,6 +175,10 @@ Currently, Bedrock Access Gateway only supports cross-region Inference for the f
 - Claude 3.5 Sonnet
 - Meta Llama 3.1 8b Instruct
 - Meta Llama 3.1 70b Instruct
+- Meta Llama 3.2 1B Instruct
+- Meta Llama 3.2 3B Instruct
+- Meta Llama 3.2 11B Vision Instruct
+- Meta Llama 3.2 90B Vision Instruct
 
 **Prerequisites:**
 - IAM policies must allow cross-region access,Callers need permissions to access models and inference profiles in both regions (added in cloudformation template)

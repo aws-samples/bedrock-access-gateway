@@ -177,6 +177,10 @@ Cross-Region Inference 支持跨区域访问的基础模型,即允许用户在�
 - Claude 3.5 Sonnet
 - Meta Llama 3.1 8b Instruct
 - Meta Llama 3.1 70b Instruct
+- Meta Llama 3.2 1B Instruct
+- Meta Llama 3.2 3B Instruct
+- Meta Llama 3.2 11B Vision Instruct
+- Meta Llama 3.2 90B Vision Instruct
 
 **使用前提:**
 - IAM Policy 有 inference profiles 相关的权限和调用模型的权限 (cloudformation template 中已添加)
