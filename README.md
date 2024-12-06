@@ -72,6 +72,8 @@ Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS acc
 
 **Step 1: Create your own custom API key (Optional)**
 
+#### Store API Key in ParameterStore
+
 > **Note:** This step is to use any string (without spaces) you like to create a custom API Key (credential) that will be used to access the proxy API later. This key does not have to match your actual OpenAI key, and you don't need to have an OpenAI API key. It is recommended that you take this step and ensure that you keep the key safe and private.
 
 1. Open the AWS Management Console and navigate to the Systems Manager service.
@@ -85,6 +87,10 @@ Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS acc
     - Value: Any string (without spaces).
 5. Click "Create parameter".
 6. Make a note of the parameter name you used (e.g., "BedrockProxyAPIKey"). You'll need this in the next step.
+
+#### Store API Key in ENV variable
+
+1. Provide an ENV variable to the container named: `API_KEY` with the API key value.
 
 **Step 2: Deploy the CloudFormation stack**
 
