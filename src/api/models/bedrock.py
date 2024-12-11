@@ -7,6 +7,7 @@ from abc import ABC
 from typing import AsyncIterable, Iterable, Literal
 
 import boto3
+from botocore.config import Config
 import numpy as np
 import requests
 import tiktoken
@@ -42,9 +43,12 @@ from api.setting import DEBUG, AWS_REGION
 
 logger = logging.getLogger(__name__)
 
+config = Config(connect_timeout=1, read_timeout=120, retries={"max_attempts": 1})
+
 bedrock_runtime = boto3.client(
     service_name="bedrock-runtime",
     region_name=AWS_REGION,
+    config=config,
 )
 
 SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
@@ -362,7 +366,7 @@ class BedrockModel(BaseChatModel):
         # convert OpenAI chat request to Bedrock SDK request
         args = self._parse_request(chat_request)
         if DEBUG:
-            logger.info("Bedrock request: " + json.dumps(args))
+            logger.info("Bedrock request: " + json.dumps(str(args)))
 
         try:
             if stream:
