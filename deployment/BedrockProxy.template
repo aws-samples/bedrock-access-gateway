@@ -1,773 +1,295 @@
-{
-  "Description": "Bedrock Access Gateway - OpenAI-compatible RESTful APIs for Amazon Bedrock",
-  "Transform": "AWS::LanguageExtensions",
-  "Parameters": {
-    "ApiKeyParam": {
-      "Type": "String",
-      "Default": "",
-      "Description": "The parameter name in System Manager used to store the API Key, leave blank to use a default key"
-    }
-  },
-  "Resources": {
-    "VPCB9E5F0B4": {
-      "Type": "AWS::EC2::VPC",
-      "Properties": {
-        "CidrBlock": "10.250.0.0/16",
-        "EnableDnsHostnames": true,
-        "EnableDnsSupport": true,
-        "InstanceTenancy": "default",
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "BedrockProxy/VPC"
-          }
-        ]
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/Resource"
-      }
-    },
-    "VPCPublicSubnet1SubnetB4246D30": {
-      "Type": "AWS::EC2::Subnet",
-      "Properties": {
-        "AvailabilityZone": {
-          "Fn::Select": [
-            0,
-            {
-              "Fn::GetAZs": ""
-            }
-          ]
-        },
-        "CidrBlock": "10.250.0.0/24",
-        "MapPublicIpOnLaunch": true,
-        "Tags": [
-          {
-            "Key": "aws-cdk:subnet-name",
-            "Value": "Public"
-          },
-          {
-            "Key": "aws-cdk:subnet-type",
-            "Value": "Public"
-          },
-          {
-            "Key": "Name",
-            "Value": "BedrockProxy/VPC/PublicSubnet1"
-          }
-        ],
-        "VpcId": {
-          "Ref": "VPCB9E5F0B4"
-        }
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet1/Subnet"
-      }
-    },
-    "VPCPublicSubnet1RouteTableFEE4B781": {
-      "Type": "AWS::EC2::RouteTable",
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "BedrockProxy/VPC/PublicSubnet1"
-          }
-        ],
-        "VpcId": {
-          "Ref": "VPCB9E5F0B4"
-        }
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet1/RouteTable"
-      }
-    },
-    "VPCPublicSubnet1RouteTableAssociation0B0896DC": {
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-      "Properties": {
-        "RouteTableId": {
-          "Ref": "VPCPublicSubnet1RouteTableFEE4B781"
-        },
-        "SubnetId": {
-          "Ref": "VPCPublicSubnet1SubnetB4246D30"
-        }
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet1/RouteTableAssociation"
-      }
-    },
-    "VPCPublicSubnet1DefaultRoute91CEF279": {
-      "Type": "AWS::EC2::Route",
-      "Properties": {
-        "DestinationCidrBlock": "0.0.0.0/0",
-        "GatewayId": {
-          "Ref": "VPCIGWB7E252D3"
-        },
-        "RouteTableId": {
-          "Ref": "VPCPublicSubnet1RouteTableFEE4B781"
-        }
-      },
-      "DependsOn": [
-        "VPCVPCGW99B986DC"
-      ],
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet1/DefaultRoute"
-      }
-    },
-    "VPCPublicSubnet2Subnet74179F39": {
-      "Type": "AWS::EC2::Subnet",
-      "Properties": {
-        "AvailabilityZone": {
-          "Fn::Select": [
-            1,
-            {
-              "Fn::GetAZs": ""
-            }
-          ]
-        },
-        "CidrBlock": "10.250.1.0/24",
-        "MapPublicIpOnLaunch": true,
-        "Tags": [
-          {
-            "Key": "aws-cdk:subnet-name",
-            "Value": "Public"
-          },
-          {
-            "Key": "aws-cdk:subnet-type",
-            "Value": "Public"
-          },
-          {
-            "Key": "Name",
-            "Value": "BedrockProxy/VPC/PublicSubnet2"
-          }
-        ],
-        "VpcId": {
-          "Ref": "VPCB9E5F0B4"
-        }
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet2/Subnet"
-      }
-    },
-    "VPCPublicSubnet2RouteTable6F1A15F1": {
-      "Type": "AWS::EC2::RouteTable",
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "BedrockProxy/VPC/PublicSubnet2"
-          }
-        ],
-        "VpcId": {
-          "Ref": "VPCB9E5F0B4"
-        }
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet2/RouteTable"
-      }
-    },
-    "VPCPublicSubnet2RouteTableAssociation5A808732": {
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-      "Properties": {
-        "RouteTableId": {
-          "Ref": "VPCPublicSubnet2RouteTable6F1A15F1"
-        },
-        "SubnetId": {
-          "Ref": "VPCPublicSubnet2Subnet74179F39"
-        }
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet2/RouteTableAssociation"
-      }
-    },
-    "VPCPublicSubnet2DefaultRouteB7481BBA": {
-      "Type": "AWS::EC2::Route",
-      "Properties": {
-        "DestinationCidrBlock": "0.0.0.0/0",
-        "GatewayId": {
-          "Ref": "VPCIGWB7E252D3"
-        },
-        "RouteTableId": {
-          "Ref": "VPCPublicSubnet2RouteTable6F1A15F1"
-        }
-      },
-      "DependsOn": [
-        "VPCVPCGW99B986DC"
-      ],
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/PublicSubnet2/DefaultRoute"
-      }
-    },
-    "VPCIGWB7E252D3": {
-      "Type": "AWS::EC2::InternetGateway",
-      "Properties": {
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "BedrockProxy/VPC"
-          }
-        ]
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/IGW"
-      }
-    },
-    "VPCVPCGW99B986DC": {
-      "Type": "AWS::EC2::VPCGatewayAttachment",
-      "Properties": {
-        "InternetGatewayId": {
-          "Ref": "VPCIGWB7E252D3"
-        },
-        "VpcId": {
-          "Ref": "VPCB9E5F0B4"
-        }
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/VPC/VPCGW"
-      }
-    },
-    "ProxyApiHandlerServiceRoleBE71BFB1": {
-      "Type": "AWS::IAM::Role",
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com"
-              }
-            }
-          ],
-          "Version": "2012-10-17"
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition"
-                },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-              ]
-            ]
-          }
-        ]
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ApiHandler/ServiceRole/Resource"
-      }
-    },
-    "ProxyApiHandlerServiceRoleDefaultPolicy86681202": {
-      "Type": "AWS::IAM::Policy",
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "bedrock:InvokeModel",
-                "bedrock:InvokeModelWithResponseStream",
-                "bedrock:GetInferenceProfile",
-                "bedrock:ListInferenceProfiles"
-              ],
-              "Effect": "Allow",
-              "Resource": [
-                "arn:aws:bedrock:*::foundation-model/*",
-                "arn:aws:bedrock:*:*:inference-profile/*"
-              ]
-            },
-            {
-              "Action": [
-                "ssm:DescribeParameters",
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "ssm:GetParameterHistory"
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:",
-                    {
-                      "Ref": "AWS::Partition"
-                    },
-                    ":ssm:",
-                    {
-                      "Ref": "AWS::Region"
-                    },
-                    ":",
-                    {
-                      "Ref": "AWS::AccountId"
-                    },
-                    ":parameter/",
-                    {
-                      "Ref": "ApiKeyParam"
-                    }
-                  ]
-                ]
-              }
-            }
-          ],
-          "Version": "2012-10-17"
-        },
-        "PolicyName": "ProxyApiHandlerServiceRoleDefaultPolicy86681202",
-        "Roles": [
-          {
-            "Ref": "ProxyApiHandlerServiceRoleBE71BFB1"
-          }
-        ]
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ApiHandler/ServiceRole/DefaultPolicy/Resource"
-      }
-    },
-    "ProxyApiHandlerEC15A492": {
-      "Type": "AWS::Lambda::Function",
-      "Properties": {
-        "Architectures": [
-          "arm64"
-        ],
-        "Code": {
-          "ImageUri": {
-            "Fn::Join": [
-              "",
-              [
-                "366590864501.dkr.ecr.",
-                {
-                  "Ref": "AWS::Region"
-                },
-                ".",
-                {
-                  "Ref": "AWS::URLSuffix"
-                },
-                "/bedrock-proxy-api:latest"
-              ]
-            ]
-          }
-        },
-        "Description": "Bedrock Proxy API Handler",
-        "Environment": {
-          "Variables": {
-            "API_KEY_PARAM_NAME": {
-              "Ref": "ApiKeyParam"
-            },
-            "DEBUG": "false",
-            "DEFAULT_MODEL": {
-              "Fn::FindInMap": [
-                "ProxyRegionTable03E5BEB3",
-                {
-                  "Ref": "AWS::Region"
-                },
-                "model",
-                {
-                  "DefaultValue": "anthropic.claude-3-sonnet-20240229-v1:0"
-                }
-              ]
-            },
-            "DEFAULT_EMBEDDING_MODEL": "cohere.embed-multilingual-v3"
-          }
-        },
-        "MemorySize": 1024,
-        "PackageType": "Image",
-        "Role": {
-          "Fn::GetAtt": [
-            "ProxyApiHandlerServiceRoleBE71BFB1",
-            "Arn"
-          ]
-        },
-        "Timeout": 300
-      },
-      "DependsOn": [
-        "ProxyApiHandlerServiceRoleDefaultPolicy86681202",
-        "ProxyApiHandlerServiceRoleBE71BFB1"
-      ],
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ApiHandler/Resource"
-      }
-    },
-    "ProxyApiHandlerInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYF6C33779": {
-      "Type": "AWS::Lambda::Permission",
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Fn::GetAtt": [
-            "ProxyApiHandlerEC15A492",
-            "Arn"
-          ]
-        },
-        "Principal": "elasticloadbalancing.amazonaws.com"
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ApiHandler/Invoke2UTWxhlfyqbT5FTn--5jvgbLgj+FfJwzswGk55DU1H--Y="
-      }
-    },
-    "ProxyALB87756780": {
-      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
-      "Properties": {
-        "LoadBalancerAttributes": [
-          {
-            "Key": "deletion_protection.enabled",
-            "Value": "false"
-          }
-        ],
-        "Scheme": "internet-facing",
-        "SecurityGroups": [
-          {
-            "Fn::GetAtt": [
-              "ProxyALBSecurityGroup0D6CA3DA",
-              "GroupId"
-            ]
-          }
-        ],
-        "Subnets": [
-          {
-            "Ref": "VPCPublicSubnet1SubnetB4246D30"
-          },
-          {
-            "Ref": "VPCPublicSubnet2Subnet74179F39"
-          }
-        ],
-        "Type": "application"
-      },
-      "DependsOn": [
-        "VPCPublicSubnet1DefaultRoute91CEF279",
-        "VPCPublicSubnet1RouteTableAssociation0B0896DC",
-        "VPCPublicSubnet2DefaultRouteB7481BBA",
-        "VPCPublicSubnet2RouteTableAssociation5A808732"
-      ],
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ALB/Resource"
-      }
-    },
-    "ProxyALBSecurityGroup0D6CA3DA": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "GroupDescription": "Automatically created Security Group for ELB BedrockProxyALB1CE4CAD1",
-        "SecurityGroupEgress": [
-          {
-            "CidrIp": "255.255.255.255/32",
-            "Description": "Disallow all traffic",
-            "FromPort": 252,
-            "IpProtocol": "icmp",
-            "ToPort": 86
-          }
-        ],
-        "SecurityGroupIngress": [
-          {
-            "CidrIp": "0.0.0.0/0",
-            "Description": "Allow from anyone on port 80",
-            "FromPort": 80,
-            "IpProtocol": "tcp",
-            "ToPort": 80
-          }
-        ],
-        "VpcId": {
-          "Ref": "VPCB9E5F0B4"
-        }
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ALB/SecurityGroup/Resource"
-      }
-    },
-    "ProxyALBListener933E9515": {
-      "Type": "AWS::ElasticLoadBalancingV2::Listener",
-      "Properties": {
-        "DefaultActions": [
-          {
-            "TargetGroupArn": {
-              "Ref": "ProxyALBListenerTargetsGroup187739FA"
-            },
-            "Type": "forward"
-          }
-        ],
-        "LoadBalancerArn": {
-          "Ref": "ProxyALB87756780"
-        },
-        "Port": 80,
-        "Protocol": "HTTP"
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ALB/Listener/Resource"
-      }
-    },
-    "ProxyALBListenerTargetsGroup187739FA": {
-      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
-      "Properties": {
-        "HealthCheckEnabled": false,
-        "TargetType": "lambda",
-        "Targets": [
-          {
-            "Id": {
-              "Fn::GetAtt": [
-                "ProxyApiHandlerEC15A492",
-                "Arn"
-              ]
-            }
-          }
-        ]
-      },
-      "DependsOn": [
-        "ProxyApiHandlerInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYF6C33779"
-      ],
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/Proxy/ALB/Listener/TargetsGroup/Resource"
-      }
-    },
-    "CDKMetadata": {
-      "Type": "AWS::CDK::Metadata",
-      "Properties": {
-        "Analytics": "v2:deflate64:H4sIAAAAAAAA/1VRXW/CMAz8LbyHDMovAKZNSJtWFcTr5LpeZ0iTKHFAqOp/n1q+uief7y7ynZLp+WKhZxM4xylWx6nhUrdbATyq9Y/NIUBDQkHBOX63hJlu9x57aZ+vVZ5Kw7hNpSXpuScqXBLaQWnoyT+5ZYwOGYSdfZh7sLFCwZK8g9AZLrczt20pAvjbkBW1JUyB5fIeXPLDgTHRKcKgC/IusrhwWUEkZaApK9Dtq8MjhU0DNb0li/cIY5xTaDhGdrZTDI1uC3etMczcGcYh2hV1igxEYTQOqhIMWGRbnzLdLr03jEPLDwfVatAo9E//7WMfRyF789zxSN9BqEketUdr16mCoksBh6if4D3buodfSXy6fsrIsHa2Yhk6WleRPsSXUzbT87meTQ6ReRqSFW5IF9f5B/Z2H8goAgAA"
-      },
-      "Metadata": {
-        "aws:cdk:path": "BedrockProxy/CDKMetadata/Default"
-      },
-      "Condition": "CDKMetadataAvailable"
-    }
-  },
-  "Mappings": {
-    "ProxyRegionTable03E5BEB3": {
-      "us-east-1": {
-        "model": "anthropic.claude-3-sonnet-20240229-v1:0"
-      },
-      "ap-southeast-1": {
-        "model": "anthropic.claude-v2"
-      },
-      "ap-northeast-1": {
-        "model": "anthropic.claude-v2:1"
-      },
-      "eu-central-1": {
-        "model": "anthropic.claude-v2:1"
-      }
-    }
-  },
-  "Outputs": {
-    "APIBaseUrl": {
-      "Description": "Proxy API Base URL (OPENAI_API_BASE)",
-      "Value": {
-        "Fn::Join": [
-          "",
-          [
-            "http://",
-            {
-              "Fn::GetAtt": [
-                "ProxyALB87756780",
-                "DNSName"
-              ]
-            },
-            "/api/v1"
-          ]
-        ]
-      }
-    }
-  },
-  "Conditions": {
-    "CDKMetadataAvailable": {
-      "Fn::Or": [
-        {
-          "Fn::Or": [
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "af-south-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "ap-east-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "ap-northeast-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "ap-northeast-2"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "ap-south-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "ap-southeast-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "ap-southeast-2"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "ca-central-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "cn-north-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "cn-northwest-1"
-              ]
-            }
-          ]
-        },
-        {
-          "Fn::Or": [
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "eu-central-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "eu-north-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "eu-south-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "eu-west-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "eu-west-2"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "eu-west-3"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "il-central-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "me-central-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "me-south-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "sa-east-1"
-              ]
-            }
-          ]
-        },
-        {
-          "Fn::Or": [
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "us-east-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "us-east-2"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "us-west-1"
-              ]
-            },
-            {
-              "Fn::Equals": [
-                {
-                  "Ref": "AWS::Region"
-                },
-                "us-west-2"
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  }
-}
+Description: Bedrock Access Gateway - OpenAI-compatible RESTful APIs for Amazon Bedrock
+Transform: AWS::LanguageExtensions
+Parameters:
+  ApiKeyParam:
+    Type: String
+    Default: ""
+    Description: The parameter name in System Manager used to store the API Key, leave blank to use a default key
+Resources:
+  VPCB9E5F0B4:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.250.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: BedrockProxy/VPC
+  VPCPublicSubnet1SubnetB4246D30:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      CidrBlock: 10.250.0.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: BedrockProxy/VPC/PublicSubnet1
+      VpcId:
+        Ref: VPCB9E5F0B4
+  VPCPublicSubnet1RouteTableFEE4B781:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: BedrockProxy/VPC/PublicSubnet1
+      VpcId:
+        Ref: VPCB9E5F0B4
+  VPCPublicSubnet1RouteTableAssociation0B0896DC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VPCPublicSubnet1RouteTableFEE4B781
+      SubnetId:
+        Ref: VPCPublicSubnet1SubnetB4246D30
+  VPCPublicSubnet1DefaultRoute91CEF279:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: VPCIGWB7E252D3
+      RouteTableId:
+        Ref: VPCPublicSubnet1RouteTableFEE4B781
+    DependsOn:
+      - VPCVPCGW99B986DC
+  VPCPublicSubnet2Subnet74179F39:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      CidrBlock: 10.250.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: BedrockProxy/VPC/PublicSubnet2
+      VpcId:
+        Ref: VPCB9E5F0B4
+  VPCPublicSubnet2RouteTable6F1A15F1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: BedrockProxy/VPC/PublicSubnet2
+      VpcId:
+        Ref: VPCB9E5F0B4
+  VPCPublicSubnet2RouteTableAssociation5A808732:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VPCPublicSubnet2RouteTable6F1A15F1
+      SubnetId:
+        Ref: VPCPublicSubnet2Subnet74179F39
+  VPCPublicSubnet2DefaultRouteB7481BBA:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: VPCIGWB7E252D3
+      RouteTableId:
+        Ref: VPCPublicSubnet2RouteTable6F1A15F1
+    DependsOn:
+      - VPCVPCGW99B986DC
+  VPCIGWB7E252D3:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: BedrockProxy/VPC
+  VPCVPCGW99B986DC:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId:
+        Ref: VPCIGWB7E252D3
+      VpcId:
+        Ref: VPCB9E5F0B4
+  ProxyApiHandlerServiceRoleBE71BFB1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+  ProxyApiHandlerServiceRoleDefaultPolicy86681202:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - bedrock:ListFoundationModels
+              - bedrock:ListInferenceProfiles
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - bedrock:InvokeModel
+              - bedrock:InvokeModelWithResponseStream
+            Effect: Allow
+            Resource:
+              - arn:aws:bedrock:*::foundation-model/*
+              - arn:aws:bedrock:*:*:inference-profile/*
+          - Action:
+              - ssm:DescribeParameters
+              - ssm:GetParameters
+              - ssm:GetParameter
+              - ssm:GetParameterHistory
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :parameter/
+                  - Ref: ApiKeyParam
+        Version: "2012-10-17"
+      PolicyName: ProxyApiHandlerServiceRoleDefaultPolicy86681202
+      Roles:
+        - Ref: ProxyApiHandlerServiceRoleBE71BFB1
+  ProxyApiHandlerEC15A492:
+    Type: AWS::Lambda::Function
+    Properties:
+      Architectures:
+        - arm64
+      Code:
+        ImageUri:
+          Fn::Join:
+            - ""
+            - - 366590864501.dkr.ecr.
+              - Ref: AWS::Region
+              - "."
+              - Ref: AWS::URLSuffix
+              - /bedrock-proxy-api:latest
+      Description: Bedrock Proxy API Handler
+      Environment:
+        Variables:
+          API_KEY_PARAM_NAME:
+            Ref: ApiKeyParam
+          DEBUG: "false"
+          DEFAULT_MODEL:
+            Fn::FindInMap:
+              - ProxyRegionTable03E5BEB3
+              - Ref: AWS::Region
+              - model
+              - DefaultValue: anthropic.claude-3-sonnet-20240229-v1:0
+          DEFAULT_EMBEDDING_MODEL: cohere.embed-multilingual-v3
+          ENABLE_CROSS_REGION_INFERENCE: "true"
+      MemorySize: 1024
+      PackageType: Image
+      Role:
+        Fn::GetAtt:
+          - ProxyApiHandlerServiceRoleBE71BFB1
+          - Arn
+      Timeout: 300
+    DependsOn:
+      - ProxyApiHandlerServiceRoleDefaultPolicy86681202
+      - ProxyApiHandlerServiceRoleBE71BFB1
+  ProxyApiHandlerInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYF6C33779:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ProxyApiHandlerEC15A492
+          - Arn
+      Principal: elasticloadbalancing.amazonaws.com
+  ProxyALB87756780:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      LoadBalancerAttributes:
+        - Key: deletion_protection.enabled
+          Value: "false"
+      Scheme: internet-facing
+      SecurityGroups:
+        - Fn::GetAtt:
+            - ProxyALBSecurityGroup0D6CA3DA
+            - GroupId
+      Subnets:
+        - Ref: VPCPublicSubnet1SubnetB4246D30
+        - Ref: VPCPublicSubnet2Subnet74179F39
+      Type: application
+    DependsOn:
+      - VPCPublicSubnet1DefaultRoute91CEF279
+      - VPCPublicSubnet1RouteTableAssociation0B0896DC
+      - VPCPublicSubnet2DefaultRouteB7481BBA
+      - VPCPublicSubnet2RouteTableAssociation5A808732
+  ProxyALBSecurityGroup0D6CA3DA:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Automatically created Security Group for ELB BedrockProxyALB1CE4CAD1
+      SecurityGroupEgress:
+        - CidrIp: 255.255.255.255/32
+          Description: Disallow all traffic
+          FromPort: 252
+          IpProtocol: icmp
+          ToPort: 86
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow from anyone on port 80
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      VpcId:
+        Ref: VPCB9E5F0B4
+  ProxyALBListener933E9515:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn:
+            Ref: ProxyALBListenerTargetsGroup187739FA
+          Type: forward
+      LoadBalancerArn:
+        Ref: ProxyALB87756780
+      Port: 80
+      Protocol: HTTP
+  ProxyALBListenerTargetsGroup187739FA:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled: false
+      TargetType: lambda
+      Targets:
+        - Id:
+            Fn::GetAtt:
+              - ProxyApiHandlerEC15A492
+              - Arn
+    DependsOn:
+      - ProxyApiHandlerInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYF6C33779
+Mappings:
+  ProxyRegionTable03E5BEB3:
+    us-east-1:
+      model: anthropic.claude-3-sonnet-20240229-v1:0
+Outputs:
+  APIBaseUrl:
+    Description: Proxy API Base URL (OPENAI_API_BASE)
+    Value:
+      Fn::Join:
+        - ""
+        - - http://
+          - Fn::GetAtt:
+              - ProxyALB87756780
+              - DNSName
+          - /api/v1
+
