@@ -6,10 +6,26 @@ OpenAI-compatible RESTful APIs for Amazon Bedrock
 
 ## Breaking Changes
 
-The source code is refactored with the new [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) by bedrock which provides native support with tool calls.
+This tool can now automatically detect new models supported in Amazon Bedrock. 
+So whenever new models are added to Amazon Bedrock, you can immediately try them without the need to wait for code changes to this repo. 
 
-If you are facing any problems, please raise an issue.
+This is to use the `ListFoundationModels` api and the `ListInferenceProfiles` api by Amazon Bedrock, due to this change, additional IAM permissions are required to your Lambda/Fargate role.
 
+If you are facing error: 'Unsupported model xxx, please use models API to get a list of supported models' even the model ID is correct, 
+please either update your existing stack with the new template in the deployment folder or manually add below permissions to the related Lambda/Fargate role.
+
+```json
+{
+   "Action": [
+       "bedrock:ListFoundationModels",
+       "bedrock:ListInferenceProfiles"
+   ],
+   "Resource": "*",
+   "Effect": "Allow"
+}
+```
+
+Please raise an GitHub issue if you still have problems.
 
 ## Overview
 
@@ -160,64 +176,9 @@ print(completion.choices[0].message.content)
 
 Please check [Usage Guide](./docs/Usage.md) for more details about how to use embedding API, multimodal API and tool call.
 
-### Bedrock Cross-Region Inference
-
-
-Cross-Region Inference supports accessing foundation models across regions, allowing users to invoke models hosted in different AWS regions for inference. Main advantages:
-- **Improved Availability**: Provides regional redundancy and enhanced fault tolerance. When issues occur in the primary region, services can failover to backup regions, ensuring continuous service availability and business continuity.
-- **Reduced Latency**: Enables selection of regions geographically closest to users, optimizing network paths and reducing transmission time, resulting in better user experience and response times.
-- **Better Performance and Capacity**: Implements load balancing to distribute request pressure, provides greater service capacity and throughput, and better handles traffic spikes.
-- **Flexibility**: Allows selection of models from different regions based on requirements, meets specific regional compliance requirements, and enables more flexible resource allocation and management.
-- **Cost Benefits**: Enables selection of more cost-effective regions, reduces overall operational costs through resource optimization, and improves resource utilization efficiency.
-
-
-Please check [Bedrock Cross-Region Inference](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html)
-
-**limitation:**
-Currently, Bedrock Access Gateway only supports cross-region Inference for the following models:
-- Claude 3 Haiku
-- Claude 3 Opus
-- Claude 3 Sonnet
-- Claude 3.5 Sonnet
-- Meta Llama 3.1 8b Instruct
-- Meta Llama 3.1 70b Instruct
-- Meta Llama 3.2 1B Instruct
-- Meta Llama 3.2 3B Instruct
-- Meta Llama 3.2 11B Vision Instruct
-- Meta Llama 3.2 90B Vision Instruct
-
-**Prerequisites:**
-- IAM policies must allow cross-region access,Callers need permissions to access models and inference profiles in both regions (added in cloudformation template)
-- Model access must be enabled in both regions, which defined in inference profiles
-
-**Example API Usage:**
-- To use Bedrock cross-region inference, you include an inference profile when running model inference by specifying the ID of the inference profile as the modelId, such as `us.anthropic.claude-3-5-sonnet-20240620-v1:0`
-
-```bash
-curl $OPENAI_BASE_URL/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -d '{
-    "model": "us.anthropic.claude-3-5-sonnet-20240620-v1:0",
-    "max_tokens": 2048,
-    "messages": [
-      {
-        "role": "user",
-        "content": "Hello!"
-      }
-    ]
-  }'
-```
-
 
 
 ## Other Examples
-
-### AutoGen
-
-Below is an image of setting up the model in AutoGen studio.
-
-![AutoGen Model](assets/autogen-model.png)
 
 ### LangChain
 
