@@ -6,13 +6,13 @@ OpenAI-compatible RESTful APIs for Amazon Bedrock
 
 ## Breaking Changes
 
-This tool can now automatically detect new models supported in Amazon Bedrock. 
+This solution can now **automatically detect** new models supported in Amazon Bedrock. 
 So whenever new models are added to Amazon Bedrock, you can immediately try them without the need to wait for code changes to this repo. 
 
 This is to use the `ListFoundationModels` api and the `ListInferenceProfiles` api by Amazon Bedrock, due to this change, additional IAM permissions are required to your Lambda/Fargate role.
 
 If you are facing error: 'Unsupported model xxx, please use models API to get a list of supported models' even the model ID is correct, 
-please either update your existing stack with the new template in the deployment folder or manually add below permissions to the related Lambda/Fargate role.
+please either update your existing stack (**Recommended**) with the new template in the deployment folder or manually add below permissions to the related Lambda/Fargate role.
 
 ```json
 {
@@ -48,19 +48,7 @@ If you find this GitHub repository useful, please consider giving it a free star
 
 Please check [Usage Guide](./docs/Usage.md) for more details about how to use the new APIs.
 
-> **Note:** The legacy [text completion](https://platform.openai.com/docs/api-reference/completions) API is not supported, you should change to use chat completion API.
-
-Supported Amazon Bedrock models family:
-
-- Anthropic Claude 2 / 3 (Haiku/Sonnet/Opus) / 3.5 Sonnet
-- Meta Llama 2 / 3
-- Mistral / Mixtral
-- Cohere Command R / R+
-- Cohere Embedding
-
-You can call the `models` API to get the full list of model IDs supported.
-
-> **Note:** The default model is set to `anthropic.claude-3-sonnet-20240229-v1:0` which can be changed via Lambda environment variables (`DEFAULT_MODEL`).
+> **Note:** The default model is set to `anthropic.claude-3-sonnet-20240229-v1:0` which can be changed via Lambda environment variables (`DEFAULT_MODEL`). You can call the [Models API](./docs/Usage.md#models-api) to get the full list of model IDs supported.
 
 ## Get Started
 
@@ -224,19 +212,13 @@ Short answer is that API Gateway does not support server-sent events (SSE) for s
 
 ### Which regions are supported?
 
-This solution only supports the regions where Amazon Bedrock is available, as for now, below are the list.
-
-- US East (N. Virginia): us-east-1
-- US West (Oregon): us-west-2
-- Asia Pacific (Singapore): ap-southeast-1
-- Asia Pacific (Sydney): ap-southeast-2
-- Asia Pacific (Tokyo): ap-northeast-1
-- Europe (Frankfurt): eu-central-1
-- Europe (Paris): eu-west-3
-
 Generally speaking, all regions that Amazon Bedrock supports will also be supported, if not, please raise an issue in Github.
 
 Note that not all models are available in those regions.
+
+### Which models are supported?
+
+You can use the [Models API](./docs/Usage.md#models-api) to get/refresh a list of supported models in the current region.
 
 ### Can I build and use my own ECR image
 
@@ -246,7 +228,11 @@ Replace the repo url in the CloudFormation template before you deploy.
 
 ### Can I run this locally
 
-Yes, you can run this locally.
+Yes, you can run this locally, e.g. run below command under `src` folder:
+
+```bash
+uvicorn api.app:app --host 0.0.0.0 --port 8000
+```
 
 The API base url should look like `http://localhost:8000/api/v1`.
 

@@ -6,13 +6,13 @@
 
 ## 重大变更
 
-这个方案现在可以自动检测 Amazon Bedrock 中支持的新模型。
+这个方案现在可以**自动检测** Amazon Bedrock 中支持的新模型。
 因此，当 Amazon Bedrock 添加新模型时，您可以立即尝试使用它们，无需等待此代码库的更新。
 
 这是通过使用Amazon Bedrock 的 `ListFoundationModels API` 和 `ListInferenceProfiles` API 实现的。由于这一变更，您需要为 Lambda/Fargate 角色添加额外的 IAM 权限。
 
 如果您遇到错误："Unsupported model xxx, please use models API to get a list of supported models"（即使Model ID 是正确的），
-请使用Deployment 文件夹中的新模板更新您现有的堆栈，或手动为相关的 Lambda/Fargate 角色添加以下权限。
+请使用Deployment 文件夹中的新模板更新您现有的堆栈(**推荐**），或手动为相关的 Lambda/Fargate 角色添加以下权限。
 
 ```json
 {
@@ -50,19 +50,7 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 
 请查看[使用指南](./docs/Usage_CN.md)以获取有关如何使用新API的更多详细信息。
 
-> 注意： 不支持旧的 [text completion](https://platform.openai.com/docs/api-reference/completions) API，请更改为使用Chat Completion API。
-
-支持的Amazon Bedrock模型家族：
-
-- Anthropic Claude 2 / 3 (Haiku/Sonnet/Opus) / 3.5 Sonnet
-- Meta Llama 2 / 3
-- Mistral / Mixtral
-- Cohere Command R / R+
-- Cohere Embedding
-
-你可以先调用`models` API 获取支持的详细 model ID 列表。
-
-> 注意: 默认模型为 `anthropic.claude-3-sonnet-20240229-v1:0`， 可以通过更改Lambda环境变量进行更改。
+> 注意: 默认模型为 `anthropic.claude-3-sonnet-20240229-v1:0`， 可以通过更改Lambda环境变量进行更改。你可以先调用 [Models API](./docs/Usage.md#models-api) 查看支持的详细 model ID 列表。
 
 ## 使用指南
 
@@ -223,19 +211,13 @@ print(response)
 
 ### 支持哪些区域?
 
-只支持Amazon Bedrock可用的区域, 截至当前，包括以下区域:
-
-- 美国东部(弗吉尼亚北部)：us-east-1
-- 美国西部(俄勒冈州)：us-west-2
-- 亚太地区(新加坡)：ap-southeast-1
-- 亚太地区(悉尼)：ap-southeast-2
-- 亚太地区(东京)：ap-northeast-1
-- 欧洲(法兰克福)：eu-central-1
-- 欧洲(巴黎)：eu-west-3
-
 通常来说，所有Amazon Bedrock支持的区域都支持，如果不支持，请提个Github Issue。
 
 注意，并非所有模型都在上面区可用。
+
+### 支持哪些模型?
+
+你可以通过[Model API](./docs/Usage_CN.md#models-api) 获取（或更新）当前区支持的模型列表。 
 
 ### 我可以构建并使用自己的ECR镜像吗?
 
@@ -245,7 +227,13 @@ print(response)
 
 ### 我可以在本地运行吗?
 
-是的,你可以在本地运行,那么API Base URL应该类似于`http://localhost:8000/api/v1`
+是的,你可以在本地运行, 例如在`src` 文件夹下运行：
+
+```bash
+uvicorn api.app:app --host 0.0.0.0 --port 8000
+```
+
+那么API Base URL应该类似于`http://localhost:8000/api/v1`
 
 ### 使用代理API会有任何性能牺牲或延迟增加吗?
 
