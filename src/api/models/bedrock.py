@@ -42,7 +42,7 @@ from api.setting import DEBUG, AWS_REGION, ENABLE_CROSS_REGION_INFERENCE, DEFAUL
 
 logger = logging.getLogger(__name__)
 
-config = Config(connect_timeout=1, read_timeout=120, retries={"max_attempts": 1})
+config = Config(connect_timeout=60, read_timeout=120, retries={"max_attempts": 1})
 
 bedrock_runtime = boto3.client(
     service_name="bedrock-runtime",
