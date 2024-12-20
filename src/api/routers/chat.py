@@ -2,11 +2,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Body
 from fastapi.responses import StreamingResponse
-
+import logging
 from api.auth import api_key_auth
-from api.models.bedrock import BedrockModel
+#from api.models.bedrock import BedrockModel
+from api.models.bedrock_agents import BedrockAgents
 from api.schema import ChatRequest, ChatResponse, ChatStreamResponse
 from api.setting import DEFAULT_MODEL
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/chat",
@@ -32,14 +35,18 @@ async def chat_completions(
             ),
         ]
 ):
+    # this method gets called by front-end
+    
+    logger.info(f"chat_completions: {chat_request}")
+    
     if chat_request.model.lower().startswith("gpt-"):
         chat_request.model = DEFAULT_MODEL
 
     # Exception will be raised if model not supported.
-    model = BedrockModel()
+    model = BedrockAgents()
     model.validate(chat_request)
     if chat_request.stream:
-        return StreamingResponse(
-            content=model.chat_stream(chat_request), media_type="text/event-stream"
-        )
+        response = StreamingResponse(content=model.chat_stream(chat_request), media_type="text/event-stream")
+        logger.info(f"\n\nStreaming response: {response}\n\n")
+        return response
     return model.chat(chat_request)
