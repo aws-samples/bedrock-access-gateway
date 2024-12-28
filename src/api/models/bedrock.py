@@ -7,10 +7,10 @@ from abc import ABC
 from typing import AsyncIterable, Iterable, Literal
 
 import boto3
-from botocore.config import Config
 import numpy as np
 import requests
 import tiktoken
+from botocore.config import Config
 from fastapi import HTTPException
 
 from api.models.base import BaseChatModel, BaseEmbeddingsModel
@@ -37,19 +37,33 @@ from api.schema import (
     EmbeddingsUsage,
     Embedding,
 
-
 )
-from api.setting import DEBUG, AWS_REGION
+from api.setting import DEBUG, AWS_REGION, ENABLE_CROSS_REGION_INFERENCE, DEFAULT_MODEL
 
 logger = logging.getLogger(__name__)
 
-config = Config(connect_timeout=1, read_timeout=120, retries={"max_attempts": 1})
+config = Config(connect_timeout=60, read_timeout=120, retries={"max_attempts": 1})
 
 bedrock_runtime = boto3.client(
     service_name="bedrock-runtime",
     region_name=AWS_REGION,
     config=config,
 )
+bedrock_client = boto3.client(
+    service_name='bedrock',
+    region_name=AWS_REGION,
+    config=config,
+)
+
+
+def get_inference_region_prefix():
+    if AWS_REGION.startswith('ap-'):
+        return 'apac'
+    return AWS_REGION[:2]
+
+
+# https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html
+cr_inference_prefix = get_inference_region_prefix()
 
 SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
     "cohere.embed-multilingual-v3": "Cohere Embed Multilingual",
@@ -62,309 +76,83 @@ SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
 ENCODER = tiktoken.get_encoding("cl100k_base")
 
 
-class BedrockModel(BaseChatModel):
-    # https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html#conversation-inference-supported-models-features
-    _supported_models = {
-        "amazon.titan-text-premier-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": False,
-            "stream_tool_call": False,
-        },
-        "anthropic.claude-instant-v1": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": False,
-            "stream_tool_call": False,
-        },
-        "anthropic.claude-v2:1": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": False,
-            "stream_tool_call": False,
-        },
-        "anthropic.claude-v2": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": False,
-            "stream_tool_call": False,
-        },
-        "anthropic.claude-3-sonnet-20240229-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        "anthropic.claude-3-opus-20240229-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        "anthropic.claude-3-haiku-20240307-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        "anthropic.claude-3-5-sonnet-20240620-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        "anthropic.claude-3-5-sonnet-20241022-v2:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        "meta.llama2-13b-chat-v1": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": False,
-            "stream_tool_call": False,
-        },
-        "meta.llama2-70b-chat-v1": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": False,
-            "stream_tool_call": False,
-        },
-        "meta.llama3-8b-instruct-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": False,
-            "stream_tool_call": False,
-        },
-        "meta.llama3-70b-instruct-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": False,
-            "stream_tool_call": False,
-        },
-        # Llama 3.1 8b cross-region inference profile
-        "us.meta.llama3-1-8b-instruct-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": True,
-            "stream_tool_call": False,
-        },
-        "meta.llama3-1-8b-instruct-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": True,
-            "stream_tool_call": False,
-        },
-        # Llama 3.1 70b cross-region inference profile
-        "us.meta.llama3-1-70b-instruct-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": True,
-            "stream_tool_call": False,
-        },
-        "meta.llama3-1-70b-instruct-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": True,
-            "stream_tool_call": False,
-        },
-        "meta.llama3-1-405b-instruct-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": True,
-            "stream_tool_call": False,
-        },
-        # Llama 3.2 1B cross-region inference profile
-        "us.meta.llama3-2-1b-instruct-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": False,
-            "stream_tool_call": False,
-        },
-        # Llama 3.2 3B cross-region inference profile
-        "us.meta.llama3-2-3b-instruct-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": False,
-            "stream_tool_call": False,
-        },
-        # Llama 3.2 11B cross-region inference profile
-        "us.meta.llama3-2-11b-instruct-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": False,
-        },
-        # Llama 3.2 90B cross-region inference profile
-        "us.meta.llama3-2-90b-instruct-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": False,
-        },
-        "mistral.mistral-7b-instruct-v0:2": {
-            "system": False,
-            "multimodal": False,
-            "tool_call": False,
-            "stream_tool_call": False,
-        },
-        "mistral.mixtral-8x7b-instruct-v0:1": {
-            "system": False,
-            "multimodal": False,
-            "tool_call": False,
-            "stream_tool_call": False,
-        },
-        "mistral.mistral-small-2402-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": False,
-            "stream_tool_call": False,
-        },
-        "mistral.mistral-large-2402-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": True,
-            "stream_tool_call": False,
-        },
-        "mistral.mistral-large-2407-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": True,
-            "stream_tool_call": False,
-        },
-        "cohere.command-r-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": True,
-            "stream_tool_call": False,
-        },
-        "cohere.command-r-plus-v1:0": {
-            "system": True,
-            "multimodal": False,
-            "tool_call": True,
-            "stream_tool_call": False,
-        },
-        "apac.anthropic.claude-3-sonnet-20240229-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        "apac.anthropic.claude-3-haiku-20240307-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        "apac.anthropic.claude-3-5-sonnet-20240620-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        # claude 3 Haiku cross-region inference profile
-        "us.anthropic.claude-3-haiku-20240307-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        "eu.anthropic.claude-3-haiku-20240307-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        # claude 3 Opus cross-region inference profile
-        "us.anthropic.claude-3-opus-20240229-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        # claude 3 Sonnet cross-region inference profile
-        "us.anthropic.claude-3-sonnet-20240229-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        "eu.anthropic.claude-3-sonnet-20240229-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        # claude 3.5 Sonnet cross-region inference profile
-        "us.anthropic.claude-3-5-sonnet-20240620-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        "eu.anthropic.claude-3-5-sonnet-20240620-v1:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        # claude 3.5 Sonnet v2 cross-region inference profile(Now only us-west-2)
-        "us.anthropic.claude-3-5-sonnet-20241022-v2:0": {
-            "system": True,
-            "multimodal": True,
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        # Amazon Nova models - AWS's proprietary large language models
-        "us.amazon.nova-lite-v1:0": {
-            "system": True,      # Supports system prompts for context setting
-            "multimodal": True,  # Capable of processing both text and images
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        "us.amazon.nova-micro-v1:0": {
-            "system": True,      # Supports system prompts for context setting
-            "multimodal": False, # Text-only model, no image processing capabilities
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        "us.amazon.nova-pro-v1:0": {
-            "system": True,      # Supports system prompts for context setting
-            "multimodal": True,  # Capable of processing both text and images
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-        
-        "knowledgebase": {
-            "system": True,      # Supports system prompts for context setting
-            "multimodal": True,  # Capable of processing both text and images
-            "tool_call": True,
-            "stream_tool_call": True,
-        },
-    }
+def list_bedrock_models() -> dict:
+    """Automatically getting a list of supported models.
 
-    def supported_models(self):
-        logger.info("BedrockModel.supported_models")
-        return list(self._supported_models.keys())
+    Returns a model list combines:
+        - ON_DEMAND models.
+        - Cross-Region Inference Profiles (if enabled via Env)
+    """
+    model_list = {}
+    try:
+        profile_list = []
+        if ENABLE_CROSS_REGION_INFERENCE:
+            # List system defined inference profile IDs
+            response = bedrock_client.list_inference_profiles(
+                maxResults=1000,
+                typeEquals='SYSTEM_DEFINED'
+            )
+            profile_list = [p['inferenceProfileId'] for p in response['inferenceProfileSummaries']]
+
+        # List foundation models, only cares about text outputs here.
+        response = bedrock_client.list_foundation_models(
+            byOutputModality='TEXT'
+        )
+
+        for model in response['modelSummaries']:
+            model_id = model.get('modelId', 'N/A')
+            stream_supported = model.get('responseStreamingSupported', True)
+            status = model['modelLifecycle'].get('status', 'ACTIVE')
+
+            # currently, use this to filter out rerank models and legacy models
+            if not stream_supported or status != "ACTIVE":
+                continue
+
+            inference_types = model.get('inferenceTypesSupported', [])
+            input_modalities = model['inputModalities']
+            # Add on-demand model list
+            if 'ON_DEMAND' in inference_types:
+                model_list[model_id] = {
+                    'modalities': input_modalities
+                }
+
+            # Add cross-region inference model list.
+            profile_id = cr_inference_prefix + '.' + model_id
+            if profile_id in profile_list:
+                model_list[profile_id] = {
+                    'modalities': input_modalities
+                }
+
+    except Exception as e:
+        logger.error(f"Unable to list models: {str(e)}")
+
+    if not model_list:
+        # In case stack not updated.
+        model_list[DEFAULT_MODEL] = {
+            'modalities': ["TEXT", "IMAGE"]
+        }
+
+    return model_list
+
+
+# Initialize the model list.
+bedrock_model_list = list_bedrock_models()
+
+
+class BedrockModel(BaseChatModel):
 
     def list_models(self) -> list[str]:
-        logger.info("BedrockModel.list_models")
-        return list(self._supported_models.keys())
+        """Always refresh the latest model list"""
+        global bedrock_model_list
+        bedrock_model_list = list_bedrock_models()
+        return list(bedrock_model_list.keys())
 
     def validate(self, chat_request: ChatRequest):
         """Perform basic validation on requests"""
-        logger.info(f"BedrockModel.validate: {chat_request}")
-
         error = ""
         # check if model is supported
-        if chat_request.model not in self._supported_models.keys():
+        if chat_request.model not in bedrock_model_list.keys():
             error = f"Unsupported model {chat_request.model}, please use models API to get a list of supported models"
-
-        # check if tool call is supported
-        elif chat_request.tools and not self._is_tool_call_supported(chat_request.model, stream=chat_request.stream):
-            tool_call_info = "Tool call with streaming" if chat_request.stream else "Tool call"
-            error = f"{tool_call_info} is currently not supported by {chat_request.model}"
 
         if error:
             raise HTTPException(
@@ -375,7 +163,7 @@ class BedrockModel(BaseChatModel):
     def _invoke_bedrock(self, chat_request: ChatRequest, stream=False):
         """Common logic for invoke bedrock models"""
         if DEBUG:
-            logger.info("BedrockModel._invoke_bedrock: Raw request: " + chat_request.model_dump_json())
+            logger.info("Raw request: " + chat_request.model_dump_json())
 
         # convert OpenAI chat request to Bedrock SDK request
         args = self._parse_request(chat_request)
@@ -397,7 +185,7 @@ class BedrockModel(BaseChatModel):
 
     def chat(self, chat_request: ChatRequest) -> ChatResponse:
         """Default implementation for Chat API."""
-        logger.info(f"BedrockModel.chat: {chat_request}")
+
         message_id = self.generate_message_id()
         response = self._invoke_bedrock(chat_request)
 
@@ -420,9 +208,6 @@ class BedrockModel(BaseChatModel):
 
     def chat_stream(self, chat_request: ChatRequest) -> AsyncIterable[bytes]:
         """Default implementation for Chat Stream API"""
-
-        logger.info(f"BedrockModel.chat_stream: {chat_request}")
-
         response = self._invoke_bedrock(chat_request, stream=True)
         message_id = self.generate_message_id()
 
@@ -461,7 +246,6 @@ class BedrockModel(BaseChatModel):
         See example:
         https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html#message-inference-examples
         """
-        logger.info(f"BedrockModel._parse_system_prompts: {chat_request}")
 
         system_prompts = []
         for message in chat_request.messages:
@@ -485,9 +269,6 @@ class BedrockModel(BaseChatModel):
         See example:
         https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html#message-inference-examples
         """
-
-        logger.info(f"BedrockModel._parse_messages: {chat_request}")
-
         messages = []
         for message in chat_request.messages:
             if isinstance(message, UserMessage):
@@ -550,31 +331,29 @@ class BedrockModel(BaseChatModel):
                 continue
         return self._reframe_multi_payloard(messages)
 
-
     def _reframe_multi_payloard(self, messages: list) -> list:
         """ Receive messages and reformat them to comply with the Claude format
 
-With OpenAI format requests, it's not a problem to repeatedly receive messages from the same role, but
-with Claude format requests, you cannot repeatedly receive messages from the same role.
+        With OpenAI format requests, it's not a problem to repeatedly receive messages from the same role, but
+        with Claude format requests, you cannot repeatedly receive messages from the same role.
 
-This method searches through the OpenAI format messages in order and reformats them to the Claude format.
+        This method searches through the OpenAI format messages in order and reformats them to the Claude format.
 
-```
-openai_format_messages=[
-{"role": "user", "content": "hogehoge"},
-{"role": "user", "content": "fugafuga"},
-]
+        ```
+        openai_format_messages=[
+            {"role": "user", "content": "Hello"},
+            {"role": "user", "content": "Who are you?"},
+        ]
 
-bedrock_format_messages=[
-{
-    "role": "user",
-    "content": [
-        {"text": "hogehoge"},
-        {"text": "fugafuga"}
-    ]
-},
-]
-```
+        bedrock_format_messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"text": "Hello"},
+                    {"text": "Who are you?"}
+                ]
+            },
+        ]
         """
         reformatted_messages = []
         current_role = None
@@ -610,7 +389,6 @@ bedrock_format_messages=[
             })
 
         return reformatted_messages
-
 
     def _parse_request(self, chat_request: ChatRequest) -> dict:
         """Create default converse request body.
@@ -860,7 +638,7 @@ bedrock_format_messages=[
                     }
                 )
             elif isinstance(part, ImageContent):
-                if not self._is_multimodal_supported(model_id):
+                if not self.is_supported_modality(model_id, modality="IMAGE"):
                     raise HTTPException(
                         status_code=400,
                         detail=f"Multimodal message is currently not supported by {model_id}",
@@ -879,23 +657,13 @@ bedrock_format_messages=[
                 continue
         return content_parts
 
-    def _is_tool_call_supported(self, model_id: str, stream: bool = False) -> bool:
-        feature = self._supported_models.get(model_id)
-        if not feature:
-            return False
-        return feature["stream_tool_call"] if stream else feature["tool_call"]
-
-    def _is_multimodal_supported(self, model_id: str) -> bool:
-        feature = self._supported_models.get(model_id)
-        if not feature:
-            return False
-        return feature["multimodal"]
-
-    def _is_system_prompt_supported(self, model_id: str) -> bool:
-        feature = self._supported_models.get(model_id)
-        if not feature:
-            return False
-        return feature["system"]
+    @staticmethod
+    def is_supported_modality(model_id: str, modality: str = "IMAGE") -> bool:
+        model = bedrock_model_list.get(model_id)
+        modalities = model.get('modalities', [])
+        if modality in modalities:
+            return True
+        return False
 
     def _convert_tool_spec(self, func: Function) -> dict:
         return {
