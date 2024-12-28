@@ -9,6 +9,38 @@ export OPENAI_API_KEY=<API key>
 export OPENAI_BASE_URL=<API base url>
 ```
 
+## Models API
+
+你可以通过这个API 获取支持的models 列表。 另外，如果Amazon Bedrock有新模型加入后，你也可以用它来更新刷新模型列表。
+
+**Request 示例**
+
+```bash
+curl -s $OPENAI_BASE_URL/models -H "Authorization: Bearer $OPENAI_API_KEY" | jq .data
+```
+
+**Response 示例**
+
+```bash
+[
+  ...
+  {
+    "id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+    "created": 1734416893,
+    "object": "model",
+    "owned_by": "bedrock"
+  },
+  {
+    "id": "us.anthropic.claude-3-5-sonnet-20240620-v1:0",
+    "created": 1734416893,
+    "object": "model",
+    "owned_by": "bedrock"
+  },
+  ...
+]
+```
+
+
 ## Embedding API
 
 **重要**: 在使用此代理 API 之前,请仔细阅读以下几点:

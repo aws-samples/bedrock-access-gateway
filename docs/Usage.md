@@ -9,6 +9,40 @@ export OPENAI_API_KEY=<API key>
 export OPENAI_BASE_URL=<API base url>
 ```
 
+## Models API
+
+You can use this API to get a list of supported model IDs.
+
+Also, you can use this API to refresh the model list if new models are added to Amazon Bedrock.
+
+
+**Example Request**
+
+```bash
+curl -s $OPENAI_BASE_URL/models -H "Authorization: Bearer $OPENAI_API_KEY" | jq .data
+```
+
+**Example Response**
+
+```bash
+[
+  ...
+  {
+    "id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+    "created": 1734416893,
+    "object": "model",
+    "owned_by": "bedrock"
+  },
+  {
+    "id": "us.anthropic.claude-3-5-sonnet-20240620-v1:0",
+    "created": 1734416893,
+    "object": "model",
+    "owned_by": "bedrock"
+  },
+  ...
+]
+```
+
 ## Embedding API
 
 **Important Notice**: Please carefully review the following points before using this proxy API for embedding.

@@ -6,9 +6,26 @@
 
 ## 重大变更
 
-项目源代码已使用Bedrock提供的新 [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) 进行了重构,该API对工具调用提供了原生支持。
+这个方案现在可以**自动检测** Amazon Bedrock 中支持的新模型。
+因此，当 Amazon Bedrock 添加新模型时，您可以立即尝试使用它们，无需等待此代码库的更新。
 
-如果您遇到任何问题,请提 Github Issue。
+这是通过使用Amazon Bedrock 的 `ListFoundationModels API` 和 `ListInferenceProfiles` API 实现的。由于这一变更，您需要为 Lambda/Fargate 角色添加额外的 IAM 权限。
+
+如果您遇到错误："Unsupported model xxx, please use models API to get a list of supported models"（即使Model ID 是正确的），
+请使用Deployment 文件夹中的新模板更新您现有的堆栈(**推荐**），或手动为相关的 Lambda/Fargate 角色添加以下权限。
+
+```json
+{
+   "Action": [
+       "bedrock:ListFoundationModels",
+       "bedrock:ListInferenceProfiles"
+   ],
+   "Resource": "*",
+   "Effect": "Allow"
+}
+```
+
+如果依然有问题，请提个GitHub issue。
 
 ## 概述
 
@@ -33,19 +50,7 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 
 请查看[使用指南](./docs/Usage_CN.md)以获取有关如何使用新API的更多详细信息。
 
-> 注意： 不支持旧的 [text completion](https://platform.openai.com/docs/api-reference/completions) API，请更改为使用Chat Completion API。
-
-支持的Amazon Bedrock模型家族：
-
-- Anthropic Claude 2 / 3 (Haiku/Sonnet/Opus) / 3.5 Sonnet
-- Meta Llama 2 / 3
-- Mistral / Mixtral
-- Cohere Command R / R+
-- Cohere Embedding
-
-你可以先调用`models` API 获取支持的详细 model ID 列表。
-
-> 注意: 默认模型为 `anthropic.claude-3-sonnet-20240229-v1:0`， 可以通过更改Lambda环境变量进行更改。
+> 注意: 默认模型为 `anthropic.claude-3-sonnet-20240229-v1:0`， 可以通过更改Lambda环境变量进行更改。你可以先调用 [Models API](./docs/Usage.md#models-api) 查看支持的详细 model ID 列表。
 
 ## 使用指南
 
@@ -158,61 +163,9 @@ print(completion.choices[0].message.content)
 
 请查看[使用指南](./docs/Usage_CN.md)以获取有关如何使用Embedding API、多模态API和Tool Call的更多详细信息。
 
-### Bedrock Cross-Region Inference
-
-Cross-Region Inference 支持跨区域访问的基础模型,即允许用户在一个 AWS 区域中调用其他区域的基础模型进行推理。主要优势:
-- **提高可用性**: 提供区域冗余，增强容错能力。当主要区域出现问题时可以切换到备用区域，确保服务的持续可用性和业务连续性
-- **降低延迟**: 可以选择地理位置最接近用户的区域,优化网络路径，减少传输时间,提供更好的用户体验和响应速度
-- **性能和容量优化**: 实现负载均衡，分散请求压力,提供更大的服务容量和吞吐量,能够更好地处理流量峰值
-- **灵活性**: 根据需求选择不同区域的模型,满足特定地区的合规要求,更灵活的资源调配和管理
-- **成本效益**: 可以选择成本更优的区域,通过优化资源使用降低总体运营成本,更好的资源利用效率
-
-详细介绍请查看[Bedrock Cross-Region Inference](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html)
-
-**限制条件:**
-当前 Gateway 只添加了对 Claude 3 Haiku/Claude 3 Opus/Claude 3 Sonnet/Claude 3.5 Sonnet 的跨区域调用
-- Claude 3 Haiku
-- Claude 3 Opus
-- Claude 3 Sonnet
-- Claude 3.5 Sonnet
-- Meta Llama 3.1 8b Instruct
-- Meta Llama 3.1 70b Instruct
-- Meta Llama 3.2 1B Instruct
-- Meta Llama 3.2 3B Instruct
-- Meta Llama 3.2 11B Vision Instruct
-- Meta Llama 3.2 90B Vision Instruct
-
-**使用前提:**
-- IAM Policy 有 inference profiles 相关的权限和调用模型的权限 (cloudformation template 中已添加)
-- 对 inference profiles 中定义的模型和区域中都启用模型访问权限
-
-**使用方法:**
-- 在调用模型时设置 modelId 为 inference profile ID, 例如 `us.anthropic.claude-3-5-sonnet-20240620-v1:0`
-
-```bash
-curl $OPENAI_BASE_URL/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -d '{
-    "model": "us.anthropic.claude-3-5-sonnet-20240620-v1:0",
-    "max_tokens": 2048,
-    "messages": [
-      {
-        "role": "user",
-        "content": "Hello!"
-      }
-    ]
-  }'
-```
 
 
 ## 其他例子
-
-### AutoGen
-
-例如在AutoGen studio配置和使用模型
-
-![AutoGen Model](assets/autogen-model.png)
 
 ### LangChain
 
@@ -258,19 +211,13 @@ print(response)
 
 ### 支持哪些区域?
 
-只支持Amazon Bedrock可用的区域, 截至当前，包括以下区域:
-
-- 美国东部(弗吉尼亚北部)：us-east-1
-- 美国西部(俄勒冈州)：us-west-2
-- 亚太地区(新加坡)：ap-southeast-1
-- 亚太地区(悉尼)：ap-southeast-2
-- 亚太地区(东京)：ap-northeast-1
-- 欧洲(法兰克福)：eu-central-1
-- 欧洲(巴黎)：eu-west-3
-
 通常来说，所有Amazon Bedrock支持的区域都支持，如果不支持，请提个Github Issue。
 
 注意，并非所有模型都在上面区可用。
+
+### 支持哪些模型?
+
+你可以通过[Model API](./docs/Usage_CN.md#models-api) 获取（或更新）当前区支持的模型列表。 
 
 ### 我可以构建并使用自己的ECR镜像吗?
 
@@ -280,7 +227,13 @@ print(response)
 
 ### 我可以在本地运行吗?
 
-是的,你可以在本地运行,那么API Base URL应该类似于`http://localhost:8000/api/v1`
+是的,你可以在本地运行, 例如在`src` 文件夹下运行：
+
+```bash
+uvicorn api.app:app --host 0.0.0.0 --port 8000
+```
+
+那么API Base URL应该类似于`http://localhost:8000/api/v1`
 
 ### 使用代理API会有任何性能牺牲或延迟增加吗?
 

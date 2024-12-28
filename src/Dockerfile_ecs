@@ -8,4 +8,6 @@ RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
 
 COPY ./api /app/api
 
-CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "80"]
+ENV PORT=80
+
+CMD ["sh", "-c", "uvicorn api.app:app --host 0.0.0.0 --port ${PORT}"]
