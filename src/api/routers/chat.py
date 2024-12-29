@@ -37,8 +37,6 @@ async def chat_completions(
 ):
     # this method gets called by front-end
     
-    logger.info(f"chat_completions: {chat_request}")
-    
     if chat_request.model.lower().startswith("gpt-"):
         chat_request.model = DEFAULT_MODEL
 
@@ -47,6 +45,6 @@ async def chat_completions(
     model.validate(chat_request)
     if chat_request.stream:
         response = StreamingResponse(content=model.chat_stream(chat_request), media_type="text/event-stream")
-        logger.info(f"\n\nStreaming response: {response}\n\n")
         return response
+    
     return model.chat(chat_request)

@@ -20,3 +20,13 @@ DEFAULT_EMBEDDING_MODEL = os.environ.get(
     "DEFAULT_EMBEDDING_MODEL", "cohere.embed-multilingual-v3"
 )
 ENABLE_CROSS_REGION_INFERENCE = os.environ.get("ENABLE_CROSS_REGION_INFERENCE", "true").lower() != "false"
+
+KB_PREFIX = 'kb-'
+AGENT_PREFIX = 'ag-'
+
+DEFAULT_KB_MODEL = os.environ.get(
+    "DEFAULT_KB_MODEL", "anthropic.claude-3-haiku-20240307-v1:0"
+)
+
+
+DEFAULT_KB_MODEL_ARN = f'arn:aws:bedrock:{AWS_REGION}::foundation-model/{DEFAULT_KB_MODEL}'
