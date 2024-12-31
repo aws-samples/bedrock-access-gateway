@@ -408,6 +408,12 @@ class BedrockModel(BaseChatModel):
             "topP": chat_request.top_p,
         }
 
+        if chat_request.stop is not None:
+            stop = chat_request.stop
+            if isinstance(stop, str):
+                stop = [stop]
+            inference_config["stopSequences"] = stop
+
         args = {
             "modelId": chat_request.model,
             "messages": messages,
