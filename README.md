@@ -216,10 +216,12 @@ Replace the repo url in the CloudFormation template before you deploy.
 Yes, you can run this locally, e.g. run below command under `src` folder:
 
 ```bash
+cd src/
+pip install -r requirements.txt
 uvicorn api.app:app --host 0.0.0.0 --port 8000
 ```
 
-The API base url should look like `http://localhost:8000/api/v1`.
+The API base url should look like `http://localhost:8000/api/v1` and the API key should be `bedrock`.
 
 ### Any performance sacrifice or latency increase by using the proxy APIs
 
