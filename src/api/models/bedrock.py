@@ -38,7 +38,7 @@ from api.schema import (
     Embedding,
 
 )
-from api.setting import DEBUG, AWS_REGION, ENABLE_CROSS_REGION_INFERENCE, DEFAULT_MODEL
+from api.setting import DEBUG, AWS_REGION, ENABLE_CROSS_REGION_INFERENCE, DEFAULT_MODEL, ENABLE_IMPORTED_MODELS
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +98,17 @@ def list_bedrock_models() -> dict:
         response = bedrock_client.list_foundation_models(
             byOutputModality='TEXT'
         )
+
+        # Add imported models to the list if ENABLE_IMPORTED_MODELS is true
+        if ENABLE_IMPORTED_MODELS:
+            response_imported = bedrock_client.list_imported_models()
+
+            # Add imported models to the default model list
+            for model in response_imported['modelSummaries']:
+                model_id = model.get('modelArn')
+                model_list[model_id] = {
+                    'modalities': ["TEXT"]
+                }
 
         for model in response['modelSummaries']:
             model_id = model.get('modelId', 'N/A')

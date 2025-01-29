@@ -5,6 +5,13 @@ Parameters:
     Type: String
     Default: ""
     Description: The parameter name in System Manager used to store the API Key, leave blank to use a default key
+  EnableImportedModels:
+    Type: String
+    Default: false
+    AllowedValues:
+      - true
+      - false
+    Description: If enabled, models imported into Bedrock will be available to use.
 Resources:
   VPCB9E5F0B4:
     Type: AWS::EC2::VPC
@@ -237,6 +244,8 @@ Resources:
               Value: cohere.embed-multilingual-v3
             - Name: ENABLE_CROSS_REGION_INFERENCE
               Value: "true"
+            - Name: ENABLE_IMPORTED_MODELS
+              Value: !Ref EnableImportedModels
           Essential: true
           Image:
             Fn::Join:
