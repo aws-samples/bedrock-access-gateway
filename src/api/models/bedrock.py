@@ -38,7 +38,7 @@ from api.schema import (
     Embedding,
 
 )
-from api.setting import DEBUG, AWS_REGION, ENABLE_CROSS_REGION_INFERENCE, DEFAULT_MODEL
+from api.setting import DEBUG, AWS_REGION, ENABLE_CROSS_REGION_INFERENCE, DEFAULT_MODEL, ENABLE_IMPORTED_MODELS
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +98,18 @@ def list_bedrock_models() -> dict:
         response = bedrock_client.list_foundation_models(
             byOutputModality='TEXT'
         )
+
+        # Add imported models to the list if ENABLE_IMPORTED_MODELS is true
+        if ENABLE_IMPORTED_MODELS:
+            response_imported = bedrock_client.list_imported_models()
+            print(response_imported)
+
+            # Add imported models to the default model list
+            for model in response_imported['modelSummaries']:
+                model_id = model.get('modelName')
+                model_list[f"custom.{model_id}"] = {
+                    'modalities': ["TEXT"]
+                }
 
         for model in response['modelSummaries']:
             model_id = model.get('modelId', 'N/A')
@@ -169,6 +181,20 @@ class BedrockModel(BaseChatModel):
         args = self._parse_request(chat_request)
         if DEBUG:
             logger.info("Bedrock request: " + json.dumps(str(args)))
+
+        if args["modelId"].startswith("custom."):
+            # For custom models, get the model ARN by listing models and finding matching name
+            model_name = args["modelId"].replace("custom.", "")
+            response = bedrock_client.list_imported_models()
+            for model in response["modelSummaries"]:
+                if model["modelName"] == model_name:
+                    args["modelId"] = model["modelArn"]
+                    break
+            else:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Custom model {model_name} not found"
+                )
 
         try:
             if stream:
