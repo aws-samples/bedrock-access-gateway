@@ -5,6 +5,10 @@ Parameters:
     Type: String
     Default: ""
     Description: The parameter name in System Manager used to store the API Key, leave blank to use a default key
+  ImageUri:
+    Type: String
+    Default: ""
+    Description: Specify a custom ECR image, if left blank defaults to 366590864501.dkr.ecr.us-east-1.amazonaws.com/bedrock-proxy-api:latest.
   EnableImportedModels:
     Type: String
     Default: false
@@ -12,6 +16,8 @@ Parameters:
       - true
       - false
     Description: If enabled, models imported into Bedrock will be available to use.
+Conditions:
+  UseDefaultImage: !Equals [!Ref ImageUri, ""]
 Resources:
   VPCB9E5F0B4:
     Type: AWS::EC2::VPC
@@ -182,6 +188,7 @@ Resources:
           - Action:
               - bedrock:ListFoundationModels
               - bedrock:ListInferenceProfiles
+              - bedrock:ListImportedModels
             Effect: Allow
             Resource: "*"
           - Action:
@@ -191,6 +198,7 @@ Resources:
             Resource:
               - arn:aws:bedrock:*::foundation-model/*
               - arn:aws:bedrock:*:*:inference-profile/*
+              - arn:aws:bedrock:*:*:imported-model/*
           - Action:
               - ssm:DescribeParameters
               - ssm:GetParameters
@@ -247,14 +255,16 @@ Resources:
             - Name: ENABLE_IMPORTED_MODELS
               Value: !Ref EnableImportedModels
           Essential: true
-          Image:
-            Fn::Join:
-              - ""
-              - - 366590864501.dkr.ecr.
-                - Ref: AWS::Region
-                - "."
-                - Ref: AWS::URLSuffix
-                - /bedrock-proxy-api-ecs:latest
+          Image: !If 
+          - UseDefaultImage
+          - !Join 
+            - ""
+            - - "366590864501.dkr.ecr."
+              - !Ref AWS::Region
+              - "."
+              - !Ref AWS::URLSuffix
+              - "/bedrock-proxy-api:latest"
+          - !Ref ImageUri
           Name: proxy-api
           PortMappings:
             - ContainerPort: 80
