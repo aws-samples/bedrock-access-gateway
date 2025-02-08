@@ -100,12 +100,10 @@ Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS acc
 
 1. Sign in to AWS Management Console, switch to the region to deploy the CloudFormation Stack to.
 2. Click the following button to launch the CloudFormation Stack in that region. Choose one of the following:
-   - **ALB + Lambda**
 
-      [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxy.template)
-   - **ALB + Fargate**
+      [<kbd> <br> ALB + Lambda 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxy.template&stackName=BedrockProxyAPI)
 
-      [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxyFargate.template)
+      [<kbd> <br> ALB + Fargate 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxyFargate.template&stackName=BedrockProxyAPI)
 3. Click "Next".
 4. On the "Specify stack details" page, provide the following information:
     - Stack name: Change the stack name if needed.
@@ -116,6 +114,10 @@ Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS acc
 8. Click "Create stack".
 
 That is it! 🎉 Once deployed, click the CloudFormation stack and go to **Outputs** tab, you can find the API Base URL from `APIBaseUrl`, the value should look like `http://xxxx.xxx.elb.amazonaws.com/api/v1`.
+
+### Troubleshooting
+
+If you encounter any issues, please check the [Troubleshooting Guide](./docs/Troubleshooting.md) for more details.
 
 ### SDK/API Usage
 
@@ -231,10 +233,12 @@ Replace the repo url in the CloudFormation template before you deploy.
 Yes, you can run this locally, e.g. run below command under `src` folder:
 
 ```bash
+cd src/
+pip install -r requirements.txt
 uvicorn api.app:app --host 0.0.0.0 --port 8000
 ```
 
-The API base url should look like `http://localhost:8000/api/v1`.
+The API base url should look like `http://localhost:8000/api/v1` and the API key should be `bedrock`.
 
 ### Any performance sacrifice or latency increase by using the proxy APIs
 

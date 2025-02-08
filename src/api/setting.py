@@ -20,3 +20,4 @@ DEFAULT_EMBEDDING_MODEL = os.environ.get(
     "DEFAULT_EMBEDDING_MODEL", "cohere.embed-multilingual-v3"
 )
 ENABLE_CROSS_REGION_INFERENCE = os.environ.get("ENABLE_CROSS_REGION_INFERENCE", "true").lower() != "false"
+ENABLE_IMPORTED_MODELS = os.environ.get("ENABLE_IMPORTED_MODELS", "true").lower() != "false"
