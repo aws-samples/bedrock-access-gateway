@@ -1,10 +1,10 @@
 Description: Bedrock Access Gateway - OpenAI-compatible RESTful APIs for Amazon Bedrock
 Transform: AWS::LanguageExtensions
 Parameters:
-  ApiKeySecretName:
+  ApiKeySecretArn:
     Type: String
-    Default: ""
-    Description: The secret name in Secrets Manager used to store the API Key
+    AllowedPattern: ^arn:aws:secretsmanager:.*$
+    Description: The secret ARN in Secrets Manager used to store the API Key
 Resources:
   VPCB9E5F0B4:
     Type: AWS::EC2::VPC
@@ -144,17 +144,7 @@ Resources:
               - secretsmanager:DescribeSecret
             Effect: Allow
             Resource:
-              Fn::Join:
-                - ""
-                - - "arn:"
-                  - Ref: AWS::Partition
-                  - ":secretsmanager:"
-                  - Ref: AWS::Region
-                  - ":"
-                  - Ref: AWS::AccountId
-                  - ":secret:"
-                  - Ref: ApiKeySecretName
-                  - -??????
+              Ref: ApiKeySecretArn
           - Action:
               - ecr:BatchCheckLayerAvailability
               - ecr:GetDownloadUrlForLayer
@@ -252,14 +242,7 @@ Resources:
               ValueFrom:
                 Fn::Join:
                   - ""
-                  - - "arn:"
-                    - Ref: AWS::Partition
-                    - ":secretsmanager:"
-                    - Ref: AWS::Region
-                    - ":"
-                    - Ref: AWS::AccountId
-                    - ":secret:"
-                    - Ref: ApiKeySecretName
+                  - - Ref: ApiKeySecretArn
                     - ":api_key::"
       Cpu: "1024"
       ExecutionRoleArn:

@@ -77,6 +77,9 @@ Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS acc
    Description: (Optional) Add a description of your secret
 5. Click "Next" and review all your settings and click "Store"
 
+After creation, you'll see your secret in the Secrets Manager console.  Make note of the secret ARN.
+
+
 **Step 2: Deploy the CloudFormation stack**
 
 1. Sign in to AWS Management Console, switch to the region to deploy the CloudFormation Stack to.
@@ -88,11 +91,11 @@ Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS acc
 3. Click "Next".
 4. On the "Specify stack details" page, provide the following information:
     - Stack name: Change the stack name if needed.
-    - ApiKeySecretName: Enter the secret name you used for storing the API key (e.g., `BedrockProxyAPIKey`). Click "Next".
-5. On the "Configure stack options" page, you can leave the default settings or customize them according to your needs.
-6. Click "Next".
-7. On the "Review" page, review the details of the stack you're about to create. Check the "I acknowledge that AWS CloudFormation might create IAM resources" checkbox at the bottom.
-8. Click "Create stack".
+    - ApiKeySecretArn: Enter the secret ARN you used for storing the API key. 
+   
+   Click "Next".
+5. On the "Configure stack options" page, you can leave the default settings or customize them according to your needs. Click "Next".
+6. On the "Review" page, review the details of the stack you're about to create. Check the "I acknowledge that AWS CloudFormation might create IAM resources" checkbox at the bottom. Click "Create stack".
 
 That is it! 🎉 Once deployed, click the CloudFormation stack and go to **Outputs** tab, you can find the API Base URL from `APIBaseUrl`, the value should look like `http://xxxx.xxx.elb.amazonaws.com/api/v1`.
 

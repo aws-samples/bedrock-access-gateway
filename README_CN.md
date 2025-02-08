@@ -76,6 +76,7 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 4. 在 "配置密钥" 页面： 密钥名称：输入一个名称（例如："BedrockProxyAPIKey"） 描述：（可选）添加密钥的描述
 5. 点击 "下一步"，检查所有设置后点击 "存储"
 
+创建完成后，您将在 Secrets Manager 控制台中看到您的密钥。请记下密钥的 ARN。
 
 **第二步: 部署CloudFormation堆栈**
 
@@ -88,12 +89,11 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 3. 单击"下一步"。
 4. 在"指定堆栈详细信息"页面,提供以下信息:
     - 堆栈名称: 可以根据需要更改名称。
-    - ApiKeySecretName:输入您用于存储API 密钥的名称(例如"BedrockProxyAPIKey")，否则,请将此字段留空。
-      单击"下一步"。
-5. 在"配置堆栈选项"页面,您可以保留默认设置或根据需要进行自定义。
-6. 单击"下一步"。
-7. 在"审核"页面,查看您即将创建的堆栈详细信息。勾选底部的"我确认，AWS CloudFormation 可能创建 IAM 资源。"复选框。
-8. 单击"创建堆栈"。
+    - ApiKeySecretArn:输入您用于存储API 密钥的ARN。
+    
+   单击"下一步"。
+5. 在"配置堆栈选项"页面,您可以保留默认设置或根据需要进行自定义。 单击"下一步"。
+6. 在"审核"页面,查看您即将创建的堆栈详细信息。勾选底部的"我确认，AWS CloudFormation 可能创建 IAM 资源。"复选框。 单击"创建堆栈"。
 
 仅此而已 🎉 。部署完成后,点击CloudFormation堆栈,进入"输出"选项卡,你可以从"APIBaseUrl"
 中找到API Base URL,它应该类似于`http://xxxx.xxx.elb.amazonaws.com/api/v1` 这样的格式。
