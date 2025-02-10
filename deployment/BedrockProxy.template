@@ -1,10 +1,13 @@
 Description: Bedrock Access Gateway - OpenAI-compatible RESTful APIs for Amazon Bedrock
-Transform: AWS::LanguageExtensions
 Parameters:
-  ApiKeyParam:
+  ApiKeySecretArn:
     Type: String
-    Default: ""
-    Description: The parameter name in System Manager used to store the API Key, leave blank to use a default key
+    AllowedPattern: ^arn:aws:secretsmanager:.*$
+    Description: The secret ARN in Secrets Manager used to store the API Key
+  DefaultModelId:
+    Type: String
+    Default: anthropic.claude-3-sonnet-20240229-v1:0
+    Description: The default model ID, please make sure the model ID is supported in the current region
 Resources:
   VPCB9E5F0B4:
     Type: AWS::EC2::VPC
@@ -149,22 +152,11 @@ Resources:
               - arn:aws:bedrock:*::foundation-model/*
               - arn:aws:bedrock:*:*:inference-profile/*
           - Action:
-              - ssm:DescribeParameters
-              - ssm:GetParameters
-              - ssm:GetParameter
-              - ssm:GetParameterHistory
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
             Effect: Allow
             Resource:
-              Fn::Join:
-                - ""
-                - - "arn:"
-                  - Ref: AWS::Partition
-                  - ":ssm:"
-                  - Ref: AWS::Region
-                  - ":"
-                  - Ref: AWS::AccountId
-                  - :parameter/
-                  - Ref: ApiKeyParam
+              Ref: ApiKeySecretArn
         Version: "2012-10-17"
       PolicyName: ProxyApiHandlerServiceRoleDefaultPolicy86681202
       Roles:
@@ -186,15 +178,11 @@ Resources:
       Description: Bedrock Proxy API Handler
       Environment:
         Variables:
-          API_KEY_PARAM_NAME:
-            Ref: ApiKeyParam
           DEBUG: "false"
+          API_KEY_SECRET_ARN:
+            Ref: ApiKeySecretArn
           DEFAULT_MODEL:
-            Fn::FindInMap:
-              - ProxyRegionTable03E5BEB3
-              - Ref: AWS::Region
-              - model
-              - DefaultValue: anthropic.claude-3-sonnet-20240229-v1:0
+            Ref: DefaultModelId
           DEFAULT_EMBEDDING_MODEL: cohere.embed-multilingual-v3
           ENABLE_CROSS_REGION_INFERENCE: "true"
       MemorySize: 1024
@@ -203,7 +191,7 @@ Resources:
         Fn::GetAtt:
           - ProxyApiHandlerServiceRoleBE71BFB1
           - Arn
-      Timeout: 300
+      Timeout: 600
     DependsOn:
       - ProxyApiHandlerServiceRoleDefaultPolicy86681202
       - ProxyApiHandlerServiceRoleBE71BFB1
@@ -277,10 +265,6 @@ Resources:
               - Arn
     DependsOn:
       - ProxyApiHandlerInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYF6C33779
-Mappings:
-  ProxyRegionTable03E5BEB3:
-    us-east-1:
-      model: anthropic.claude-3-sonnet-20240229-v1:0
 Outputs:
   APIBaseUrl:
     Description: Proxy API Base URL (OPENAI_API_BASE)

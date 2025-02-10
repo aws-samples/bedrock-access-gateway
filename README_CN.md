@@ -6,24 +6,7 @@
 
 ## 重大变更
 
-这个方案现在可以**自动检测** Amazon Bedrock 中支持的新模型。
-因此，当 Amazon Bedrock 添加新模型时，您可以立即尝试使用它们，无需等待此代码库的更新。
-
-这是通过使用Amazon Bedrock 的 `ListFoundationModels API` 和 `ListInferenceProfiles` API 实现的。由于这一变更，您需要为 Lambda/Fargate 角色添加额外的 IAM 权限。
-
-如果您遇到错误："Unsupported model xxx, please use models API to get a list of supported models"（即使Model ID 是正确的），
-请使用Deployment 文件夹中的新模板更新您现有的堆栈(**推荐**），或手动为相关的 Lambda/Fargate 角色添加以下权限。
-
-```json
-{
-   "Action": [
-       "bedrock:ListFoundationModels",
-       "bedrock:ListInferenceProfiles"
-   ],
-   "Resource": "*",
-   "Effect": "Allow"
-}
-```
+为了遵循安全最佳实践，本解决方案现使用 Secrets Manager 来管理 API 密钥。您必须先在 Secrets Manager 中创建 API 密钥，并定期轮换该密钥。
 
 如果依然有问题，请提个GitHub issue。
 
@@ -50,8 +33,6 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 
 请查看[使用指南](./docs/Usage_CN.md)以获取有关如何使用新API的更多详细信息。
 
-> 注意: 默认模型为 `anthropic.claude-3-sonnet-20240229-v1:0`， 可以通过更改Lambda环境变量进行更改。你可以先调用 [Models API](./docs/Usage.md#models-api) 查看支持的详细 model ID 列表。
-
 ## 使用指南
 
 ### 前提条件
@@ -66,7 +47,7 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 
 下图展示了本方案的参考架构。请注意,它还包括一个新的**VPC**,其中只有两个公共子网用于应用程序负载均衡器(ALB)。
 
-![Architecture](assets/arch.svg)
+![Architecture](assets/arch.png)
 
 您也可以选择在 ALB 后面接 [AWS Fargate](https://aws.amazon.com/fargate/) 而不是 [AWS Lambda](https://aws.amazon.com/lambda/)，主要区别在于流响应的首字节延迟（Fargate更低）。
 
@@ -76,22 +57,24 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 
 请按以下步骤将Bedrock代理API部署到您的AWS账户中。仅支持Amazon Bedrock可用的区域(如us-west-2)。 部署预计用时**3-5分钟** 🕒。
 
-**第一步: 自定义您的API Key (可选)**
+**第一步: 在 Secrets Manager 中创建您的 API 密钥（必须）**
 
 > 注意:这一步是使用任意字符串（不带空格）创建一个自定义的API Key(凭证),将用于后续访问代理API。此API Key不必与您实际的OpenAI
-> Key一致,您甚至无需拥有OpenAI API Key。建议您执行此步操作并且请确保保管好此API Key。
+> Key一致,您甚至无需拥有OpenAI API Key。请确保保管好此API Key。
 
-1. 打开AWS管理控制台,导航到Systems Manager服务。
-2. 在左侧导航窗格中,单击"参数存储"。
-3. 单击"创建参数"按钮。
-4. 在"创建参数"窗口中,选择以下选项:
-    - 名称:输入参数的描述性名称(例如"BedrockProxyAPIKey")。
-    - 描述:可选,为参数提供描述。
-    - 层级:选择**标准**。
-    - 类型:选择**SecureString**。
-    - 值: 随意字符串（不带空格）。
-5. 单击"创建参数"。
-6. 记录您使用的参数名称(例如"BedrockProxyAPIKey")。您将在下一步中需要它。
+1. 打开 AWS 管理控制台并导航至 AWS Secrets Manager 服务。
+2. 点击 "存储新密钥" 按钮。
+3. 在 "选择密钥类型" 页面，选择：
+
+   密钥类型：其他类型的密钥 键/值对：
+   
+   - 键：api_key
+   - 值：输入您的 API 密钥值
+   点击 "下一步"
+4. 在 "配置密钥" 页面： 密钥名称：输入一个名称（例如："BedrockProxyAPIKey"） 描述：（可选）添加密钥的描述
+5. 点击 "下一步"，检查所有设置后点击 "存储"
+
+创建完成后，您将在 Secrets Manager 控制台中看到您的密钥。请记下密钥的 ARN。
 
 **第二步: 部署CloudFormation堆栈**
 
@@ -100,18 +83,18 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
    - **ALB + Lambda**
 
       [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxy.template)
+
    - **ALB + Fargate**
 
       [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxyFargate.template)
 3. 单击"下一步"。
 4. 在"指定堆栈详细信息"页面,提供以下信息:
     - 堆栈名称: 可以根据需要更改名称。
-    - ApiKeyParam(如果在步骤1中设置了API Key):输入您用于存储API密钥的参数名称(例如"BedrockProxyAPIKey")，否则,请将此字段留空。
-      单击"下一步"。
-5. 在"配置堆栈选项"页面,您可以保留默认设置或根据需要进行自定义。
-6. 单击"下一步"。
-7. 在"审核"页面,查看您即将创建的堆栈详细信息。勾选底部的"我确认，AWS CloudFormation 可能创建 IAM 资源。"复选框。
-8. 单击"创建堆栈"。
+    - ApiKeySecretArn:输入您用于存储API 密钥的ARN。
+    
+   单击"下一步"。
+5. 在"配置堆栈选项"页面,您可以保留默认设置或根据需要进行自定义。 单击"下一步"。
+6. 在"审核"页面,查看您即将创建的堆栈详细信息。勾选底部的"我确认，AWS CloudFormation 可能创建 IAM 资源。"复选框。 单击"创建堆栈"。
 
 仅此而已 🎉 。部署完成后,点击CloudFormation堆栈,进入"输出"选项卡,你可以从"APIBaseUrl"
 中找到API Base URL,它应该类似于`http://xxxx.xxx.elb.amazonaws.com/api/v1` 这样的格式。

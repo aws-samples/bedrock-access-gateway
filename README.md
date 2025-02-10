@@ -6,24 +6,7 @@ OpenAI-compatible RESTful APIs for Amazon Bedrock
 
 ## Breaking Changes
 
-This solution can now **automatically detect** new models supported in Amazon Bedrock. 
-So whenever new models are added to Amazon Bedrock, you can immediately try them without the need to wait for code changes to this repo. 
-
-This is to use the `ListFoundationModels` api and the `ListInferenceProfiles` api by Amazon Bedrock, due to this change, additional IAM permissions are required to your Lambda/Fargate role.
-
-If you are facing error: 'Unsupported model xxx, please use models API to get a list of supported models' even the model ID is correct, 
-please either update your existing stack (**Recommended**) with the new template in the deployment folder or manually add below permissions to the related Lambda/Fargate role.
-
-```json
-{
-   "Action": [
-       "bedrock:ListFoundationModels",
-       "bedrock:ListInferenceProfiles"
-   ],
-   "Resource": "*",
-   "Effect": "Allow"
-}
-```
+This solution now uses Secrets Manager to maintain API Key for security best practice.  You **MUST** create the API Key first in Secrets Manager and rotate it frequently.
 
 Please raise an GitHub issue if you still have problems.
 
@@ -48,7 +31,6 @@ If you find this GitHub repository useful, please consider giving it a free star
 
 Please check [Usage Guide](./docs/Usage.md) for more details about how to use the new APIs.
 
-> **Note:** The default model is set to `anthropic.claude-3-sonnet-20240229-v1:0` which can be changed via Lambda environment variables (`DEFAULT_MODEL`). You can call the [Models API](./docs/Usage.md#models-api) to get the full list of model IDs supported.
 
 ## Get Started
 
@@ -64,7 +46,7 @@ Please make sure you have met below prerequisites:
 
 The following diagram illustrates the reference architecture. Note that it also includes a new **VPC** with two public subnets only for the Application Load Balancer (ALB).
 
-![Architecture](assets/arch.svg)
+![Architecture](assets/arch.png)
 
 You can also choose to use [AWS Fargate](https://aws.amazon.com/fargate/) behind the ALB instead of [AWS Lambda](https://aws.amazon.com/lambda/), the main difference is the latency of the first byte for streaming response (Fargate is lower).
 
@@ -74,27 +56,28 @@ Alternatively, you can use Lambda Function URL to replace ALB, see [example](htt
 
 Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS account. Only supports regions where Amazon Bedrock is available (such as `us-west-2`). The deployment will take approximately **3-5 minutes** 🕒.
 
-**Step 1: Create your own custom API key (Optional)**
+**Step 1: Create your own API key in Secrets Manager (MUST)**
 
-#### Store API Key in ParameterStore
 
-> **Note:** This step is to use any string (without spaces) you like to create a custom API Key (credential) that will be used to access the proxy API later. This key does not have to match your actual OpenAI key, and you don't need to have an OpenAI API key. It is recommended that you take this step and ensure that you keep the key safe and private.
+> **Note:** This step is to use any string (without spaces) you like to create a custom API Key (credential) that will be used to access the proxy API later. This key does not have to match your actual OpenAI key, and you don't need to have an OpenAI API key. please keep the key safe and private.
 
-1. Open the AWS Management Console and navigate to the Systems Manager service.
-2. In the left-hand navigation pane, click on "Parameter Store".
-3. Click on the "Create parameter" button.
-4. In the "Create parameter" window, select the following options:
-    - Name: Enter a descriptive name for your parameter (e.g., "BedrockProxyAPIKey").
-    - Description: Optionally, provide a description for the parameter.
-    - Tier: Select **Standard**.
-    - Type: Select **SecureString**.
-    - Value: Any string (without spaces).
-5. Click "Create parameter".
-6. Make a note of the parameter name you used (e.g., "BedrockProxyAPIKey"). You'll need this in the next step.
+1. Open the AWS Management Console and navigate to the AWS Secrets Manager service.
+2. Click on "Store a new secret" button. 
+3. In the "Choose secret type" page, select:
 
-#### Store API Key in ENV variable
+   Secret type: Other type of secret
+   Key/value pairs:
+   - Key: api_key
+   - Value: Enter your API key value
+   
+   Click "Next"
+4. In the "Configure secret" page:
+   Secret name: Enter a name (e.g., "BedrockProxyAPIKey")
+   Description: (Optional) Add a description of your secret
+5. Click "Next" and review all your settings and click "Store"
 
-1. Provide an ENV variable to the container named: `API_KEY` with the API key value.
+After creation, you'll see your secret in the Secrets Manager console.  Make note of the secret ARN.
+
 
 **Step 2: Deploy the CloudFormation stack**
 
@@ -107,11 +90,11 @@ Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS acc
 3. Click "Next".
 4. On the "Specify stack details" page, provide the following information:
     - Stack name: Change the stack name if needed.
-    - ApiKeyParam (if you set up an API key in Step 1): Enter the parameter name you used for storing the API key (e.g., `BedrockProxyAPIKey`). If you did not set up an API key, leave this field blank. Click "Next".
-5. On the "Configure stack options" page, you can leave the default settings or customize them according to your needs.
-6. Click "Next".
-7. On the "Review" page, review the details of the stack you're about to create. Check the "I acknowledge that AWS CloudFormation might create IAM resources" checkbox at the bottom.
-8. Click "Create stack".
+    - ApiKeySecretArn: Enter the secret ARN you used for storing the API key. 
+   
+   Click "Next".
+5. On the "Configure stack options" page, you can leave the default settings or customize them according to your needs. Click "Next".
+6. On the "Review" page, review the details of the stack you're about to create. Check the "I acknowledge that AWS CloudFormation might create IAM resources" checkbox at the bottom. Click "Create stack".
 
 That is it! 🎉 Once deployed, click the CloudFormation stack and go to **Outputs** tab, you can find the API Base URL from `APIBaseUrl`, the value should look like `http://xxxx.xxx.elb.amazonaws.com/api/v1`.
 
