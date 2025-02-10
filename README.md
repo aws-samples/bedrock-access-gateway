@@ -47,7 +47,7 @@ Please make sure you have met below prerequisites:
 
 The following diagram illustrates the reference architecture. Note that it also includes a new **VPC** with two public subnets only for the Application Load Balancer (ALB).
 
-![Architecture](assets/arch.svg)
+![Architecture](assets/arch.png)
 
 You can also choose to use [AWS Fargate](https://aws.amazon.com/fargate/) behind the ALB instead of [AWS Lambda](https://aws.amazon.com/lambda/), the main difference is the latency of the first byte for streaming response (Fargate is lower).
 
