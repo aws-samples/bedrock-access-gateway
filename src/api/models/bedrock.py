@@ -105,7 +105,7 @@ def list_bedrock_models() -> dict:
             status = model['modelLifecycle'].get('status', 'ACTIVE')
 
             # currently, use this to filter out rerank models and legacy models
-            if not stream_supported or status != "ACTIVE":
+            if not stream_supported or status not in ["ACTIVE", "LEGACY"]:
                 continue
 
             inference_types = model.get('inferenceTypesSupported', [])

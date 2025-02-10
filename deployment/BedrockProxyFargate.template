@@ -1,10 +1,13 @@
 Description: Bedrock Access Gateway - OpenAI-compatible RESTful APIs for Amazon Bedrock
-Transform: AWS::LanguageExtensions
 Parameters:
   ApiKeySecretArn:
     Type: String
     AllowedPattern: ^arn:aws:secretsmanager:.*$
     Description: The secret ARN in Secrets Manager used to store the API Key
+  DefaultModelId:
+    Type: String
+    Default: anthropic.claude-3-sonnet-20240229-v1:0
+    Description: The default model ID, please make sure the model ID is supported in the current region
 Resources:
   VPCB9E5F0B4:
     Type: AWS::EC2::VPC
@@ -214,11 +217,7 @@ Resources:
               Value: "false"
             - Name: DEFAULT_MODEL
               Value:
-                Fn::FindInMap:
-                  - ProxyRegionTable03E5BEB3
-                  - Ref: AWS::Region
-                  - model
-                  - DefaultValue: anthropic.claude-3-sonnet-20240229-v1:0
+                Ref: DefaultModelId
             - Name: DEFAULT_EMBEDDING_MODEL
               Value: cohere.embed-multilingual-v3
             - Name: ENABLE_CROSS_REGION_INFERENCE
@@ -407,10 +406,6 @@ Resources:
       TargetType: ip
       VpcId:
         Ref: VPCB9E5F0B4
-Mappings:
-  ProxyRegionTable03E5BEB3:
-    us-east-1:
-      model: anthropic.claude-3-sonnet-20240229-v1:0
 Outputs:
   APIBaseUrl:
     Description: Proxy API Base URL (OPENAI_API_BASE)
