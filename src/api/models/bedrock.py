@@ -5,6 +5,7 @@ import re
 import time
 from abc import ABC
 from typing import AsyncIterable, Iterable, Literal
+from api.models.model_manager import ModelManager
 
 import boto3
 import numpy as np
@@ -75,83 +76,88 @@ SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
 
 ENCODER = tiktoken.get_encoding("cl100k_base")
 
-
-def list_bedrock_models() -> dict:
-    """Automatically getting a list of supported models.
-
-    Returns a model list combines:
-        - ON_DEMAND models.
-        - Cross-Region Inference Profiles (if enabled via Env)
-    """
-    model_list = {}
-    try:
-        profile_list = []
-        if ENABLE_CROSS_REGION_INFERENCE:
-            # List system defined inference profile IDs
-            response = bedrock_client.list_inference_profiles(
-                maxResults=1000,
-                typeEquals='SYSTEM_DEFINED'
-            )
-            profile_list = [p['inferenceProfileId'] for p in response['inferenceProfileSummaries']]
-
-        # List foundation models, only cares about text outputs here.
-        response = bedrock_client.list_foundation_models(
-            byOutputModality='TEXT'
-        )
-
-        for model in response['modelSummaries']:
-            model_id = model.get('modelId', 'N/A')
-            stream_supported = model.get('responseStreamingSupported', True)
-            status = model['modelLifecycle'].get('status', 'ACTIVE')
-
-            # currently, use this to filter out rerank models and legacy models
-            if not stream_supported or status != "ACTIVE":
-                continue
-
-            inference_types = model.get('inferenceTypesSupported', [])
-            input_modalities = model['inputModalities']
-            # Add on-demand model list
-            if 'ON_DEMAND' in inference_types:
-                model_list[model_id] = {
-                    'modalities': input_modalities
-                }
-
-            # Add cross-region inference model list.
-            profile_id = cr_inference_prefix + '.' + model_id
-            if profile_id in profile_list:
-                model_list[profile_id] = {
-                    'modalities': input_modalities
-                }
-
-    except Exception as e:
-        logger.error(f"Unable to list models: {str(e)}")
-
-    if not model_list:
-        # In case stack not updated.
-        model_list[DEFAULT_MODEL] = {
-            'modalities': ["TEXT", "IMAGE"]
-        }
-
-    return model_list
-
-
 # Initialize the model list.
-bedrock_model_list = list_bedrock_models()
+#bedrock_model_list = list_bedrock_models()
 
 
 class BedrockModel(BaseChatModel):
 
+    #bedrock_model_list = None
+    model_manager = None
+    def __init__(self):
+        super().__init__()
+        self.model_manager = ModelManager()
+
+    def list_bedrock_models(self) -> dict:
+        """Automatically getting a list of supported models.
+
+        Returns a model list combines:
+            - ON_DEMAND models.
+            - Cross-Region Inference Profiles (if enabled via Env)
+        """
+        #model_list = {}
+        try:
+            profile_list = []
+            if ENABLE_CROSS_REGION_INFERENCE:
+                # List system defined inference profile IDs
+                response = bedrock_client.list_inference_profiles(
+                    maxResults=1000,
+                    typeEquals='SYSTEM_DEFINED'
+                )
+                profile_list = [p['inferenceProfileId'] for p in response['inferenceProfileSummaries']]
+
+            # List foundation models, only cares about text outputs here.
+            response = bedrock_client.list_foundation_models(
+                byOutputModality='TEXT'
+            )
+
+            for model in response['modelSummaries']:
+                model_id = model.get('modelId', 'N/A')
+                stream_supported = model.get('responseStreamingSupported', True)
+                status = model['modelLifecycle'].get('status', 'ACTIVE')
+
+                # currently, use this to filter out rerank models and legacy models
+                if not stream_supported or status != "ACTIVE":
+                    continue
+
+                inference_types = model.get('inferenceTypesSupported', [])
+                input_modalities = model['inputModalities']
+                # Add on-demand model list
+                if 'ON_DEMAND' in inference_types:
+                    model[model_id] = {
+                        'modalities': input_modalities
+                    }
+                    self.model_manager.add_model(model)
+                    # model_list[model_id] = {
+                    #     'modalities': input_modalities
+                    # }
+
+                # Add cross-region inference model list.
+                profile_id = cr_inference_prefix + '.' + model_id
+                if profile_id in profile_list:
+                    model[profile_id] = {
+                        'modalities': input_modalities
+                    }
+                    self.model_manager.add_model(model)
+
+        except Exception as e:
+            logger.error(e)
+            raise HTTPException(status_code=500, detail=str(e))
+
     def list_models(self) -> list[str]:
         """Always refresh the latest model list"""
-        global bedrock_model_list
-        bedrock_model_list = list_bedrock_models()
-        return list(bedrock_model_list.keys())
+        #global bedrock_model_list
+        self.list_bedrock_models()
+        return list(self.model_manager.get_all_models().keys())
 
     def validate(self, chat_request: ChatRequest):
         """Perform basic validation on requests"""
+
         error = ""
+
+        ###### TODO - failing here as kb and agents are not in the bedrock_model_list
         # check if model is supported
-        if chat_request.model not in bedrock_model_list.keys():
+        if chat_request.model not in self.model_manager.get_all_models().keys():
             error = f"Unsupported model {chat_request.model}, please use models API to get a list of supported models"
 
         if error:
@@ -665,7 +671,7 @@ class BedrockModel(BaseChatModel):
 
     @staticmethod
     def is_supported_modality(model_id: str, modality: str = "IMAGE") -> bool:
-        model = bedrock_model_list.get(model_id)
+        model = ModelManager().models.get(model_id)
         modalities = model.get('modalities', [])
         if modality in modalities:
             return True
