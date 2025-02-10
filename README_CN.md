@@ -33,8 +33,6 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 
 请查看[使用指南](./docs/Usage_CN.md)以获取有关如何使用新API的更多详细信息。
 
-> 注意: 默认模型为 `anthropic.claude-3-sonnet-20240229-v1:0`， 可以通过更改Lambda环境变量进行更改。你可以先调用 [Models API](./docs/Usage.md#models-api) 查看支持的详细 model ID 列表。
-
 ## 使用指南
 
 ### 前提条件
@@ -82,6 +80,9 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 
 1. 登录AWS管理控制台,切换到要部署CloudFormation堆栈的区域。
 2. 单击以下按钮在该区域启动CloudFormation堆栈，选择一种方式部署。
+   - **ALB + Lambda**
+
+      [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxy.template)
 
    - **ALB + Fargate**
 
