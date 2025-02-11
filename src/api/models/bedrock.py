@@ -160,13 +160,13 @@ class BedrockModel(BaseChatModel):
                 detail=error,
             )
 
-    def _invoke_bedrock(self, chat_request: ChatRequest, stream=False):
+    def _invoke_bedrock(self, chat_request: ChatRequest, headers: dict, stream=False):
         """Common logic for invoke bedrock models"""
         if DEBUG:
             logger.info("Raw request: " + chat_request.model_dump_json())
 
         # convert OpenAI chat request to Bedrock SDK request
-        args = self._parse_request(chat_request)
+        args = self._parse_request(chat_request, headers)
         if DEBUG:
             logger.info("Bedrock request: " + json.dumps(str(args)))
 
@@ -183,11 +183,11 @@ class BedrockModel(BaseChatModel):
             raise HTTPException(status_code=500, detail=str(e))
         return response
 
-    def chat(self, chat_request: ChatRequest) -> ChatResponse:
+    def chat(self, chat_request: ChatRequest, headers: dict) -> ChatResponse:
         """Default implementation for Chat API."""
 
         message_id = self.generate_message_id()
-        response = self._invoke_bedrock(chat_request)
+        response = self._invoke_bedrock(chat_request, headers)
 
         output_message = response["output"]["message"]
         input_tokens = response["usage"]["inputTokens"]
@@ -206,9 +206,9 @@ class BedrockModel(BaseChatModel):
             logger.info("Proxy response :" + chat_response.model_dump_json())
         return chat_response
 
-    def chat_stream(self, chat_request: ChatRequest) -> AsyncIterable[bytes]:
+    def chat_stream(self, chat_request: ChatRequest, headers: dict) -> AsyncIterable[bytes]:
         """Default implementation for Chat Stream API"""
-        response = self._invoke_bedrock(chat_request, stream=True)
+        response = self._invoke_bedrock(chat_request, headers=headers, stream=True)
         message_id = self.generate_message_id()
 
         stream = response.get("stream")
@@ -390,7 +390,7 @@ class BedrockModel(BaseChatModel):
 
         return reformatted_messages
 
-    def _parse_request(self, chat_request: ChatRequest) -> dict:
+    def _parse_request(self, chat_request: ChatRequest, headers: dict) -> dict:
         """Create default converse request body.
 
         Also perform validations to tool call etc.
@@ -420,6 +420,13 @@ class BedrockModel(BaseChatModel):
             "system": system_prompts,
             "inferenceConfig": inference_config,
         }
+
+        # Pass headers through as metadata
+        args["requestMetadata"] = {
+            "X-Header-Value-0": header.get("X-Header-Value-0", "unknown"),
+            "X-Header-Value-1": header.get("X-Header-Value-1", "unknown"),
+        }
+
         # add tool config
         if chat_request.tools:
             args["toolConfig"] = {

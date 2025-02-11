@@ -1,4 +1,5 @@
 from typing import Annotated
+import logging
 
 from fastapi import APIRouter, Depends, Body
 from fastapi.responses import StreamingResponse
@@ -7,6 +8,8 @@ from api.auth import api_key_auth
 from api.models.bedrock import BedrockModel
 from api.schema import ChatRequest, ChatResponse, ChatStreamResponse
 from api.setting import DEFAULT_MODEL
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/chat",
@@ -17,6 +20,7 @@ router = APIRouter(
 
 @router.post("/completions", response_model=ChatResponse | ChatStreamResponse, response_model_exclude_unset=True)
 async def chat_completions(
+        request: Request,
         chat_request: Annotated[
             ChatRequest,
             Body(
@@ -32,6 +36,10 @@ async def chat_completions(
             ),
         ]
 ):
+    # Log headers for security and analytics
+    headers = request.headers
+    logger.info(f"Headers: {headers}")
+
     if chat_request.model.lower().startswith("gpt-"):
         chat_request.model = DEFAULT_MODEL
 
@@ -40,6 +48,6 @@ async def chat_completions(
     model.validate(chat_request)
     if chat_request.stream:
         return StreamingResponse(
-            content=model.chat_stream(chat_request), media_type="text/event-stream"
+            content=model.chat_stream(chat_request, headers), media_type="text/event-stream"
         )
-    return model.chat(chat_request)
+    return model.chat(chat_request, headers)
