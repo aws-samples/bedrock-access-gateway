@@ -83,13 +83,10 @@ After creation, you'll see your secret in the Secrets Manager console.  Make not
 
 1. Sign in to AWS Management Console, switch to the region to deploy the CloudFormation Stack to.
 2. Click the following button to launch the CloudFormation Stack in that region. Choose one of the following:
-   - **ALB + Lambda**
 
-      [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxy.template)
+      [<kbd> <br> ALB + Lambda 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxy.template&stackName=BedrockProxyAPI)
 
-   - **ALB + Fargate**
-
-      [![Launch Stack](assets/launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/template?stackName=BedrockProxyAPI&templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxyFargate.template)
+      [<kbd> <br> ALB + Fargate 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxyFargate.template&stackName=BedrockProxyAPI)
 3. Click "Next".
 4. On the "Specify stack details" page, provide the following information:
     - Stack name: Change the stack name if needed.
@@ -100,6 +97,10 @@ After creation, you'll see your secret in the Secrets Manager console.  Make not
 6. On the "Review" page, review the details of the stack you're about to create. Check the "I acknowledge that AWS CloudFormation might create IAM resources" checkbox at the bottom. Click "Create stack".
 
 That is it! 🎉 Once deployed, click the CloudFormation stack and go to **Outputs** tab, you can find the API Base URL from `APIBaseUrl`, the value should look like `http://xxxx.xxx.elb.amazonaws.com/api/v1`.
+
+### Troubleshooting
+
+If you encounter any issues, please check the [Troubleshooting Guide](./docs/Troubleshooting.md) for more details.
 
 ### SDK/API Usage
 
