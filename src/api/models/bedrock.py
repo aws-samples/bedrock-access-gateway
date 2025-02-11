@@ -178,6 +178,9 @@ class BedrockModel(BaseChatModel):
         except bedrock_runtime.exceptions.ValidationException as e:
             logger.error("Validation Error: " + str(e))
             raise HTTPException(status_code=400, detail=str(e))
+        except bedrock_runtime.exceptions.ThrottlingException as e:
+            logger.error("Throttling Error: " + str(e))
+            raise HTTPException(status_code=429, detail=str(e))
         except Exception as e:
             logger.error(e)
             raise HTTPException(status_code=500, detail=str(e))
@@ -724,6 +727,9 @@ class BedrockEmbeddingsModel(BaseEmbeddingsModel, ABC):
         except bedrock_runtime.exceptions.ValidationException as e:
             logger.error("Validation Error: " + str(e))
             raise HTTPException(status_code=400, detail=str(e))
+        except bedrock_runtime.exceptions.ThrottlingException as e:
+            logger.error("Throttling Error: " + str(e))
+            raise HTTPException(status_code=429, detail=str(e))
         except Exception as e:
             logger.error(e)
             raise HTTPException(status_code=500, detail=str(e))
