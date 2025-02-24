@@ -291,23 +291,24 @@ class BedrockModel(BaseChatModel):
                             ),
                         }
                     )
-                else:
+                if message.tool_calls:
                     # Tool use message
-                    tool_input = json.loads(message.tool_calls[0].function.arguments)
-                    messages.append(
-                        {
-                            "role": message.role,
-                            "content": [
-                                {
-                                    "toolUse": {
-                                        "toolUseId": message.tool_calls[0].id,
-                                        "name": message.tool_calls[0].function.name,
-                                        "input": tool_input
+                    for tool_call in message.tool_calls:
+                        tool_input = json.loads(tool_call.function.arguments)
+                        messages.append(
+                            {
+                                "role": message.role,
+                                "content": [
+                                    {
+                                        "toolUse": {
+                                            "toolUseId": tool_call.id,
+                                            "name": tool_call.function.name,
+                                            "input": tool_input
+                                        }
                                     }
-                                }
-                            ],
-                        }
-                    )
+                                ],
+                            }
+                        )
             elif isinstance(message, ToolMessage):
                 # Bedrock does not support tool role,
                 # Add toolResult to content
