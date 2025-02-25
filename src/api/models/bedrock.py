@@ -420,6 +420,19 @@ class BedrockModel(BaseChatModel):
             "system": system_prompts,
             "inferenceConfig": inference_config,
         }
+        if chat_request.reasoning_effort:
+            # From OpenAI api, the max_token is not supported in reasoning mode
+            # Use max_completion_tokens if provided.
+            max_tokens = chat_request.max_completion_tokens if chat_request.max_completion_tokens else chat_request.max_tokens
+            inference_config["maxTokens"] = max_tokens
+            # unset topP - Not supported
+            inference_config.pop("topP")
+            args["additionalModelRequestFields"] = {
+                "reasoning_config": {
+                    "type": "enabled",
+                    "budget_tokens": max_tokens - 1
+                }
+            }
         # add tool config
         if chat_request.tools:
             args["toolConfig"] = {
@@ -476,8 +489,13 @@ class BedrockModel(BaseChatModel):
             message.content = None
         else:
             message.content = ""
-            if content:
-                message.content = content[0]["text"]
+            for c in content:
+                if "reasoningContent" in c:
+                    message.reasoning_content = c["reasoningContent"]["reasoningText"].get("text", "")
+                if "text" in c:
+                    message.content = c["text"]
+                else:
+                    logger.warning("Unknown tag in message content " + ",".join(c.keys()))
 
         response = ChatResponse(
             id=message_id,
