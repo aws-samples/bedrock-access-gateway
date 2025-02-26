@@ -85,15 +85,6 @@ def list_bedrock_models() -> dict:
     """
     model_list = {}
     try:
-        profile_list = []
-        if ENABLE_CROSS_REGION_INFERENCE:
-            # List system defined inference profile IDs
-            response = bedrock_client.list_inference_profiles(
-                maxResults=1000,
-                typeEquals='SYSTEM_DEFINED'
-            )
-            profile_list = [p['inferenceProfileId'] for p in response['inferenceProfileSummaries']]
-
         # List foundation models, only cares about text outputs here.
         response = bedrock_client.list_foundation_models(
             byOutputModality='TEXT'
@@ -115,11 +106,9 @@ def list_bedrock_models() -> dict:
                 model_list[model_id] = {
                     'modalities': input_modalities
                 }
-
             # Add cross-region inference model list.
-            profile_id = cr_inference_prefix + '.' + model_id
-            if profile_id in profile_list:
-                model_list[profile_id] = {
+            elif 'INFERENCE_PROFILE' in inference_types and ENABLE_CROSS_REGION_INFERENCE:
+                model_list[cr_inference_prefix + '.' + model_id] = {
                     'modalities': input_modalities
                 }
 
