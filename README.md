@@ -24,10 +24,11 @@ If you find this GitHub repository useful, please consider giving it a free star
 - [x] Support streaming response via server-sent events (SSE)
 - [x] Support Model APIs
 - [x] Support Chat Completion APIs
-- [x] Support Tool Call (**new**)
-- [x] Support Embedding API (**new**)
-- [x] Support Multimodal API (**new**)
-- [x] Support Cross-Region Inference (**new**)
+- [x] Support Tool Call
+- [x] Support Embedding API
+- [x] Support Multimodal API
+- [x] Support Cross-Region Inference
+- [x] Support Reasoning (**new**)
 
 Please check [Usage Guide](./docs/Usage.md) for more details about how to use the new APIs.
 

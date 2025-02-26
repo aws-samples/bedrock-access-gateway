@@ -317,3 +317,79 @@ curl $OPENAI_BASE_URL/chat/completions \
 You can try it with different questions, such as:
 1. Hello, who are you?  (No tools are needed)
 2. What is the weather like today?  (Should use get_current_location tool first)
+
+
+## Reasoning
+
+**Important Notice**: Please carefully review the following points before using reasoning mode for Chat completion API.
+- The only model supports Reasoning is Claude 3.7 Sonnet (extended thinking) so far. Please make sure the model supports reasoning.
+- The reasoning mode (or thinking mode) is not enabled by default, you must pass additional `reasoning_effort` parameter in your request.
+- The reasoning response (CoT, thoughts) is added in an additional tag 'reasoning_content' which is not officially supported by OpenAI. This is to follow [Deepseek Reasoning Model](https://api-docs.deepseek.com/guides/reasoning_model#api-example). This may be changed in the future.
+- Please provide the right max_tokens (or max_completion_tokens) in your request. The budget_tokens is based on reasoning_effort (low: 30%, medium: 60%, high: 100% of max tokens), ensuring minimum budget_tokens of 1,024 with Anthropic recommending at least 4,000 tokens for comprehensive reasoning. Check [Bedrock Document](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-anthropic-claude-37.html) for more details.
+
+**Example Request**
+
+```bash
+curl $OPENAI_BASE_URL/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    "messages": [
+        {
+            "role": "user",
+            "content": "which one is bigger, 3.9 or 3.11?"
+        }
+    ],
+    "max_completion_tokens": 4096,
+    "reasoning_effort": "low",
+    "stream": false
+}'
+```
+
+**Example Response**
+
+```json
+{
+    "id": "chatcmpl-83fb7a88",
+    "created": 1740545278,
+    "model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    "system_fingerprint": "fp",
+    "choices": [
+        {
+            "index": 0,
+            "finish_reason": "stop",
+            "logprobs": null,
+            "message": {
+                "role": "assistant",
+                "content": "3.9 is bigger than 3.11.\n\nWhen comparing decimal numbers, we need to understand what these numbers actually represent:...",
+                "reasoning_content": "I need to compare the decimal numbers 3.9 and 3.11.\n\nFor decimal numbers, we first compare the whole number parts, and if they're equal, we compare the decimal parts. \n\nBoth numbers ..."
+            }
+        }
+    ],
+    "object": "chat.completion",
+    "usage": {
+        "prompt_tokens": 51,
+        "completion_tokens": 565,
+        "total_tokens": 616
+    }
+}
+```
+
+You can also use OpenAI SDK (run `pip3 install -U openai` first )
+
+```python
+from openai import OpenAI
+client = OpenAI()
+
+messages = [{"role": "user", "content": "which one is bigger, 3.9 or 3.11?"}]
+response = client.chat.completions.create(
+    model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    messages=messages,
+    reasoning_effort="low",
+    max_completion_tokens=4096,
+)
+
+reasoning_content = response.choices[0].message.reasoning_content
+content = response.choices[0].message.content
+```

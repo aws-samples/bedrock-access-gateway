@@ -26,10 +26,11 @@ OpenAI 的 API 或 SDK 无缝集成并试用 Amazon Bedrock 的模型,而无需�
 - [x] 支持 server-sent events (SSE)的流式响应
 - [x] 支持 Model APIs
 - [x] 支持 Chat Completion APIs
-- [x] 支持 Tool Call (**new**)
-- [x] 支持 Embedding API (**new**)
-- [x] 支持 Multimodal API (**new**)
-- [x] 支持 Cross-Region Inference (**new**)
+- [x] 支持 Tool Call
+- [x] 支持 Embedding API
+- [x] 支持 Multimodal API
+- [x] 支持 Cross-Region Inference
+- [x] 支持 Reasoning Mode (**new**)
 
 请查看[使用指南](./docs/Usage_CN.md)以获取有关如何使用新API的更多详细信息。
 
