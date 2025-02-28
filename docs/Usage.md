@@ -378,6 +378,8 @@ curl $OPENAI_BASE_URL/chat/completions \
 
 You can also use OpenAI SDK (run `pip3 install -U openai` first )
 
+- Non-Streaming
+
 ```python
 from openai import OpenAI
 client = OpenAI()
@@ -392,4 +394,29 @@ response = client.chat.completions.create(
 
 reasoning_content = response.choices[0].message.reasoning_content
 content = response.choices[0].message.content
+```
+
+- Streaming
+
+```python
+from openai import OpenAI
+client = OpenAI()
+
+messages = [{"role": "user", "content": "9.11 and 9.8, which is greater?"}]
+response = client.chat.completions.create(
+    model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    messages=messages,
+    reasoning_effort="low",
+    max_completion_tokens=4096,
+    stream=True,
+)
+
+reasoning_content = ""
+content = ""
+
+for chunk in response:
+    if hasattr(chunk.choices[0].delta, 'reasoning_content') and chunk.choices[0].delta.reasoning_content:
+        reasoning_content += chunk.choices[0].delta.reasoning_content
+    elif hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
+        content += chunk.choices[0].delta.content
 ```
