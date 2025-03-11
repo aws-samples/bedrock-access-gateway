@@ -6,7 +6,7 @@
 
 ## 新功能 🔥
 
-本项目支持 **Claude 3.7 Sonnet** 和 **DeepSeek R1** 的推理（Reasoning）功能，查看[使用方法](./docs/Usage.md#reasoning) 获取更多详情。首次使用你需要先运行下Models API 来刷新model列表。
+本项目支持 **Claude 3.7 Sonnet** 和 **DeepSeek R1** 的推理（Reasoning）功能，查看[使用方法](./docs/Usage_CN.md#reasoning) 获取更多详情。首次使用你需要先运行下Models API 来刷新model列表。
 
 
 ## 概述
