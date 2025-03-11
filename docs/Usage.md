@@ -9,6 +9,13 @@ export OPENAI_API_KEY=<API key>
 export OPENAI_BASE_URL=<API base url>
 ```
 
+**API Example:**
+- [Models API](#models-api)
+- [Embedding API](#embedding-api)
+- [Multimodal API](#multimodal-api)
+- [Tool Call](#tool-call)
+- [Reasoning](#reasoning)
+
 ## Models API
 
 You can use this API to get a list of supported model IDs.
@@ -125,10 +132,6 @@ print(doc_result[0][:5])
 
 ## Multimodal API
 
-**Important Notice**: Please carefully review the following points before using this proxy API for Multimodal.
-
-1. This API is only supported by Claude 3 model.
-
 **Example Request**
 
 ```bash
@@ -219,7 +222,6 @@ curl $OPENAI_BASE_URL/chat/completions \
 **Important Notice**: Please carefully review the following points before using this Tool Call for Chat completion API.
 
 1. Function Call is now deprecated in favor of Tool Call by OpenAI, hence it's not supported here, you should use Tool Call instead.
-2. This API is only supported by Claude 3 model.
 
 **Example Request**
 
@@ -322,10 +324,10 @@ You can try it with different questions, such as:
 ## Reasoning
 
 **Important Notice**: Please carefully review the following points before using reasoning mode for Chat completion API.
-- The only model supports Reasoning is Claude 3.7 Sonnet (extended thinking) so far. Please make sure the model supports reasoning.
-- The reasoning mode (or thinking mode) is not enabled by default, you must pass additional `reasoning_effort` parameter in your request.
+- Only Claude 3.7 Sonnet (extended thinking) and DeepSeek R1 support Reasoning so far. Please make sure the model supports reasoning before use.
+- For Claude 3.7 Sonnet, the reasoning mode (or thinking mode) is not enabled by default, you must pass additional `reasoning_effort` parameter in your request. Please also provide the right max_tokens (or max_completion_tokens) in your request. The budget_tokens is based on reasoning_effort (low: 30%, medium: 60%, high: 100% of max tokens), ensuring minimum budget_tokens of 1,024 with Anthropic recommending at least 4,000 tokens for comprehensive reasoning. Check [Bedrock Document](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-anthropic-claude-37.html) for more details.
+- For DeepSeek R1, you don't need additional reasoning_effort parameter, otherwise, you may get an error.
 - The reasoning response (CoT, thoughts) is added in an additional tag 'reasoning_content' which is not officially supported by OpenAI. This is to follow [Deepseek Reasoning Model](https://api-docs.deepseek.com/guides/reasoning_model#api-example). This may be changed in the future.
-- Please provide the right max_tokens (or max_completion_tokens) in your request. The budget_tokens is based on reasoning_effort (low: 30%, medium: 60%, high: 100% of max tokens), ensuring minimum budget_tokens of 1,024 with Anthropic recommending at least 4,000 tokens for comprehensive reasoning. Check [Bedrock Document](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-anthropic-claude-37.html) for more details.
 
 **Example Request**
 
@@ -417,6 +419,6 @@ content = ""
 for chunk in response:
     if hasattr(chunk.choices[0].delta, 'reasoning_content') and chunk.choices[0].delta.reasoning_content:
         reasoning_content += chunk.choices[0].delta.reasoning_content
-    elif hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
+    elif chunk.choices[0].delta.content:
         content += chunk.choices[0].delta.content
 ```
