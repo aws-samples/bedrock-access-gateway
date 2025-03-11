@@ -329,6 +329,8 @@ You can try it with different questions, such as:
 
 **Request 示例**
 
+- Claude 3.7 Sonnet
+
 ```bash
 curl $OPENAI_BASE_URL/chat/completions \
   -H "Content-Type: application/json" \
@@ -343,6 +345,24 @@ curl $OPENAI_BASE_URL/chat/completions \
     ],
     "max_completion_tokens": 4096,
     "reasoning_effort": "low",
+    "stream": false
+}'
+```
+
+- DeepSeek R1
+
+```bash
+curl $OPENAI_BASE_URL/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "model": "us.deepseek.r1-v1:0",
+    "messages": [
+        {
+            "role": "user",
+            "content": "which one is bigger, 3.9 or 3.11?"
+        }
+    ],
     "stream": false
 }'
 ```
