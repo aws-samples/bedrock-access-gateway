@@ -4,11 +4,10 @@
 
 使用兼容OpenAI的API访问Amazon Bedrock
 
-## 重大变更
+## 新功能 🔥
 
-为了遵循安全最佳实践，本解决方案现使用 Secrets Manager 来管理 API 密钥。您必须先在 Secrets Manager 中创建 API 密钥，并定期轮换该密钥。
+本项目支持 **Claude 3.7 Sonnet** 和 **DeepSeek R1** 的推理（Reasoning）功能，查看[使用方法](./docs/Usage.md#reasoning) 获取更多详情。首次使用你需要先运行下Models API 来刷新model列表。
 
-如果依然有问题，请提个GitHub issue。
 
 ## 概述
 

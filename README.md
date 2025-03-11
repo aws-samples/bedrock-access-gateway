@@ -4,11 +4,9 @@
 
 OpenAI-compatible RESTful APIs for Amazon Bedrock
 
-## Breaking Changes
+## What's New 🔥
 
-This solution now uses Secrets Manager to maintain API Key for security best practice.  You **MUST** create the API Key first in Secrets Manager and rotate it frequently.
-
-Please raise an GitHub issue if you still have problems.
+This project supports reasoning for both **Claude 3.7 Sonnet** and **DeepSeek R1**, check [How to Use](./docs/Usage.md#reasoning) for more details. You need to first run the Models API to refresh the model list.
 
 ## Overview
 
