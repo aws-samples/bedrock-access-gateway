@@ -1,7 +1,9 @@
 import time
 from typing import Literal, Iterable
-from api.setting import DEFAULT_MODEL
+
 from pydantic import BaseModel, Field
+
+from api.setting import DEFAULT_MODEL
 
 
 class Model(BaseModel):
@@ -58,7 +60,7 @@ class UserMessage(BaseModel):
 class AssistantMessage(BaseModel):
     name: str | None = None
     role: Literal["assistant"] = "assistant"
-    content: str | list[TextContent | ImageContent] | None
+    content: str | list[TextContent | ImageContent] | None = None
     tool_calls: list[ToolCall] | None = None
 
 
