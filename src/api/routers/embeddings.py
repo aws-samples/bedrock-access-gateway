@@ -15,19 +15,17 @@ router = APIRouter(
 
 @router.post("", response_model=EmbeddingsResponse)
 async def embeddings(
-        embeddings_request: Annotated[
-            EmbeddingsRequest,
-            Body(
-                examples=[
-                    {
-                        "model": "cohere.embed-multilingual-v3",
-                        "input": [
-                            "Your text string goes here"
-                        ],
-                    }
-                ],
-            ),
-        ]
+    embeddings_request: Annotated[
+        EmbeddingsRequest,
+        Body(
+            examples=[
+                {
+                    "model": "cohere.embed-multilingual-v3",
+                    "input": ["Your text string goes here"],
+                }
+            ],
+        ),
+    ],
 ):
     if embeddings_request.model.lower().startswith("text-embedding-"):
         embeddings_request.model = DEFAULT_EMBEDDING_MODEL

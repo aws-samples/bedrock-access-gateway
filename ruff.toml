@@ -1,0 +1,23 @@
+line-length = 120
+indent-width = 4
+target-version = "py312"
+
+exclude = [
+    ".venv",
+    ".vscode",
+    "test/*"
+]
+
+[lint]
+select = ["E", "F"]
+ignore = [
+    "E501",
+    "B008",
+    "C901",
+    "F401",
+    "W191",
+]
+
+[format]
+# use double quotes for strings.
+quote-style = "double"

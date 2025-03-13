@@ -43,9 +43,7 @@ class BaseChatModel(ABC):
         return "chatcmpl-" + str(uuid.uuid4())[:8]
 
     @staticmethod
-    def stream_response_to_bytes(
-            response: ChatStreamResponse | None = None
-    ) -> bytes:
+    def stream_response_to_bytes(response: ChatStreamResponse | None = None) -> bytes:
         if response:
             # to populate other fields when using exclude_unset=True
             response.system_fingerprint = "fp"

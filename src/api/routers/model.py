@@ -22,9 +22,7 @@ async def validate_model_id(model_id: str):
 
 @router.get("", response_model=Models)
 async def list_models():
-    model_list = [
-        Model(id=model_id) for model_id in chat_model.list_models()
-    ]
+    model_list = [Model(id=model_id) for model_id in chat_model.list_models()]
     return Models(data=model_list)
 
 
@@ -33,10 +31,10 @@ async def list_models():
     response_model=Model,
 )
 async def get_model(
-        model_id: Annotated[
-            str,
-            Path(description="Model ID", example="anthropic.claude-3-sonnet-20240229-v1:0"),
-        ]
+    model_id: Annotated[
+        str,
+        Path(description="Model ID", example="anthropic.claude-3-sonnet-20240229-v1:0"),
+    ],
 ):
     await validate_model_id(model_id)
     return Model(id=model_id)

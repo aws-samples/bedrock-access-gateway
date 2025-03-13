@@ -16,9 +16,7 @@ if api_key_param:
     # For backward compatibility.
     # Please now use secrets manager instead.
     ssm = boto3.client("ssm")
-    api_key = ssm.get_parameter(Name=api_key_param, WithDecryption=True)["Parameter"][
-        "Value"
-    ]
+    api_key = ssm.get_parameter(Name=api_key_param, WithDecryption=True)["Parameter"]["Value"]
 elif api_key_secret_arn:
     sm = boto3.client("secretsmanager")
     try:
@@ -26,11 +24,9 @@ elif api_key_secret_arn:
         if "SecretString" in response:
             secret = json.loads(response["SecretString"])
             api_key = secret["api_key"]
-    except ClientError as e:
-        raise RuntimeError(
-            "Unable to retrieve API KEY, please ensure the secret ARN is correct"
-        )
-    except KeyError as e:
+    except ClientError:
+        raise RuntimeError("Unable to retrieve API KEY, please ensure the secret ARN is correct")
+    except KeyError:
         raise RuntimeError('Please ensure the secret contains a "api_key" field')
 elif api_key_env:
     api_key = api_key_env
@@ -45,6 +41,4 @@ def api_key_auth(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
 ):
     if credentials.credentials != api_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API Key"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API Key")
