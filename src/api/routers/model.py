@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 
 from api.auth import api_key_auth
 from api.models.bedrock import BedrockModel
-from api.schema import Models, Model
+from api.schema import Model, Models
 
 router = APIRouter(
     prefix="/models",

@@ -1,5 +1,5 @@
 import time
-from typing import Literal, Iterable
+from typing import Iterable, Literal
 
 from pydantic import BaseModel, Field
 

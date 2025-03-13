@@ -9,13 +9,11 @@ exclude = [
 ]
 
 [lint]
-select = ["E", "F"]
+select = ["E", "F", "I"]
 ignore = [
     "E501",
-    "B008",
     "C901",
     "F401",
-    "W191",
 ]
 
 [format]

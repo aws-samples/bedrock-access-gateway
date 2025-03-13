@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Body
+from fastapi import APIRouter, Body, Depends
 
 from api.auth import api_key_auth
 from api.models.bedrock import get_embeddings_model

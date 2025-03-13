@@ -5,8 +5,8 @@ from typing import AsyncIterable
 
 from api.schema import (
     # Chat
-    ChatResponse,
     ChatRequest,
+    ChatResponse,
     ChatStreamResponse,
     # Embeddings
     EmbeddingsRequest,

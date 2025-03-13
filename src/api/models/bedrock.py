@@ -15,29 +15,27 @@ from fastapi import HTTPException
 
 from api.models.base import BaseChatModel, BaseEmbeddingsModel
 from api.schema import (
-    # Chat
-    ChatResponse,
-    ChatRequest,
-    Choice,
-    ChatResponseMessage,
-    Usage,
-    ChatStreamResponse,
-    ImageContent,
-    TextContent,
-    ToolCall,
-    ChoiceDelta,
-    UserMessage,
     AssistantMessage,
-    ToolMessage,
-    Function,
-    ResponseFunction,
-    # Embeddings
+    ChatRequest,
+    ChatResponse,
+    ChatResponseMessage,
+    ChatStreamResponse,
+    Choice,
+    ChoiceDelta,
+    Embedding,
     EmbeddingsRequest,
     EmbeddingsResponse,
     EmbeddingsUsage,
-    Embedding,
+    Function,
+    ImageContent,
+    ResponseFunction,
+    TextContent,
+    ToolCall,
+    ToolMessage,
+    Usage,
+    UserMessage,
 )
-from api.setting import DEBUG, AWS_REGION, ENABLE_CROSS_REGION_INFERENCE, DEFAULT_MODEL
+from api.setting import AWS_REGION, DEBUG, DEFAULT_MODEL, ENABLE_CROSS_REGION_INFERENCE
 
 logger = logging.getLogger(__name__)
 
