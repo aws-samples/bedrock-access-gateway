@@ -3,7 +3,7 @@ import json
 import logging
 import re
 import time
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import AsyncIterable, Iterable, Literal
 
 import boto3
@@ -73,8 +73,27 @@ SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
 
 ENCODER = tiktoken.get_encoding("cl100k_base")
 
+class BedrockClientInterface(ABC):
+    @abstractmethod
+    def list_inference_profiles(self, **kwargs) -> dict:
+        pass
 
-def list_bedrock_models() -> dict:
+    @abstractmethod
+    def list_foundation_models(self, **kwargs) -> dict:
+        pass
+
+class BedrockClient(BedrockClientInterface):
+    def __init__(self, client):
+        self.bedrock_client = client
+
+    def list_inference_profiles(self, **kwargs) -> dict:
+        return self.bedrock_client.list_inference_profiles(**kwargs)
+
+    def list_foundation_models(self, **kwargs) -> dict:
+        return self.bedrock_client.list_foundation_models(**kwargs)
+
+
+def list_bedrock_models(client : BedrockClientInterface) -> dict:
     """Automatically getting a list of supported models.
 
     Returns a model list combines:
@@ -86,11 +105,11 @@ def list_bedrock_models() -> dict:
         profile_list = []
         if ENABLE_CROSS_REGION_INFERENCE:
             # List system defined inference profile IDs
-            response = bedrock_client.list_inference_profiles(maxResults=1000, typeEquals="SYSTEM_DEFINED")
+            response = client.list_inference_profiles(maxResults=1000, typeEquals="SYSTEM_DEFINED")
             profile_list = [p["inferenceProfileId"] for p in response["inferenceProfileSummaries"]]
 
         # List foundation models, only cares about text outputs here.
-        response = bedrock_client.list_foundation_models(byOutputModality="TEXT")
+        response = client.list_foundation_models(byOutputModality="TEXT")
 
         for model in response["modelSummaries"]:
             model_id = model.get("modelId", "N/A")
@@ -123,14 +142,14 @@ def list_bedrock_models() -> dict:
 
 
 # Initialize the model list.
-bedrock_model_list = list_bedrock_models()
+bedrock_model_list = list_bedrock_models(BedrockClient(bedrock_client))
 
 
 class BedrockModel(BaseChatModel):
     def list_models(self) -> list[str]:
         """Always refresh the latest model list"""
         global bedrock_model_list
-        bedrock_model_list = list_bedrock_models()
+        bedrock_model_list = list_bedrock_models(BedrockClient(bedrock_client))
         return list(bedrock_model_list.keys())
 
     def validate(self, chat_request: ChatRequest):
