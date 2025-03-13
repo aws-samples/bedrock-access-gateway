@@ -202,6 +202,7 @@ class BedrockModel(BaseChatModel):
         response = await self._invoke_bedrock(chat_request, stream=True)
         message_id = self.generate_message_id()
         stream = response.get("stream")
+        self.think_emitted = False
         for chunk in stream:
             stream_response = self._create_response_stream(
                 model_id=chat_request.model, message_id=message_id, chunk=chunk
@@ -223,6 +224,7 @@ class BedrockModel(BaseChatModel):
 
         # return an [DONE] message at the end.
         yield self.stream_response_to_bytes()
+        self.think_emitted = False  # Cleanup
 
     def _parse_system_prompts(self, chat_request: ChatRequest) -> list[dict[str, str]]:
         """Create system prompts.
@@ -471,6 +473,9 @@ class BedrockModel(BaseChatModel):
                     message.content = c["text"]
                 else:
                     logger.warning("Unknown tag in message content " + ",".join(c.keys()))
+            if message.reasoning_content:
+                message.content = f"<think>{message.reasoning_content}</think>{message.content}"
+                message.reasoning_content = None
 
         response = ChatResponse(
             id=message_id,
@@ -537,11 +542,19 @@ class BedrockModel(BaseChatModel):
                     content=delta["text"],
                 )
             elif "reasoningContent" in delta:
-                # ignore "signature" in the delta.
                 if "text" in delta["reasoningContent"]:
-                    message = ChatResponseMessage(
-                        reasoning_content=delta["reasoningContent"]["text"],
-                    )
+                    content = delta["reasoningContent"]["text"]
+                    if not self.think_emitted:
+                        # Port of "content_block_start" with "thinking"
+                        content = "<think>" + content
+                        self.think_emitted = True
+                    message = ChatResponseMessage(content=content)
+                elif "signature" in delta["reasoningContent"]:
+                    # Port of "signature_delta"
+                    if self.think_emitted:
+                        message = ChatResponseMessage(content="\n </think> \n\n")
+                    else:
+                        return None  # Ignore signature if no <think> started
             else:
                 # tool use
                 index = chunk["contentBlockDelta"]["contentBlockIndex"] - 1
