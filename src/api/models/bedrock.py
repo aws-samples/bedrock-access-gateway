@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import logging
@@ -220,6 +221,7 @@ class BedrockModel(BaseChatModel):
                 # and the choices field will always be an empty array.
                 # All other chunks will also include a usage field, but with a null value.
                 yield self.stream_response_to_bytes(stream_response)
+            await asyncio.sleep(0)
 
         # return an [DONE] message at the end.
         yield self.stream_response_to_bytes()
