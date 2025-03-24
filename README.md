@@ -215,7 +215,21 @@ Replace the repo url in the CloudFormation template before you deploy.
 Yes, you can run this locally, e.g. run below command under `src` folder:
 
 ```bash
+# Development mode (single worker with auto-reload)
 uvicorn api.app:app --host 0.0.0.0 --port 8000
+```
+
+For production environments, you can use the built-in production mode which automatically sets the optimal number of workers based on your CPU cores:
+
+```bash
+# Production mode (multiple workers based on CPU cores)
+ENV=production python api/app.py
+```
+
+If you need to set a custom Python path:
+
+```bash
+ENV=production PYTHONPATH=/path/to/project/src python api/app.py
 ```
 
 The API base url should look like `http://localhost:8000/api/v1`.
