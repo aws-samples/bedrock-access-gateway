@@ -11,7 +11,7 @@ from api.setting import DEFAULT_API_KEYS
 
 api_key_param = os.environ.get("API_KEY_PARAM_NAME")
 api_key_secret_arn = os.environ.get("API_KEY_SECRET_ARN")
-api_key_env = os.environ.get("API_KEY")
+api_key_env = os.environ.get("OPENAI_API_KEY")
 if api_key_param:
     # For backward compatibility.
     # Please now use secrets manager instead.
