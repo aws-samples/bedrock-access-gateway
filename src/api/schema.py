@@ -176,3 +176,11 @@ class EmbeddingsResponse(BaseModel):
     data: list[Embedding]
     model: str
     usage: EmbeddingsUsage
+
+
+class ErrorMessage(BaseModel):
+    messsage: str
+
+
+class Error(BaseModel):
+    error: ErrorMessage
