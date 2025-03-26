@@ -232,7 +232,7 @@ class BedrockModel(BaseChatModel):
             # return an [DONE] message at the end.
             yield self.stream_response_to_bytes()
         except Exception as e:
-            error_event = Error(error=ErrorMessage(messsage=str(e)))
+            error_event = Error(error=ErrorMessage(message=str(e)))
             yield self.stream_response_to_bytes(error_event)
 
     def _parse_system_prompts(self, chat_request: ChatRequest) -> list[dict[str, str]]:

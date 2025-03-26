@@ -179,7 +179,7 @@ class EmbeddingsResponse(BaseModel):
 
 
 class ErrorMessage(BaseModel):
-    messsage: str
+    message: str
 
 
 class Error(BaseModel):
