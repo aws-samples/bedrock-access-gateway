@@ -1,8 +1,8 @@
-[中文](./README_CN.md)
-
 # Bedrock Access Gateway
 
 OpenAI-compatible RESTful APIs for Amazon Bedrock
+
+[繁體中文](./README_TW.md) | [簡體中文](./README_CN.md)
 
 ## What's New 🔥
 
@@ -30,7 +30,6 @@ If you find this GitHub repository useful, please consider giving it a free star
 
 Please check [Usage Guide](./docs/Usage.md) for more details about how to use the new APIs.
 
-
 ## Get Started
 
 ### Prerequisites
@@ -57,41 +56,44 @@ Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS acc
 
 **Step 1: Create your own API key in Secrets Manager (MUST)**
 
-
 > **Note:** This step is to use any string (without spaces) you like to create a custom API Key (credential) that will be used to access the proxy API later. This key does not have to match your actual OpenAI key, and you don't need to have an OpenAI API key. please keep the key safe and private.
 
 1. Open the AWS Management Console and navigate to the AWS Secrets Manager service.
-2. Click on "Store a new secret" button. 
+2. Click on "Store a new secret" button.
 3. In the "Choose secret type" page, select:
 
    Secret type: Other type of secret
    Key/value pairs:
+
    - Key: api_key
    - Value: Enter your API key value
-   
+
    Click "Next"
+
 4. In the "Configure secret" page:
    Secret name: Enter a name (e.g., "BedrockProxyAPIKey")
    Description: (Optional) Add a description of your secret
 5. Click "Next" and review all your settings and click "Store"
 
-After creation, you'll see your secret in the Secrets Manager console.  Make note of the secret ARN.
-
+After creation, you'll see your secret in the Secrets Manager console. Make note of the secret ARN.
 
 **Step 2: Deploy the CloudFormation stack**
 
 1. Sign in to AWS Management Console, switch to the region to deploy the CloudFormation Stack to.
 2. Click the following button to launch the CloudFormation Stack in that region. Choose one of the following:
 
-      [<kbd> <br> ALB + Lambda 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxy.template&stackName=BedrockProxyAPI)
+   [<kbd> <br> ALB + Lambda 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxy.template&stackName=BedrockProxyAPI)
 
-      [<kbd> <br> ALB + Fargate 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxyFargate.template&stackName=BedrockProxyAPI)
+   [<kbd> <br> ALB + Fargate 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxyFargate.template&stackName=BedrockProxyAPI)
+
 3. Click "Next".
 4. On the "Specify stack details" page, provide the following information:
-    - Stack name: Change the stack name if needed.
-    - ApiKeySecretArn: Enter the secret ARN you used for storing the API key. 
-   
+
+   - Stack name: Change the stack name if needed.
+   - ApiKeySecretArn: Enter the secret ARN you used for storing the API key.
+
    Click "Next".
+
 5. On the "Configure stack options" page, you can leave the default settings or customize them according to your needs. Click "Next".
 6. On the "Review" page, review the details of the stack you're about to create. Check the "I acknowledge that AWS CloudFormation might create IAM resources" checkbox at the bottom. Click "Create stack".
 
@@ -147,8 +149,6 @@ print(completion.choices[0].message.content)
 ```
 
 Please check [Usage Guide](./docs/Usage.md) for more details about how to use embedding API, multimodal API and tool call.
-
-
 
 ## Other Examples
 
@@ -242,7 +242,6 @@ To do so, depends on which version you deployed:
 
 - **Lambda version**: Go to AWS Lambda console, find the Lambda function, then find and click the `Deploy new image` button and click save.
 - **Fargate version**: Go to ECS console, click the ECS cluster, go the `Tasks` tab, select the only task that is running and simply click `Stop selected` menu. A new task with latest image will start automatically.
-
 
 ## Security
 
