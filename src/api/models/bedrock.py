@@ -3,8 +3,9 @@ import json
 import logging
 import re
 import time
+import threading
 from abc import ABC
-from typing import AsyncIterable, Iterable, Literal
+from typing import AsyncIterable, Dict, Iterable, Literal, Optional
 
 import boto3
 import numpy as np
@@ -42,18 +43,64 @@ from api.setting import AWS_REGION, DEBUG, DEFAULT_MODEL, ENABLE_CROSS_REGION_IN
 
 logger = logging.getLogger(__name__)
 
-config = Config(connect_timeout=60, read_timeout=120, retries={"max_attempts": 1})
 
-bedrock_runtime = boto3.client(
-    service_name="bedrock-runtime",
-    region_name=AWS_REGION,
-    config=config,
-)
-bedrock_client = boto3.client(
-    service_name="bedrock",
-    region_name=AWS_REGION,
-    config=config,
-)
+class BedrockClientManager:
+    """
+    Singleton class to manage AWS Bedrock client connections with connection pooling.
+    """
+    _instance = None
+    _lock = threading.RLock()
+    _clients: Dict[str, any] = {}
+    
+    def __new__(cls):
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super(BedrockClientManager, cls).__new__(cls)
+            return cls._instance
+    
+    def get_client(self, service_name: str, region_name: Optional[str] = None) -> any:
+        """
+        Get or create a boto3 client with connection pooling.
+        
+        Args:
+            service_name: The AWS service name (e.g., "bedrock-runtime", "bedrock")
+            region_name: AWS region. If not specified, uses the default region.
+            
+        Returns:
+            A boto3 client instance
+        """
+        region = region_name or AWS_REGION
+        key = f"{service_name}:{region}"
+        
+        with self._lock:
+            if key not in self._clients:
+                logger.debug(f"Creating new boto3 client for {service_name} in {region}")
+                
+                config = Config(
+                    connect_timeout=60,
+                    read_timeout=120,
+                    retries={"max_attempts": 2, "mode": "adaptive"},
+                    max_pool_connections=50,  # Improve connection reuse
+                    tcp_keepalive=True        # Keep connections alive
+                )
+                
+                client = boto3.client(
+                    service_name=service_name,
+                    region_name=region,
+                    config=config
+                )
+                
+                self._clients[key] = client
+            
+            return self._clients[key]
+
+
+# Create the client manager instance
+client_manager = BedrockClientManager()
+
+# Get clients with connection pooling
+bedrock_runtime = client_manager.get_client("bedrock-runtime")
+bedrock_client = client_manager.get_client("bedrock")
 
 
 def get_inference_region_prefix():
