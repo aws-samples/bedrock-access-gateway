@@ -2,11 +2,11 @@ import json
 import os
 from typing import Annotated
 
-import boto3
 from botocore.exceptions import ClientError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from api.models.bedrock import client_manager
 from api.setting import DEFAULT_API_KEYS
 
 api_key_param = os.environ.get("API_KEY_PARAM_NAME")
@@ -15,10 +15,10 @@ api_key_env = os.environ.get("API_KEY")
 if api_key_param:
     # For backward compatibility.
     # Please now use secrets manager instead.
-    ssm = boto3.client("ssm")
+    ssm = client_manager.get_client("ssm")
     api_key = ssm.get_parameter(Name=api_key_param, WithDecryption=True)["Parameter"]["Value"]
 elif api_key_secret_arn:
-    sm = boto3.client("secretsmanager")
+    sm = client_manager.get_client("secretsmanager")
     try:
         response = sm.get_secret_value(SecretId=api_key_secret_arn)
         if "SecretString" in response:
