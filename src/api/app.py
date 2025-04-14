@@ -12,69 +12,12 @@ import os
 from api.routers import chat, embeddings, model
 from api.setting import API_ROUTE_PREFIX, DESCRIPTION, SUMMARY, TITLE, VERSION
 
-config = {
-    "title": TITLE,
-    "description": DESCRIPTION,
-    "summary": SUMMARY,
-    "version": VERSION,
-}
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
-app = FastAPI(**config)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-proxy_target = get_proxy_target()
-
-if proxy_target:
-    TARGET_URL = "http://model-runner.docker.internal"
-    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
-    async def proxy(request: Request, path: str):
-        async with httpx.AsyncClient() as client:
-            # Build the target URL
-            target_url = f"{TARGET_URL}/{path}"
-
-            # Forward the request
-            response = await client.request(
-                method=request.method,
-                url=target_url,
-                headers=request.headers.raw,
-                content=await request.body(),
-                params=request.query_params,
-            )
-
-            # Return the response with the same status code and headers
-            return response.json(), response.status_code, dict(response.headers)
-
-else:
-    app.include_router(model.router, prefix=API_ROUTE_PREFIX)
-    app.include_router(chat.router, prefix=API_ROUTE_PREFIX)
-    app.include_router(embeddings.router, prefix=API_ROUTE_PREFIX)
-
-
-@app.get("/health")
-async def health():
-    """For health check if needed"""
-    return {"status": "OK"}
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request, exc):
-    return PlainTextResponse(str(exc), status_code=400)
-
 def get_gcp_target():
     """
     Check if the environment variable is set to use GCP.
     """
 
+    # TODO: are these the best env vars to check for?
     project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
     project_id = project_id if project_id else os.getenv("GCLOUD_PROJECT")
     location = os.getenv("CLOUDSDK_COMPUTE_REGION")
@@ -83,6 +26,7 @@ def get_gcp_target():
         return f"https://{location}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{location}/endpoints/openapi",
 
     return None
+
 def get_docker_target():
     """
     Check if the environment variable is set to use Docker.
@@ -112,6 +56,64 @@ def get_proxy_target():
 
     return None
 
+config = {
+    "title": TITLE,
+    "description": DESCRIPTION,
+    "summary": SUMMARY,
+    "version": VERSION,
+}
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+app = FastAPI(**config)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+proxy_target = get_proxy_target()
+
+if proxy_target:
+    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+    async def proxy(request: Request, path: str):
+        async with httpx.AsyncClient() as client:
+            # Build the target URL
+            target_url = f"{proxy_target}/{path}"
+
+            # Forward the request
+            response = await client.request(
+                method=request.method,
+                url=target_url,
+                headers=request.headers.raw,
+                # TODO: can we avoid deserializing the body and re-serializing it?
+                content=await request.body(),
+                params=request.query_params,
+            )
+
+            # TODO: can we avoid deserializing the response body and re-serializing it?
+            # Return the response with the same status code and headers
+            return response.json(), response.status_code, dict(response.headers)
+
+else:
+    app.include_router(model.router, prefix=API_ROUTE_PREFIX)
+    app.include_router(chat.router, prefix=API_ROUTE_PREFIX)
+    app.include_router(embeddings.router, prefix=API_ROUTE_PREFIX)
+
+
+@app.get("/health")
+async def health():
+    """For health check if needed"""
+    return {"status": "OK"}
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    return PlainTextResponse(str(exc), status_code=400)
 
 handler = Mangum(app)
 
