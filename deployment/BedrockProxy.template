@@ -165,16 +165,16 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Architectures:
-        - arm64
+        - x86_64
       Code:
         ImageUri:
           Fn::Join:
             - ""
-            - - 366590864501.dkr.ecr.
+            - - 835453518493.dkr.ecr.
               - Ref: AWS::Region
               - "."
               - Ref: AWS::URLSuffix
-              - /bedrock-proxy-api:latest
+              - /bedrock-access-gateway:latest
       Description: Bedrock Proxy API Handler
       Environment:
         Variables:
