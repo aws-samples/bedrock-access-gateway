@@ -60,7 +60,7 @@ jobs:
       - name: Build Docker image
         run: |
           cd src
-          docker build -t bedrock-access-gateway:latest .
+          docker buildx build --platform linux/arm64 -t bedrock-access-gateway:latest .
 
       # Step 5: Tag the Docker image
       - name: Tag Docker image
