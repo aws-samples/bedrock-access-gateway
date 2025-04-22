@@ -1113,12 +1113,16 @@ class BedrockModel(BaseChatModel):
 
             # Process each chunk from the custom model stream
             async for chunk in self._async_iterate(stream):
-                if chunk.get("contentType") != "application/json":
-                    continue
-
+                # For custom imported models, contentType might be missing in each chunk
+                # Or it might not match exactly what we expect, so skip this check
+                
                 # Parse the chunk
                 try:
-                    chunk_body = json.loads(chunk.get("chunk").get("bytes").decode())
+                    chunk_bytes = chunk.get("chunk", {}).get("bytes")
+                    if not chunk_bytes:
+                        continue
+                        
+                    chunk_body = json.loads(chunk_bytes.decode())
                     if DEBUG:
                         logger.info(f"Custom model stream chunk: {chunk_body}")
 
@@ -1126,6 +1130,8 @@ class BedrockModel(BaseChatModel):
                     delta_text = ""
                     if "completion" in chunk_body:
                         delta_text = chunk_body["completion"]
+                    elif "generation" in chunk_body:
+                        delta_text = chunk_body["generation"]
                     elif "delta" in chunk_body:
                         delta_text = chunk_body["delta"]
                     elif "content" in chunk_body:
