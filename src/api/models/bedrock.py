@@ -1012,10 +1012,17 @@ class BedrockModel(BaseChatModel):
                 completion_text = ""
                 input_tokens = 0
                 output_tokens = 0
+                
+                # Debug log all keys to help troubleshoot response formats
+                if DEBUG:
+                    logger.info(f"Response body keys: {list(response_body.keys())}")
 
                 # Handle different response formats based on model type
                 if "completion" in response_body:
                     completion_text = response_body["completion"]
+                elif "generation" in response_body:
+                    # Handle format used by some imported models
+                    completion_text = response_body["generation"]
                 elif "generations" in response_body and isinstance(response_body["generations"], list):
                     # Handle formats like Anthropic Claude style
                     completion_text = response_body["generations"][0].get("text", "")
@@ -1030,6 +1037,10 @@ class BedrockModel(BaseChatModel):
                 if "usage" in response_body:
                     input_tokens = response_body["usage"].get("prompt_tokens", 0)
                     output_tokens = response_body["usage"].get("completion_tokens", 0)
+                elif "prompt_token_count" in response_body:
+                    # Format used by some imported models
+                    input_tokens = response_body.get("prompt_token_count", 0)
+                    output_tokens = response_body.get("generation_token_count", 0)
 
                 # Create a response structure that matches the converse API response
                 return {
