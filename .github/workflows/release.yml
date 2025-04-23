@@ -88,7 +88,8 @@ jobs:
       - name: Deploy CloudFormation Stack
         run: |
           stack_name="BedrockProxyStackTest"
-          template_file="BedrockProxy.template"
+          s3_bucket="falcon-ai-bedrock-accesss-gateway"
+          template_file="s3://$s3_bucket/BedrockProxy.template"
           region="us-west-2"
           api_key_secret_arn="arn:aws:secretsmanager:us-west-2:123456789012:secret:MyApiKeySecret"
           default_model_id="anthropic.claude-3-sonnet-20240229-v1:0"
