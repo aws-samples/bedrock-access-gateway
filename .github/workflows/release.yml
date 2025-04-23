@@ -121,7 +121,7 @@ jobs:
       - name: Check if bucket exists
         id: check_bucket
         run: |
-          bucket_name=${{ vars.DEV_DEPLOY_BUCKET }}
+          bucket_name=falcon-ai-bedrock-accesss-gateway
           if aws s3api list-buckets --query "Buckets[?Name=='$bucket_name'].Name" --output text | grep -q "$bucket_name"; then
             echo "Bucket exists"
             echo "::set-output name=bucket_exists::true"
