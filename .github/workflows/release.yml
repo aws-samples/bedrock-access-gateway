@@ -36,42 +36,42 @@ jobs:
   #       run: |-
   #         cd scripts
   #         bash push-to-ecr.sh
-  build-and-push:
-    runs-on: ubuntu-latest
-
-    steps:
-      # Step 1: Checkout the repository
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      # Step 2: Configure AWS credentials
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.GH_ACTIONS_AWS_ACCESS_KEY_ID_DEVELOPMENT }}
-          aws-secret-access-key: ${{ secrets.GH_ACTIONS_AWS_SECRET_ACCESS_KEY_DEVELOPMENT }}
-          aws-region: us-west-2
-
-      # Step 3: Log in to Amazon ECR
-      - name: Log in to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v1
-
-      # Step 4: Build the Docker image
-      - name: Build Docker image
-        run: |
-          cd src
-          docker buildx build --platform linux/x86_64 -t bedrock-access-gateway:latest .
-
-      # Step 5: Tag the Docker image
-      - name: Tag Docker image
-        run: |
-          docker tag bedrock-access-gateway:latest 835453518493.dkr.ecr.us-west-2.amazonaws.com/bedrock-access-gateway:latest
-
-
-      # Step 6: Push the Docker image to ECR
-      - name: Push Docker image to ECR
-        run: |
-          docker push 835453518493.dkr.ecr.us-west-2.amazonaws.com/bedrock-access-gateway:latest
+#  build-and-push:
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      # Step 1: Checkout the repository
+#      - name: Checkout code
+#        uses: actions/checkout@v3
+#
+#      # Step 2: Configure AWS credentials
+#      - name: Configure AWS credentials
+#        uses: aws-actions/configure-aws-credentials@v2
+#        with:
+#          aws-access-key-id: ${{ secrets.GH_ACTIONS_AWS_ACCESS_KEY_ID_DEVELOPMENT }}
+#          aws-secret-access-key: ${{ secrets.GH_ACTIONS_AWS_SECRET_ACCESS_KEY_DEVELOPMENT }}
+#          aws-region: us-west-2
+#
+#      # Step 3: Log in to Amazon ECR
+#      - name: Log in to Amazon ECR
+#        uses: aws-actions/amazon-ecr-login@v1
+#
+#      # Step 4: Build the Docker image
+#      - name: Build Docker image
+#        run: |
+#          cd src
+#          docker buildx build --platform linux/x86_64 -t bedrock-access-gateway:latest .
+#
+#      # Step 5: Tag the Docker image
+#      - name: Tag Docker image
+#        run: |
+#          docker tag bedrock-access-gateway:latest 835453518493.dkr.ecr.us-west-2.amazonaws.com/bedrock-access-gateway:latest
+#
+#
+#      # Step 6: Push the Docker image to ECR
+#      - name: Push Docker image to ECR
+#        run: |
+#          docker push 835453518493.dkr.ecr.us-west-2.amazonaws.com/bedrock-access-gateway:latest
 
 #  cfn_templates:
 #    runs-on: ubuntu-latest
@@ -96,3 +96,48 @@ jobs:
 #          S3_BUCKET: ${{ secrets.ASSET_BUCKET }}
 #          S3_PREFIX: bedrock-access-gateway/latest/
 #        run: aws s3 sync deployment/ s3://$S3_BUCKET/$S3_PREFIX --acl public-read
+
+
+  cfn_templates:
+    name: Development
+    environment: development
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.GH_ACTIONS_AWS_ACCESS_KEY_ID_DEVELOPMENT }}
+          aws-secret-access-key: ${{ secrets.GH_ACTIONS_AWS_SECRET_ACCESS_KEY_DEVELOPMENT }}
+          aws-region: ${{ secrets.AWS_REGION_DEVELOPMENT_US_WEST_2 }}
+
+      - name: Check if bucket exists
+        id: check_bucket
+        run: |
+          bucket_name=${{ vars.DEV_DEPLOY_BUCKET }}
+          if aws s3api list-buckets --query "Buckets[?Name=='$bucket_name'].Name" --output text | grep -q "$bucket_name"; then
+            echo "Bucket exists"
+            echo "::set-output name=bucket_exists::true"
+          else
+            echo "Bucket does not exist"
+            echo "::set-output name=bucket_exists::false"
+          fi
+
+      - name: Create new bucket
+        if: steps.check_bucket.outputs.bucket_exists == 'false'
+        run: |
+          bucket_name=falcon-ai-bedrock-accesss-gateway
+          aws s3api create-bucket --bucket $bucket_name --region us-west-2 --create-bucket-configuration LocationConstraint=us-west-2
+
+      - name: Copy Deployment Templates to S3
+        env:
+          S3_BUCKET: falcon-ai-bedrock-accesss-gateway
+          S3_PREFIX: latest/
+        run: aws s3 sync deployment/ s3://$S3_BUCKET/$S3_PREFIX --acl public-read
