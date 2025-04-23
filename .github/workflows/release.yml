@@ -86,7 +86,7 @@ jobs:
         run: aws s3 sync deployment/ s3://$S3_BUCKET/
 
       - name: Deploy CloudFormation Stack
-       run: |
+        run: |
          stack_name="BedrockProxyStackTest"
          template_file="./deployment/BedrockProxy.template" # Local file path
          region="us-west-2"
