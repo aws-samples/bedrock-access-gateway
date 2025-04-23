@@ -89,14 +89,14 @@ jobs:
         run: |
           stack_name="BedrockProxyStackTest"
           s3_bucket="falcon-ai-bedrock-accesss-gateway"
-          template_url="https://$s3_bucket.s3.us-west-2.amazonaws.com/BedrockProxy.template"
+          template_file="s3://$s3_bucket/BedrockProxy.template"
           region="us-west-2"
           api_key_secret_arn="arn:aws:secretsmanager:us-west-2:123456789012:secret:MyApiKeySecret"
           default_model_id="anthropic.claude-3-sonnet-20240229-v1:0"
 
           aws cloudformation deploy \
             --stack-name "$stack_name" \
-            --template-url "$template_url" \
+            --template-file "$template_file" \
             --region "$region" \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
