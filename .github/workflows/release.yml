@@ -96,7 +96,7 @@ jobs:
 
           aws cloudformation deploy \
             --stack-name "$stack_name" \
-            --template-file "$template_file" \
+            --template-url "$template_url" \
             --region "$region" \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
