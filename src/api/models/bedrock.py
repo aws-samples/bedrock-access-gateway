@@ -42,9 +42,13 @@ from api.schema import (
 from api.setting import (
     AWS_REGION,
     DEBUG,
+    DEFAULT_GUARDRAIL_ID,
+    DEFAULT_GUARDRAIL_TRACE,
+    DEFAULT_GUARDRAIL_VERSION,
     DEFAULT_MODEL,
     ENABLE_CROSS_REGION_INFERENCE,
     ENABLE_CUSTOM_MODELS,
+    ENABLE_GUARDRAILS,
 )
 
 logger = logging.getLogger(__name__)
@@ -547,6 +551,14 @@ class BedrockModel(BaseChatModel):
             "system": system_prompts,
             "inferenceConfig": inference_config,
         }
+        
+        # Apply guardrails if enabled at the gateway level
+        if ENABLE_GUARDRAILS and DEFAULT_GUARDRAIL_ID:
+            logger.debug(f"Applying guardrail: {DEFAULT_GUARDRAIL_ID} to {chat_request.model}")
+            args["guardrailIdentifier"] = DEFAULT_GUARDRAIL_ID
+            args["guardrailVersion"] = DEFAULT_GUARDRAIL_VERSION
+            args["trace"] = DEFAULT_GUARDRAIL_TRACE
+        
         if chat_request.reasoning_effort:
             # From OpenAI api, the max_token is not supported in reasoning mode
             # Use max_completion_tokens if provided.
@@ -876,16 +888,26 @@ class BedrockModel(BaseChatModel):
         # Serialize the body for the API call
         serialized_body = json.dumps(body)
 
+        # Prepare common invoke parameters
+        invoke_args = {
+            "modelId": model_arn,
+            "contentType": "application/json",
+            "accept": "application/json",
+            "body": serialized_body,
+        }
+        
+        # Apply guardrails if enabled at the gateway level
+        if ENABLE_GUARDRAILS and DEFAULT_GUARDRAIL_ID:
+            logger.debug(f"Applying guardrail: {DEFAULT_GUARDRAIL_ID} to custom model {model_arn}")
+            invoke_args["guardrailIdentifier"] = DEFAULT_GUARDRAIL_ID
+            invoke_args["guardrailVersion"] = DEFAULT_GUARDRAIL_VERSION
+            invoke_args["trace"] = DEFAULT_GUARDRAIL_TRACE
+
         try:
             if stream:
                 # Streaming response for custom models
                 response = await run_in_threadpool(
-                    lambda: custom_runtime.invoke_model_with_response_stream(
-                        modelId=model_arn,
-                        contentType="application/json",
-                        accept="application/json",
-                        body=serialized_body,
-                    )
+                    lambda: custom_runtime.invoke_model_with_response_stream(**invoke_args)
                 )
 
                 # Return a special response structure for the streaming handler
@@ -897,12 +919,7 @@ class BedrockModel(BaseChatModel):
             else:
                 # Non-streaming response
                 response = await run_in_threadpool(
-                    lambda: custom_runtime.invoke_model(
-                        modelId=model_arn,
-                        contentType="application/json",
-                        accept="application/json",
-                        body=serialized_body,
-                    )
+                    lambda: custom_runtime.invoke_model(**invoke_args)
                 )
 
                 # Parse the response body

@@ -18,3 +18,14 @@ DEFAULT_EMBEDDING_MODEL = os.environ.get("DEFAULT_EMBEDDING_MODEL", "cohere.embe
 ENABLE_CROSS_REGION_INFERENCE = os.environ.get("ENABLE_CROSS_REGION_INFERENCE", "true").lower() != "false"
 # Custom models are always enabled by default
 ENABLE_CUSTOM_MODELS = True
+
+# Guardrail configuration
+ENABLE_GUARDRAILS = os.environ.get("ENABLE_GUARDRAILS", "false").lower() == "true"
+DEFAULT_GUARDRAIL_ID = os.environ.get("DEFAULT_GUARDRAIL_ID", "")
+DEFAULT_GUARDRAIL_VERSION = os.environ.get("DEFAULT_GUARDRAIL_VERSION", "DRAFT")
+DEFAULT_GUARDRAIL_TRACE = os.environ.get("DEFAULT_GUARDRAIL_TRACE", "ENABLED")
+
+# Log warning if guardrails are enabled but no ID is provided
+if ENABLE_GUARDRAILS and not DEFAULT_GUARDRAIL_ID:
+    import logging
+    logging.getLogger(__name__).warning("ENABLE_GUARDRAILS is set to true but DEFAULT_GUARDRAIL_ID is not provided. Guardrails will not be applied.")

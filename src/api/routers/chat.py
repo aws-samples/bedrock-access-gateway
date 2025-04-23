@@ -29,6 +29,15 @@ async def chat_completions(
                         {"role": "system", "content": "You are a helpful assistant."},
                         {"role": "user", "content": "Hello!"},
                     ],
+                },
+                {
+                    "model": "anthropic.claude-3-sonnet-20240229-v1:0",
+                    "messages": [
+                        {"role": "user", "content": "Tell me about harmful topics"},
+                    ],
+                    "guardrail_id": "0b4da9d9dc474a578f34a4d9a94d4a1a",  # Example ID - replace with real guardrail ID
+                    "guardrail_version": "DRAFT",  # Optional - specify "DRAFT" or version number
+                    "trace": "ENABLED"  # Optional - enable/disable guardrail tracing
                 }
             ],
         ),
