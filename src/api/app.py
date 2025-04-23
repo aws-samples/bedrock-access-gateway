@@ -106,8 +106,6 @@ if proxy_target:
             logging.error(f"Proxy request failed: {e}")
             return Response(status_code=502, content=f"Upstream request failed: {e}")
 
-        logging.info(f"Upstream responded with {response.status_code}")
-
         return Response(
             content=response.content,
             status_code=response.status_code,
