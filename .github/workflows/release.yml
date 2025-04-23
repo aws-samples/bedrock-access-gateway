@@ -118,24 +118,16 @@ jobs:
           aws-secret-access-key: ${{ secrets.GH_ACTIONS_AWS_SECRET_ACCESS_KEY_DEVELOPMENT }}
           aws-region: us-west-2
 
-      - name: Check if bucket exists
-        id: check_bucket
+      - name: Check and create bucket if it does not exist
         run: |
           bucket_name=falcon-ai-bedrock-accesss-gateway
-          if aws s3api list-buckets --query "Buckets[?Name=='$bucket_name'].Name" --output text | grep -q "$bucket_name"; then
-            echo "Bucket exists"
-            echo "::set-output name=bucket_exists::true"
+          region=us-west-2
+          if aws s3api head-bucket --bucket "$bucket_name" 2>/dev/null; then
+            echo "Bucket already exists."
           else
-            echo "Bucket does not exist"
-            echo "::set-output name=bucket_exists::false"
+            echo "Bucket does not exist. Creating bucket..."
+            aws s3api create-bucket --bucket "$bucket_name" --region "$region" --create-bucket-configuration LocationConstraint="$region"
           fi
-
-      - name: Create new bucket
-        if: steps.check_bucket.outputs.bucket_exists == 'false'
-        run: |
-          bucket_name=falcon-ai-bedrock-accesss-gateway
-          aws s3api create-bucket --bucket $bucket_name --region us-west-2 --create-bucket-configuration LocationConstraint=us-west-2
-
       - name: Copy Deployment Templates to S3
         env:
           S3_BUCKET: falcon-ai-bedrock-accesss-gateway
