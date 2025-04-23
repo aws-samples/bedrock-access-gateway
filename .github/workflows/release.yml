@@ -69,26 +69,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.GH_ACTIONS_AWS_SECRET_ACCESS_KEY_DEVELOPMENT }}
           aws-region: us-west-2
 
-      - name: Check and create bucket if it does not exist
-        run: |
-          bucket_name=falcon-ai-bedrock-accesss-gateway
-          region=us-west-2
-          if aws s3api head-bucket --bucket "$bucket_name" 2>/dev/null; then
-            echo "Bucket already exists."
-          else
-            echo "Bucket does not exist. Creating bucket..."
-            aws s3api create-bucket --bucket "$bucket_name" --region "$region" --create-bucket-configuration LocationConstraint="$region"
-          fi
-      - name: Copy Deployment Templates to S3
-        env:
-          S3_BUCKET: falcon-ai-bedrock-accesss-gateway
-
-        run: aws s3 sync deployment/ s3://$S3_BUCKET/
-
       - name: Deploy CloudFormation Stack
         run: |
-         stack_name="BedrockProxyStackTest"
-         template_file="./deployment/BedrockProxy.template" # Local file path
+         stack_name="Bedrock-Access-Gateway"
+         template_file="./deployment/BedrockProxy.template"
          region="us-west-2"
          default_model_id="anthropic.claude-3-sonnet-20240229-v1:0"
 
@@ -98,5 +82,5 @@ jobs:
            --region "$region" \
            --capabilities CAPABILITY_NAMED_IAM \
            --parameter-overrides \
-             SecretValue=bedrock-agi \
+             SecretValue=${{ secrets.BEDROCK_GATEWAY_SECRET }} \
              DefaultModelId="$default_model_id"
