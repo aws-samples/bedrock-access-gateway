@@ -90,7 +90,6 @@ jobs:
          stack_name="BedrockProxyStackTest"
          template_file="./deployment/BedrockProxy.template" # Local file path
          region="us-west-2"
-         api_key_secret_arn="arn:aws:secretsmanager:us-west-2:123456789012:secret:MyApiKeySecret"
          default_model_id="anthropic.claude-3-sonnet-20240229-v1:0"
 
          aws cloudformation deploy \
@@ -99,5 +98,5 @@ jobs:
            --region "$region" \
            --capabilities CAPABILITY_NAMED_IAM \
            --parameter-overrides \
-             ApiKeySecretArn="$api_key_secret_arn" \
+             BedrockGatewaySecret=bedrock-agi \
              DefaultModelId="$default_model_id"
