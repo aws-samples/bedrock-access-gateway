@@ -131,5 +131,5 @@ jobs:
       - name: Copy Deployment Templates to S3
         env:
           S3_BUCKET: falcon-ai-bedrock-accesss-gateway
-          S3_PREFIX: latest/
-        run: aws s3 sync deployment/ s3://$S3_BUCKET/$S3_PREFIX
+
+        run: aws s3 sync deployment/ s3://$S3_BUCKET/
