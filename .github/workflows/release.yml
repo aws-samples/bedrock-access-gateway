@@ -98,5 +98,5 @@ jobs:
            --region "$region" \
            --capabilities CAPABILITY_NAMED_IAM \
            --parameter-overrides \
-             BedrockGatewaySecret=bedrock-agi \
+             SecretValue=bedrock-agi \
              DefaultModelId="$default_model_id"
