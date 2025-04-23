@@ -82,19 +82,8 @@ proxy_target = get_proxy_target()
 if proxy_target:
     @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
     async def proxy(request: Request, path: str):
-        async with httpx.AsyncClient() as client:
-            # Read body only once
-            body = await request.body()
-
         # Build safe target URL
-        target_url = proxy_target.rstrip('/')
-        if path:
-            target_url += '/' + path.lstrip('/')
-
-        logging.info(f"Forwarding request to: {target_url}")
-        logging.info(f"Request method: {request.method}")
-        logging.info(f"Incoming path: {request.url.path}")
-        logging.info(f"Request body:\n{body.decode('utf-8', errors='replace')}")
+        target_url = f"{proxy_target.rstrip('/')}/{path.lstrip('/')}".rstrip("/")
 
         # Sanitize headers
         headers = {
@@ -108,8 +97,9 @@ if proxy_target:
                     method=request.method,
                     url=target_url,
                     headers=headers,
-                    content=body,
-                    params=dict(request.query_params),
+                    # TODO: can we avoid deserializing the body and re-serializing it?
+                    content=await request.body(),
+                    params=request.query_params,
                     timeout=30.0,
                 )
         except httpx.RequestError as e:
@@ -123,54 +113,8 @@ if proxy_target:
             status_code=response.status_code,
             headers=dict(response.headers),
             media_type=response.headers.get("content-type", "application/octet-stream"),
-        )            
-            # # Build the target URL
-            # target_url = f"{proxy_target}/{path}".rstrip("/")
-
-            # body = await request.body()
-
-            # # Print or log the request body
-            # logging.info(f"Forwarding request to: {target_url}")
-            # logging.info(f"Request method: {request.method}")
-            # logging.info(f"Request body:\n{body.decode('utf-8', errors='replace')}")
-
-
-            # logging.info(f"Incoming path: {request.url.path}")
-            # # Forward the request
-            # resp = await client.request(
-            #     method=request.method,
-            #     url=target_url,
-            #     headers=request.headers.raw,
-            #     # TODO: can we avoid deserializing the body and re-serializing it?
-            #     content=body,
-            #     params=request.query_params,
-            # )
-
-            # # async with httpx.AsyncClient() as client:
-            # #     try:
-            # #         resp = await client.request(
-            # #             method=request.method,
-            # #             url=target_url,
-            # #             headers={k: v for k, v in request.headers.items() if k.lower() != "host"},
-            # #             content=body,
-            # #             params=request.query_params,
-            # #         )
-            # #     except httpx.RequestError as e:
-            # #         logging.error(f"Proxy request failed: {e}")
-            # #         return Response(status_code=502, content=f"Upstream request failed: {e}")
-
-
-            # # TODO: can we avoid deserializing the response body and re-serializing it?
-            # # Return the response with the same status code and headers
-            # # return response.json(), response.status_code, dict(response.headers)
+        )
     
-            # return Response(
-            #     content=resp.content,
-            #     status_code=resp.status_code,
-            #     headers=dict(resp.headers),
-            #     media_type=resp.headers.get("content-type", "application/octet-stream"),
-            # )
-
 else:
     app.include_router(model.router, prefix=API_ROUTE_PREFIX)
     app.include_router(chat.router, prefix=API_ROUTE_PREFIX)
