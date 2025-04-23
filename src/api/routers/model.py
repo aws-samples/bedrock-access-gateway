@@ -22,7 +22,14 @@ async def validate_model_id(model_id: str):
 
 @router.get("", response_model=Models)
 async def list_models():
-    model_list = [Model(id=model_id) for model_id in chat_model.list_models()]
+    from api.models.bedrock import bedrock_model_list
+
+    model_list = []
+    for model_id in chat_model.list_models():
+        # Model ID already includes the name for custom models
+        model = Model(id=model_id)
+        model_list.append(model)
+
     return Models(data=model_list)
 
 
@@ -36,5 +43,14 @@ async def get_model(
         Path(description="Model ID", example="anthropic.claude-3-sonnet-20240229-v1:0"),
     ],
 ):
+    from api.models.bedrock import bedrock_model_list
+
     await validate_model_id(model_id)
-    return Model(id=model_id)
+    model = Model(id=model_id)
+
+    # Add model name if available
+    model_info = bedrock_model_list.get(model_id, {})
+    if "name" in model_info:
+        model.name = model_info["name"]
+
+    return model

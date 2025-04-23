@@ -26,7 +26,8 @@ If you find this GitHub repository useful, please consider giving it a free star
 - [x] Support Embedding API
 - [x] Support Multimodal API
 - [x] Support Cross-Region Inference
-- [x] Support Reasoning (**new**)
+- [x] Support Reasoning
+- [x] Support Custom Imported Models (**new**)
 
 Please check [Usage Guide](./docs/Usage.md) for more details about how to use the new APIs.
 
@@ -230,9 +231,13 @@ Also, you can use Lambda Web Adapter + Function URL (see [example](https://githu
 
 Currently, there is no plan to support SageMaker models. This may change provided there's a demand from customers.
 
-### Any plan to support Bedrock custom models?
+### Support for Bedrock custom models
 
-Fine-tuned models and models with Provisioned Throughput are currently not supported. You can clone the repo and make the customization if needed.
+Custom imported models are now supported! You can use them just like foundation models using user-friendly model IDs in the format `{model-name}-id:custom.{aws_id}` or with the original AWS format `custom.{aws_id}`. Run the Models API to see the available custom models in your account.
+
+The user-friendly format makes it easier to identify models while maintaining backward compatibility with the original AWS IDs. For more details, see [Custom Imported Models](./docs/Usage.md#custom-imported-models) in the usage documentation.
+
+Fine-tuned models and models with Provisioned Throughput may require additional configuration.
 
 ### How to upgrade?
 

@@ -15,6 +15,7 @@ export OPENAI_BASE_URL=<API base url>
 - [Multimodal API](#multimodal-api)
 - [Tool Call](#tool-call)
 - [Reasoning](#reasoning)
+- [Custom Imported Models](#custom-imported-models)
 
 ## Models API
 
@@ -442,3 +443,78 @@ for chunk in response:
     elif chunk.choices[0].delta.content:
         content += chunk.choices[0].delta.content
 ```
+
+## Custom Imported Models
+
+This feature allows you to use models that you've imported into Amazon Bedrock. Custom imported models can be used just like foundation models with minor differences in configuration.
+
+**Important Notes:**
+- Custom models are displayed in the Models API with user-friendly IDs in the format `{model-name}-id:custom.{aws_id}`
+- The original AWS ID format `custom.{aws_id}` is also supported for backward compatibility
+- Custom models are always enabled by default
+- Custom imported models may have different response formats than foundation models, so the gateway attempts to normalize the outputs
+- If a model is not ready yet, the API will return a 503 error with a detail message indicating the model is not ready
+
+**Example Request**
+
+First, use the Models API to get a list of available custom models:
+
+```bash
+curl -s $OPENAI_BASE_URL/models -H "Authorization: Bearer $OPENAI_API_KEY" | jq '.data[] | select(.id | contains("-id:custom.") or startswith("custom."))'
+```
+
+Then use the custom model in your chat completions (using either format):
+
+```bash
+# Using the user-friendly model ID
+curl $OPENAI_BASE_URL/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "model": "mistral-7b-instruct-id:custom.a1b2c3d4",
+    "messages": [
+        {
+            "role": "user",
+            "content": "What is the meaning of life?"
+        }
+    ],
+    "max_tokens": 500,
+    "temperature": 0.7
+}'
+
+# Using the original AWS ID format (also supported)
+curl $OPENAI_BASE_URL/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "model": "custom.a1b2c3d4",
+    "messages": [
+        {
+            "role": "user",
+            "content": "What is the meaning of life?"
+        }
+    ],
+    "max_tokens": 500,
+    "temperature": 0.7
+}'
+```
+
+**Example Python SDK Usage**
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+completion = client.chat.completions.create(
+    # Can use either format:
+    # model="mistral-7b-instruct-id:custom.a1b2c3d4" # User-friendly format
+    model="custom.a1b2c3d4",                      # Original AWS format
+    messages=[{"role": "user", "content": "What is the meaning of life?"}],
+    max_tokens=500,
+    temperature=0.7
+)
+
+print(completion.choices[0].message.content)
+```
+
+For more details on the implementation, see [CUSTOM_MODELS_IMPLEMENTATION.md](../CUSTOM_MODELS_IMPLEMENTATION.md).

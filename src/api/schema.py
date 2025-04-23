@@ -102,6 +102,7 @@ class ChatRequest(BaseModel):
     tools: list[Tool] | None = None
     tool_choice: str | object = "auto"
     stop: list[str] | str | None = None
+    custom_model_display_name: str | None = None  # For storing the friendly model name when using custom models
 
 
 class Usage(BaseModel):

@@ -11,6 +11,7 @@ import numpy as np
 import requests
 import tiktoken
 from botocore.config import Config
+from botocore.exceptions import ClientError
 from fastapi import HTTPException
 from starlette.concurrency import run_in_threadpool
 
@@ -38,11 +39,24 @@ from api.schema import (
     Usage,
     UserMessage,
 )
-from api.setting import AWS_REGION, DEBUG, DEFAULT_MODEL, ENABLE_CROSS_REGION_INFERENCE
+from api.setting import (
+    AWS_REGION,
+    DEBUG,
+    DEFAULT_MODEL,
+    ENABLE_CROSS_REGION_INFERENCE,
+    ENABLE_CUSTOM_MODELS,
+)
 
 logger = logging.getLogger(__name__)
 
+# Standard configuration for foundation models
 config = Config(connect_timeout=60, read_timeout=120, retries={"max_attempts": 1})
+# Configuration with exponential backoff for custom models, which may need retries
+custom_model_config = Config(connect_timeout=60, read_timeout=120, retries={"max_attempts": 10, "mode": "standard"})
+
+# Initialize the Bedrock clients
+if DEBUG:
+    logger.info(f"Initializing Bedrock clients with region: {AWS_REGION}")
 
 bedrock_runtime = boto3.client(
     service_name="bedrock-runtime",
@@ -82,9 +96,13 @@ def list_bedrock_models() -> dict:
     Returns a model list combines:
         - ON_DEMAND models.
         - Cross-Region Inference Profiles (if enabled via Env)
+        - Custom Imported Models (if enabled via Env)
     """
     model_list = {}
+    logger.debug(f"Getting bedrock models with region: {AWS_REGION}, ENABLE_CUSTOM_MODELS: {ENABLE_CUSTOM_MODELS}")
+
     try:
+        # Get foundation models
         profile_list = []
         if ENABLE_CROSS_REGION_INFERENCE:
             # List system defined inference profile IDs
@@ -107,21 +125,79 @@ def list_bedrock_models() -> dict:
             input_modalities = model["inputModalities"]
             # Add on-demand model list
             if "ON_DEMAND" in inference_types:
-                model_list[model_id] = {"modalities": input_modalities}
+                model_list[model_id] = {"modalities": input_modalities, "type": "foundation"}
 
             # Add cross-region inference model list.
             profile_id = cr_inference_prefix + "." + model_id
             if profile_id in profile_list:
-                model_list[profile_id] = {"modalities": input_modalities}
+                model_list[profile_id] = {"modalities": input_modalities, "type": "foundation"}
+
+        # Get custom imported models if enabled
+        if ENABLE_CUSTOM_MODELS:
+            logger.debug("Custom models enabled, checking for custom and imported models")
+
+            # List custom models (fine-tuned models)
+            try:
+                custom_models_response = bedrock_client.list_custom_models()
+                for model in custom_models_response.get("modelSummaries", []):
+                    _add_custom_model_to_list(model, model_list)
+            except Exception as e:
+                logger.warning(f"Unable to list custom models: {str(e)}")
+
+            # List imported models
+            try:
+                imported_models_response = bedrock_client.list_imported_models()
+                for model in imported_models_response.get("modelSummaries", []):
+                    _add_custom_model_to_list(model, model_list)
+            except Exception as e:
+                logger.warning(f"Unable to list imported models: {str(e)}")
 
     except Exception as e:
         logger.error(f"Unable to list models: {str(e)}")
 
     if not model_list:
         # In case stack not updated.
-        model_list[DEFAULT_MODEL] = {"modalities": ["TEXT", "IMAGE"]}
+        model_list[DEFAULT_MODEL] = {"modalities": ["TEXT", "IMAGE"], "type": "foundation"}
+
+    logger.debug(f"Final model list contains {len(model_list)} models")
+    custom_models = {k: v for k, v in model_list.items() if v.get("type") == "custom"}
+    logger.debug(f"Custom models in final list: {len(custom_models)}")
+    if custom_models:
+        logger.debug(f"Custom model IDs: {list(custom_models.keys())}")
 
     return model_list
+
+
+def _add_custom_model_to_list(model, model_list):
+    """Helper to add a custom or imported model to the model list"""
+    model_arn = model.get("modelArn")
+    if not model_arn:
+        return
+
+    # Extract ID from ARN
+    model_id_from_arn = model_arn.split("/")[-1]
+    
+    # Get the model name (fallback to ID if no name)
+    model_name = model.get("modelName", model_id_from_arn)
+    
+    # Create a more descriptive ID that includes model name
+    sanitized_name = model_name.replace(" ", "-").replace("/", "-")
+    model_id = f"{sanitized_name}-id:custom.{model_id_from_arn}"
+    
+    # Store the original ID for reference when invoking models
+    original_id = f"custom.{model_id_from_arn}"
+    
+    # Custom models are currently only supporting TEXT modality
+    model_list[model_id] = {
+        "modalities": ["TEXT"],
+        "type": "custom",
+        "arn": model_arn,
+        "name": model_name,
+        "region": AWS_REGION,
+        "original_id": original_id,
+    }
+    
+    logger.debug(f"Added custom model: {model_id} (Name: {model_name})")
 
 
 # Initialize the model list.
@@ -137,66 +213,117 @@ class BedrockModel(BaseChatModel):
 
     def validate(self, chat_request: ChatRequest):
         """Perform basic validation on requests"""
-        error = ""
-        # check if model is supported
-        if chat_request.model not in bedrock_model_list.keys():
-            error = f"Unsupported model {chat_request.model}, please use models API to get a list of supported models"
+        model_id = chat_request.model
 
-        if error:
-            raise HTTPException(
-                status_code=400,
-                detail=error,
-            )
+        # Check if model is directly supported
+        if model_id in bedrock_model_list.keys():
+            # For models with custom format, extract the AWS ID
+            if "-id:custom." in model_id:
+                # Extract information from the ID
+                parts = model_id.split("-id:")
+                if len(parts) == 2:
+                    model_name = parts[0]
+                    original_id = parts[1]
+
+                    # Store the display name for logging
+                    chat_request.custom_model_display_name = model_name
+
+                    # Store the original model ID for response consistency
+                    chat_request._model_original = model_id
+
+                    # Update the model ID to the AWS format for invocation
+                    chat_request.model = original_id
+            return
+
+        # Special case handling for direct custom.* format (backward compatibility)
+        if model_id.startswith("custom."):
+            # Check if this is a valid custom model ID
+            for listed_id, info in bedrock_model_list.items():
+                if "-id:" in listed_id and listed_id.split("-id:")[1] == model_id:
+                    # Found a matching custom model
+                    # Store the display name if available
+                    if "name" in info:
+                        chat_request.custom_model_display_name = info["name"]
+                    return
+
+        # If we get here, the model is not supported
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported model {model_id}, please use models API to get a list of supported models",
+        )
 
     async def _invoke_bedrock(self, chat_request: ChatRequest, stream=False):
         """Common logic for invoke bedrock models"""
-        if DEBUG:
-            logger.info("Raw request: " + chat_request.model_dump_json())
+        logger.debug("Raw request: " + chat_request.model_dump_json())
 
-        # convert OpenAI chat request to Bedrock SDK request
-        args = self._parse_request(chat_request)
-        if DEBUG:
-            logger.info("Bedrock request: " + json.dumps(str(args)))
+        # Check if this is a custom model or foundation model
+        model_id = chat_request.model
+        model_info = None
 
-        try:
-            if stream:
-                # Run the blocking boto3 call in a thread pool
-                response = await run_in_threadpool(bedrock_runtime.converse_stream, **args)
-            else:
-                # Run the blocking boto3 call in a thread pool
-                response = await run_in_threadpool(bedrock_runtime.converse, **args)
-        except bedrock_runtime.exceptions.ValidationException as e:
-            logger.error("Validation Error: " + str(e))
-            raise HTTPException(status_code=400, detail=str(e))
-        except bedrock_runtime.exceptions.ThrottlingException as e:
-            logger.error("Throttling Error: " + str(e))
-            raise HTTPException(status_code=429, detail=str(e))
-        except Exception as e:
-            logger.error(e)
-            raise HTTPException(status_code=500, detail=str(e))
-        return response
+        # Look for model info, handling both friendly ID and AWS ID formats
+        if model_id in bedrock_model_list:
+            model_info = bedrock_model_list[model_id]
+        else:
+            # This might be using the AWS ID format after validation
+            for _, info in bedrock_model_list.items():
+                if info.get("original_id") == model_id:
+                    model_info = info
+                    break
+
+        # If it's a custom model, invoke differently
+        if model_info and model_info.get("type") == "custom":
+            return await self._invoke_custom_model(chat_request, model_info, stream)
+        else:
+            # Foundation model invocation path
+            args = self._parse_request(chat_request)
+            logger.debug("Bedrock request: " + json.dumps(str(args)))
+
+            try:
+                if stream:
+                    response = await run_in_threadpool(bedrock_runtime.converse_stream, **args)
+                else:
+                    response = await run_in_threadpool(bedrock_runtime.converse, **args)
+            except bedrock_runtime.exceptions.ValidationException as e:
+                logger.error("Validation Error: " + str(e))
+                raise HTTPException(status_code=400, detail=str(e))
+            except bedrock_runtime.exceptions.ThrottlingException as e:
+                logger.error("Throttling Error: " + str(e))
+                raise HTTPException(status_code=429, detail=str(e))
+            except Exception as e:
+                logger.error(e)
+                raise HTTPException(status_code=500, detail=str(e))
+            return response
 
     async def chat(self, chat_request: ChatRequest) -> ChatResponse:
         """Default implementation for Chat API."""
-
         message_id = self.generate_message_id()
         response = await self._invoke_bedrock(chat_request)
 
-        output_message = response["output"]["message"]
-        input_tokens = response["usage"]["inputTokens"]
-        output_tokens = response["usage"]["outputTokens"]
-        finish_reason = response["stopReason"]
+        # Preserve the original model ID for the response
+        original_request_model = getattr(chat_request, "_model_original", chat_request.model)
 
-        chat_response = self._create_response(
-            model=chat_request.model,
-            message_id=message_id,
-            content=output_message["content"],
-            finish_reason=finish_reason,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-        )
-        if DEBUG:
-            logger.info("Proxy response :" + chat_response.model_dump_json())
+        # Handle the response based on format (custom model vs foundation model)
+        if isinstance(response, dict) and "output" in response:
+            # Foundation model format
+            output_message = response["output"]["message"]
+            input_tokens = response["usage"]["inputTokens"]
+            output_tokens = response["usage"]["outputTokens"]
+            finish_reason = response["stopReason"]
+
+            chat_response = self._create_response(
+                model=original_request_model,
+                message_id=message_id,
+                content=output_message["content"],
+                finish_reason=finish_reason,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            )
+        else:
+            # Shouldn't happen, but handle unexpected response formats
+            logger.error(f"Unexpected response format: {response}")
+            raise HTTPException(status_code=500, detail="Unexpected response format from model")
+
+        logger.debug("Proxy response: " + chat_response.model_dump_json())
         return chat_response
 
     async def _async_iterate(self, stream):
@@ -210,14 +337,26 @@ class BedrockModel(BaseChatModel):
         try:
             response = await self._invoke_bedrock(chat_request, stream=True)
             message_id = self.generate_message_id()
+
+            # Use the original model ID from the request for the response
+            original_request_model = getattr(chat_request, "_model_original", chat_request.model)
+
+            # Check if this is a custom model response
+            if isinstance(response, dict) and "response_stream" in response:
+                # Custom model streaming implementation
+                response["model_id"] = original_request_model  # Use the display ID
+                async for chunk in self._handle_custom_model_stream(response, message_id, chat_request):
+                    yield chunk
+                return
+
+            # Standard foundation model streaming
             stream = response.get("stream")
             async for chunk in self._async_iterate(stream):
-                args = {"model_id": chat_request.model, "message_id": message_id, "chunk": chunk}
+                args = {"model_id": original_request_model, "message_id": message_id, "chunk": chunk}
                 stream_response = self._create_response_stream(**args)
                 if not stream_response:
                     continue
-                if DEBUG:
-                    logger.info("Proxy response :" + stream_response.model_dump_json())
+                logger.debug("Proxy response: " + stream_response.model_dump_json())
                 if stream_response.choices:
                     yield self.stream_response_to_bytes(stream_response)
                 elif chat_request.stream_options and chat_request.stream_options.include_usage:
@@ -509,8 +648,7 @@ class BedrockModel(BaseChatModel):
 
         Ref: https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html#message-inference-examples
         """
-        if DEBUG:
-            logger.info("Bedrock response chunk: " + str(chunk))
+        logger.debug("Bedrock response chunk: " + str(chunk))
 
         finish_reason = None
         message = None
@@ -698,6 +836,263 @@ class BedrockModel(BaseChatModel):
         else:
             return max_tokens - 1
 
+    async def _invoke_custom_model(self, chat_request: ChatRequest, model_info: dict, stream: bool = False) -> dict:
+        """Invoke a custom imported model through the InvokeModel API."""
+        logger.debug(f"Invoking custom model: {chat_request.model}")
+
+        # Get the model ARN from the model_info
+        model_arn = model_info.get("arn")
+        if not model_arn:
+            raise HTTPException(status_code=400, detail=f"ARN not found for custom model {chat_request.model}")
+
+        # Get the region for this model - default to AWS_REGION if not specified
+        model_region = model_info.get("region", AWS_REGION)
+
+        # Create a custom runtime client with exponential backoff retries
+        custom_runtime = boto3.client(
+            service_name="bedrock-runtime",
+            region_name=model_region,
+            config=custom_model_config,
+        )
+
+        # Create a simplified prompt from the messages
+        prompt = self._create_prompt_from_messages(chat_request.messages)
+
+        # Prepare the body for the custom model - using a standard format
+        body = {
+            "prompt": prompt,
+            "max_tokens": chat_request.max_tokens,
+            "temperature": chat_request.temperature,
+            "top_p": chat_request.top_p,
+        }
+
+        # Add stop sequences if provided
+        if chat_request.stop:
+            stop = chat_request.stop
+            if isinstance(stop, str):
+                stop = [stop]
+            body["stop_sequences"] = stop
+
+        # Serialize the body for the API call
+        serialized_body = json.dumps(body)
+
+        try:
+            if stream:
+                # Streaming response for custom models
+                response = await run_in_threadpool(
+                    lambda: custom_runtime.invoke_model_with_response_stream(
+                        modelId=model_arn,
+                        contentType="application/json",
+                        accept="application/json",
+                        body=serialized_body,
+                    )
+                )
+
+                # Return a special response structure for the streaming handler
+                return {
+                    "response_stream": response.get("body"),
+                    "content_type": response.get("contentType"),
+                    "model_id": chat_request.model,
+                }
+            else:
+                # Non-streaming response
+                response = await run_in_threadpool(
+                    lambda: custom_runtime.invoke_model(
+                        modelId=model_arn,
+                        contentType="application/json",
+                        accept="application/json",
+                        body=serialized_body,
+                    )
+                )
+
+                # Parse the response body
+                response_body = json.loads(response.get("body").read())
+
+                # Extract the completion text from common response formats
+                completion_text = self._extract_completion_from_response(response_body)
+                
+                # Extract token usage if available
+                input_tokens, output_tokens = self._extract_usage_from_response(response_body)
+
+                # Create a response structure that matches the converse API response
+                return {
+                    "output": {"message": {"content": [{"text": completion_text}]}},
+                    "usage": {"inputTokens": input_tokens, "outputTokens": output_tokens},
+                    "stopReason": "finished",
+                }
+
+        except custom_runtime.exceptions.ModelNotReadyException as e:
+            logger.error(f"Model not ready: {str(e)}")
+            raise HTTPException(status_code=503, detail=f"Custom model {chat_request.model} is not ready yet: {str(e)}")
+        except custom_runtime.exceptions.ValidationException as e:
+            logger.error(f"Validation Error: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except custom_runtime.exceptions.ThrottlingException as e:
+            logger.error(f"Throttling Error: {str(e)}")
+            raise HTTPException(status_code=429, detail=str(e))
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            error_message = e.response.get("Error", {}).get("Message", str(e))
+            logger.error(f"AWS Client Error: {error_code} - {error_message}")
+            raise HTTPException(status_code=500, detail=f"Custom model error ({error_code}): {error_message}")
+        except Exception as e:
+            logger.error(f"Error invoking custom model: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def _extract_completion_from_response(self, response_body: dict) -> str:
+        """Extract completion text from various response formats used by different models."""
+        logger.debug(f"Response body keys: {list(response_body.keys())}")
+
+        # Handle different response formats
+        if "completion" in response_body:
+            return response_body["completion"]
+        elif "generation" in response_body:
+            return response_body["generation"]
+        elif "generations" in response_body and isinstance(response_body["generations"], list):
+            return response_body["generations"][0].get("text", "")
+        elif "generated_text" in response_body:
+            return response_body["generated_text"]
+        elif "choices" in response_body and isinstance(response_body["choices"], list):
+            return response_body["choices"][0].get("text", "")
+        
+        # Default to an empty string if no recognized format
+        return ""
+
+    def _extract_usage_from_response(self, response_body: dict) -> tuple[int, int]:
+        """Extract token usage information from various response formats."""
+        input_tokens = 0
+        output_tokens = 0
+        
+        if "usage" in response_body:
+            input_tokens = response_body["usage"].get("prompt_tokens", 0)
+            output_tokens = response_body["usage"].get("completion_tokens", 0)
+        elif "prompt_token_count" in response_body:
+            input_tokens = response_body.get("prompt_token_count", 0)
+            output_tokens = response_body.get("generation_token_count", 0)
+            
+        return input_tokens, output_tokens
+
+    def _create_prompt_from_messages(self, messages: list) -> str:
+        """Create a simple text prompt from the messages list for custom models."""
+        prompt_parts = []
+
+        for message in messages:
+            role = message.role
+
+            # Format content based on message type
+            if isinstance(message.content, str):
+                content = message.content
+            elif isinstance(message.content, list):
+                # Combine text parts
+                content_parts = []
+                for part in message.content:
+                    if hasattr(part, "text"):
+                        content_parts.append(part.text)
+                content = " ".join(content_parts)
+            else:
+                continue
+
+            if role == "system":
+                prompt_parts.append(f"System: {content}")
+            elif role == "user":
+                prompt_parts.append(f"Human: {content}")
+            elif role == "assistant":
+                prompt_parts.append(f"Assistant: {content}")
+            elif role == "tool":
+                prompt_parts.append(f"Tool ({message.tool_call_id}): {content}")
+
+        return "\n\n".join(prompt_parts) + "\n\nAssistant:"
+
+    async def _handle_custom_model_stream(
+        self, response: dict, message_id: str, chat_request: ChatRequest
+    ) -> AsyncIterable[bytes]:
+        """Process streaming responses from custom models."""
+        try:
+            stream = response.get("response_stream")
+            model_id = response.get("model_id", chat_request.model)
+
+            # Accumulated text for token counting
+            accumulated_text = ""
+
+            # Start with the message start chunk
+            start_response = ChatStreamResponse(
+                id=message_id,
+                model=model_id,
+                choices=[ChoiceDelta(index=0, delta=ChatResponseMessage(role="assistant", content=""))],
+            )
+            yield self.stream_response_to_bytes(start_response)
+
+            # Process each chunk from the custom model stream
+            async for chunk in self._async_iterate(stream):
+                # Parse the chunk
+                try:
+                    chunk_bytes = chunk.get("chunk", {}).get("bytes")
+                    if not chunk_bytes:
+                        continue
+                        
+                    chunk_body = json.loads(chunk_bytes.decode())
+                    
+                    # Extract the delta text using common formats
+                    delta_text = ""
+                    if "completion" in chunk_body:
+                        delta_text = chunk_body["completion"]
+                    elif "generation" in chunk_body:
+                        delta_text = chunk_body["generation"]
+                    elif "delta" in chunk_body:
+                        delta_text = chunk_body["delta"]
+                    elif "content" in chunk_body:
+                        delta_text = chunk_body["content"]
+                    elif "text" in chunk_body:
+                        delta_text = chunk_body["text"]
+
+                    if delta_text:
+                        accumulated_text += delta_text
+
+                        # Create a stream response for this chunk
+                        stream_response = ChatStreamResponse(
+                            id=message_id,
+                            model=model_id,
+                            choices=[ChoiceDelta(index=0, delta=ChatResponseMessage(content=delta_text))],
+                        )
+                        yield self.stream_response_to_bytes(stream_response)
+                except Exception as e:
+                    logger.warning(f"Error parsing custom model stream chunk: {str(e)}")
+                    continue
+
+            # Estimate token count for usage info
+            input_tokens = len(self._create_prompt_from_messages(chat_request.messages).split())
+            output_tokens = len(accumulated_text.split())
+
+            # Send usage information if requested
+            if chat_request.stream_options and chat_request.stream_options.include_usage:
+                usage_response = ChatStreamResponse(
+                    id=message_id,
+                    model=model_id,
+                    choices=[],
+                    usage=Usage(
+                        prompt_tokens=input_tokens,
+                        completion_tokens=output_tokens,
+                        total_tokens=input_tokens + output_tokens,
+                    ),
+                )
+                yield self.stream_response_to_bytes(usage_response)
+
+            # Send completion message
+            end_response = ChatStreamResponse(
+                id=message_id,
+                model=model_id,
+                choices=[ChoiceDelta(index=0, delta=ChatResponseMessage(), finish_reason="stop")],
+            )
+            yield self.stream_response_to_bytes(end_response)
+
+            # Send [DONE] marker
+            yield self.stream_response_to_bytes()
+
+        except Exception as e:
+            logger.error(f"Error in custom model streaming: {str(e)}")
+            error_event = Error(error=ErrorMessage(message=str(e)))
+            yield self.stream_response_to_bytes(error_event)
+
     def _convert_finish_reason(self, finish_reason: str | None) -> str | None:
         """
         Below is a list of finish reason according to OpenAI doc:
@@ -772,8 +1167,7 @@ class BedrockEmbeddingsModel(BaseEmbeddingsModel, ABC):
                 total_tokens=input_tokens + output_tokens,
             ),
         )
-        if DEBUG:
-            logger.info("Proxy response :" + response.model_dump_json())
+        logger.debug("Proxy response: " + response.model_dump_json())
         return response
 
 
@@ -810,8 +1204,7 @@ class CohereEmbeddingsModel(BedrockEmbeddingsModel):
     def embed(self, embeddings_request: EmbeddingsRequest) -> EmbeddingsResponse:
         response = self._invoke_model(args=self._parse_args(embeddings_request), model_id=embeddings_request.model)
         response_body = json.loads(response.get("body").read())
-        if DEBUG:
-            logger.info("Bedrock response body: " + str(response_body))
+        logger.debug("Bedrock response body: " + str(response_body))
 
         return self._create_response(
             embeddings=response_body["embeddings"],
@@ -843,8 +1236,7 @@ class TitanEmbeddingsModel(BedrockEmbeddingsModel):
     def embed(self, embeddings_request: EmbeddingsRequest) -> EmbeddingsResponse:
         response = self._invoke_model(args=self._parse_args(embeddings_request), model_id=embeddings_request.model)
         response_body = json.loads(response.get("body").read())
-        if DEBUG:
-            logger.info("Bedrock response body: " + str(response_body))
+        logger.debug("Bedrock response body: " + str(response_body))
 
         return self._create_response(
             embeddings=[response_body["embedding"]],
