@@ -10,92 +10,43 @@ on:
         required: false
         default: 'manually publish the pre-built ecr images'
 jobs:
-  # ecr_images:
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     id-token: write
-  #     contents: read
-  #   env:
-  #     iam_role_to_assume: ${{ secrets.ROLE_ARN }}
-  #   steps:
-  #     - name: Set up QEMU
-  #       uses: docker/setup-qemu-action@v3
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v3
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
-  #     - name: Configure AWS Credentials
-  #       if: ${{ env.iam_role_to_assume != '' }}
-  #       uses: aws-actions/configure-aws-credentials@v4
-  #       with:
-  #         role-to-assume: ${{ env.iam_role_to_assume }}
-  #         aws-region: us-east-1
-  #     - name: Build and Publish
-  #       run: |-
-  #         cd scripts
-  #         bash push-to-ecr.sh
-#  build-and-push:
-#    runs-on: ubuntu-latest
-#
-#    steps:
-#      # Step 1: Checkout the repository
-#      - name: Checkout code
-#        uses: actions/checkout@v3
-#
-#      # Step 2: Configure AWS credentials
-#      - name: Configure AWS credentials
-#        uses: aws-actions/configure-aws-credentials@v2
-#        with:
-#          aws-access-key-id: ${{ secrets.GH_ACTIONS_AWS_ACCESS_KEY_ID_DEVELOPMENT }}
-#          aws-secret-access-key: ${{ secrets.GH_ACTIONS_AWS_SECRET_ACCESS_KEY_DEVELOPMENT }}
-#          aws-region: us-west-2
-#
-#      # Step 3: Log in to Amazon ECR
-#      - name: Log in to Amazon ECR
-#        uses: aws-actions/amazon-ecr-login@v1
-#
-#      # Step 4: Build the Docker image
-#      - name: Build Docker image
-#        run: |
-#          cd src
-#          docker buildx build --platform linux/x86_64 -t bedrock-access-gateway:latest .
-#
-#      # Step 5: Tag the Docker image
-#      - name: Tag Docker image
-#        run: |
-#          docker tag bedrock-access-gateway:latest 835453518493.dkr.ecr.us-west-2.amazonaws.com/bedrock-access-gateway:latest
-#
-#
-#      # Step 6: Push the Docker image to ECR
-#      - name: Push Docker image to ECR
-#        run: |
-#          docker push 835453518493.dkr.ecr.us-west-2.amazonaws.com/bedrock-access-gateway:latest
 
-#  cfn_templates:
-#    runs-on: ubuntu-latest
-#    permissions:
-#      id-token: write
-#    needs: ecr_images
-#    env:
-#      iam_role_to_assume: ${{ secrets.ROLE_ARN }}
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@v4
-#        with:
-#          fetch-depth: 0
-#      - name: Configure AWS Credentials
-#        if: ${{ env.iam_role_to_assume != '' }}
-#        uses: aws-actions/configure-aws-credentials@v4
-#        with:
-#          role-to-assume: ${{ env.iam_role_to_assume }}
-#          aws-region: us-east-1
-#      - name: Copy Deployment Templates to S3
-#        env:
-#          S3_BUCKET: ${{ secrets.ASSET_BUCKET }}
-#          S3_PREFIX: bedrock-access-gateway/latest/
-#        run: aws s3 sync deployment/ s3://$S3_BUCKET/$S3_PREFIX --acl public-read
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.GH_ACTIONS_AWS_ACCESS_KEY_ID_DEVELOPMENT }}
+          aws-secret-access-key: ${{ secrets.GH_ACTIONS_AWS_SECRET_ACCESS_KEY_DEVELOPMENT }}
+          aws-region: us-west-2
+
+      # Step 3: Log in to Amazon ECR
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # Step 4: Build the Docker image
+      - name: Build Docker image
+        run: |
+          cd src
+          docker buildx build --platform linux/x86_64 -t bedrock-access-gateway:latest .
+
+      # Step 5: Tag the Docker image
+      - name: Tag Docker image
+        run: |
+          docker tag bedrock-access-gateway:latest 835453518493.dkr.ecr.us-west-2.amazonaws.com/bedrock-access-gateway:latest
+
+
+      # Step 6: Push the Docker image to ECR
+      - name: Push Docker image to ECR
+        run: |
+          docker push 835453518493.dkr.ecr.us-west-2.amazonaws.com/bedrock-access-gateway:latest
 
 
   cfn_templates:
@@ -133,3 +84,20 @@ jobs:
           S3_BUCKET: falcon-ai-bedrock-accesss-gateway
 
         run: aws s3 sync deployment/ s3://$S3_BUCKET/
+
+      - name: Deploy CloudFormation Stack
+        run: |
+          stack_name="BedrockProxyStackTest"
+          template_file="BedrockProxy.template"
+          region="us-west-2"
+          api_key_secret_arn="arn:aws:secretsmanager:us-west-2:123456789012:secret:MyApiKeySecret"
+          default_model_id="anthropic.claude-3-sonnet-20240229-v1:0"
+
+          aws cloudformation deploy \
+            --stack-name "$stack_name" \
+            --template-file "$template_file" \
+            --region "$region" \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              ApiKeySecretArn="$api_key_secret_arn" \
+              DefaultModelId="$default_model_id"
