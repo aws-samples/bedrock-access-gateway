@@ -116,7 +116,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.GH_ACTIONS_AWS_ACCESS_KEY_ID_DEVELOPMENT }}
           aws-secret-access-key: ${{ secrets.GH_ACTIONS_AWS_SECRET_ACCESS_KEY_DEVELOPMENT }}
-          aws-region: ${{ secrets.AWS_REGION_DEVELOPMENT_US_WEST_2 }}
+          aws-region: us-west-2
 
       - name: Check if bucket exists
         id: check_bucket
