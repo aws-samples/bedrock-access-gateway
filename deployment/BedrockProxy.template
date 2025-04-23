@@ -1,14 +1,24 @@
 Description: Bedrock Access Gateway - OpenAI-compatible RESTful APIs for Amazon Bedrock
 Parameters:
-  ApiKeySecretArn:
-    Type: String
-    AllowedPattern: ^arn:aws:secretsmanager:.*$
-    Description: The secret ARN in Secrets Manager used to store the API Key
   DefaultModelId:
     Type: String
     Default: anthropic.claude-3-sonnet-20240229-v1:0
     Description: The default model ID, please make sure the model ID is supported in the current region
+  SecretValue:
+    Type: String
+    Description: The value to store in the secret
+    NoEcho: true # Ensures the value is not displayed in logs or outputs  
 Resources:
+  BedrockGatewaySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: BedrockGatewaySecret
+      Description: BedrockGatewaySecret created by CloudFormation
+      SecretString: 
+        Fn::Sub: |
+          {
+            "api_key": "${SecretValue}"
+          }
   VPCB9E5F0B4:
     Type: AWS::EC2::VPC
     Properties:
@@ -156,7 +166,7 @@ Resources:
               - secretsmanager:DescribeSecret
             Effect: Allow
             Resource:
-              Ref: ApiKeySecretArn
+              Ref: BedrockGatewaySecret
         Version: "2012-10-17"
       PolicyName: ProxyApiHandlerServiceRoleDefaultPolicy86681202
       Roles:
@@ -180,7 +190,7 @@ Resources:
         Variables:
           DEBUG: "false"
           API_KEY_SECRET_ARN:
-            Ref: ApiKeySecretArn
+            Ref: BedrockGatewaySecret
           DEFAULT_MODEL:
             Ref: DefaultModelId
           DEFAULT_EMBEDDING_MODEL: cohere.embed-multilingual-v3
@@ -277,4 +287,7 @@ Outputs:
               - ProxyALB87756780
               - DNSName
           - /api/v1
+  SecretArn:
+    Description: The ARN of the created secret
+    Value: !Ref BedrockGatewaySecret
 
