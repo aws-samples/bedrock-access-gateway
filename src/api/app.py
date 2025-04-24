@@ -23,7 +23,7 @@ def get_gcp_target():
     location = os.getenv("GCP_REGION")
 
     if project_id and location:
-        return f"https://{location}-aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/{location}/endpoints/openapi/chat/completions"
+        return f"https://{location}-aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/{location}/endpoints/openapi/"
 
     return None
 
@@ -106,10 +106,15 @@ if proxy_target:
             logging.error(f"Proxy request failed: {e}")
             return Response(status_code=502, content=f"Upstream request failed: {e}")
 
+        # filter out headers that could cause issues to client (because we act as a proxy)
+        response_headers = {
+            k: v for k, v in response.headers.items()
+            if k.lower() not in {"content-encoding", "transfer-encoding", "connection"}
+        }
         return Response(
             content=response.content,
             status_code=response.status_code,
-            headers=dict(response.headers),
+            headers=response_headers,
             media_type=response.headers.get("content-type", "application/octet-stream"),
         )
     
