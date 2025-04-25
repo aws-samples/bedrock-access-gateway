@@ -12,33 +12,41 @@ import os
 from api.routers import chat, embeddings, model
 from api.setting import API_ROUTE_PREFIX, DESCRIPTION, SUMMARY, TITLE, VERSION
 
+METADATA_URL = "http:///metadata.google.internal/computeMetadata/v1"
+HEADERS = {"Metadata-Flavor": "Google"}
+
+async def get_project_id_and_region():
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            # Get project ID
+            project_id_resp = await client.get(f"{METADATA_URL}/project/project-id", headers=HEADERS)
+            project_id_resp.raise_for_status()
+            project_id = project_id_resp.text
+
+            # Get full region path
+            region_resp = await client.get(f"{METADATA_URL}/instance/region", headers=HEADERS)
+            region_resp.raise_for_status()
+            full_region = region_resp.text
+
+        region = full_region.split("/")[-1]
+        return project_id, region
+
+    except httpx.HTTPError as e:
+        return None, None
+    
 def get_gcp_target():
     """
     Check if the environment variable is set to use GCP.
     """
 
-    # TODO: are these the best env vars to check for?
-    project_id = os.getenv("GCP_PROJECT_ID")
-    project_id = project_id if project_id else os.getenv("GCLOUD_PROJECT")
-    location = os.getenv("GCP_REGION")
+    project_id, location = get_project_id_and_region()
+    project_id = project_id if project_id else os.getenv("GCP_PROJECT_ID")
+    location = location if location else os.getenv("GCP_LOCATION")
 
     if project_id and location:
         return f"https://{location}-aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/{location}/endpoints/openapi/"
 
     return None
-
-def get_docker_target():
-    """
-    Check if the environment variable is set to use Docker.
-    """
-
-    # test if http://model-runner.docker.internal/ is reachable
-    try:
-        response = httpx.get("http://model-runner.docker.internal/")
-        if response.status_code == 200:
-            return "http://model-runner.docker.internal/"
-    except httpx.RequestError as e:
-        logging.error(f"Error connecting to Docker target: {e}")
 
 def get_proxy_target():
     """
@@ -50,9 +58,6 @@ def get_proxy_target():
     gcp_target = get_gcp_target()
     if gcp_target:
         return gcp_target
-    docker_target = get_docker_target()
-    if docker_target:
-        return docker_target
 
     return None
 
@@ -136,4 +141,4 @@ async def validation_exception_handler(request, exc):
 handler = Mangum(app)
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)), reload=True)
