@@ -88,6 +88,7 @@ async def setup_routing(app: FastAPI):
     This function is called during the lifespan of the application.
     """
     if proxy_target:
+        logging.info(f"Proxy target set to: {proxy_target}")
         @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
         async def proxy(request: Request, path: str):
             # Build safe target URL
@@ -120,6 +121,7 @@ async def setup_routing(app: FastAPI):
                 k: v for k, v in response.headers.items()
                 if k.lower() not in {"content-encoding", "transfer-encoding", "connection"}
             }
+
             return Response(
                 content=response.content,
                 status_code=response.status_code,
@@ -127,6 +129,7 @@ async def setup_routing(app: FastAPI):
                 media_type=response.headers.get("content-type", "application/octet-stream"),
             )
     else:
+        logging.info("No proxy target set. Using internal routers.")
         app.include_router(model.router, prefix=API_ROUTE_PREFIX)
         app.include_router(chat.router, prefix=API_ROUTE_PREFIX)
         app.include_router(embeddings.router, prefix=API_ROUTE_PREFIX)
