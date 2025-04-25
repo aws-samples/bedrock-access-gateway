@@ -18,10 +18,10 @@ HEADERS = {"Metadata-Flavor": "Google"}
 
 proxy_target: str | None = None  # Global, will be populated on startup
 
-async def get_project_id_and_location():
+async def get_project_id_and_region():
     try:
         project_id: str | None = None
-        location: str | None = None
+        region: str | None = None
         async with httpx.AsyncClient(timeout=2.0) as client:
             # Get project ID
             target_url = f"{METADATA_URL}/project/project-id"
@@ -31,28 +31,28 @@ async def get_project_id_and_location():
 
             # Get full region path
             target_url = f"{METADATA_URL}/instance/region"
-            location_resp = await client.get(target_url, headers=HEADERS)
-            location_resp.raise_for_status()
-            full_location = location_resp.text
+            region_resp = await client.get(target_url, headers=HEADERS)
+            region_resp.raise_for_status()
+            region_full_path = region_resp.text
 
-        location = full_location.split("/")[-1]
-        return project_id, location
+        region = region_full_path.split("/")[-1]
+        return project_id, region
 
     except httpx.HTTPError as e:
         logging.error(f"Google metadata request failed: {e}")
-        return project_id, location
+        return project_id, region
     
 async def get_gcp_target():
     """
     Check if the environment variable is set to use GCP.
     """
 
-    project_id, location = await get_project_id_and_location()
+    project_id, region = await get_project_id_and_region()
     project_id = project_id if project_id else os.getenv("GCP_PROJECT_ID")
-    location = location if location else os.getenv("GCP_LOCATION")
+    region = region if region else os.getenv("GCP_REGION")
 
-    if project_id and location:
-        return f"https://{location}-aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/{location}/endpoints/openapi/"
+    if project_id and region:
+        return f"https://{region}-aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/{region}/endpoints/openapi/"
 
     return None
 
