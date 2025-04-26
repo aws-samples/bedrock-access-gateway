@@ -74,7 +74,7 @@ if proxy_target:
         path_no_prefix = f"/{path.lstrip('/')}".removeprefix(API_ROUTE_PREFIX)
         target_url = f"{proxy_target.rstrip('/')}/{path_no_prefix.lstrip('/')}".rstrip("/")
 
-        # Sanitize headers
+        # remove hop-by-hop headers
         headers = {
             k: v for k, v in request.headers.items()
             if k.lower() not in {"host", "content-length", "accept-encoding", "connection"}
@@ -95,7 +95,7 @@ if proxy_target:
             logging.error(f"Proxy request failed: {e}")
             return Response(status_code=502, content=f"Upstream request failed: {e}")
 
-        # filter out headers that could cause issues to client (because we act as a proxy)
+        # remove hop-by-hop headers
         response_headers = {
             k: v for k, v in response.headers.items()
             if k.lower() not in {"content-encoding", "transfer-encoding", "connection"}
