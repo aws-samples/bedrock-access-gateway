@@ -50,12 +50,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 
-async def setup_routing(app: FastAPI):
-    """
-    Setup routing for the application.
-    This function is called during the lifespan of the application.
-    """
-
 proxy_target = get_proxy_target()
 if proxy_target:
     logging.info(f"Proxy target set to: {proxy_target}")
