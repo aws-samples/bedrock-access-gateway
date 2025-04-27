@@ -17,7 +17,7 @@ from google.auth import default
 from google.auth.transport.requests import Request as AuthRequest
 
 # Utility: get service account access token
-async def get_access_token():
+def get_access_token():
     credentials, _ = default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
     auth_request = AuthRequest()
     credentials.refresh(auth_request)
