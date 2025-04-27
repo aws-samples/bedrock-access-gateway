@@ -139,4 +139,4 @@ async def validation_exception_handler(request, exc):
 handler = Mangum(app)
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=int(os.getenv("LISTEN_PORT", 8000)), reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)), reload=True)
