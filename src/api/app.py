@@ -13,6 +13,16 @@ from contextlib import asynccontextmanager
 from api.routers import chat, embeddings, model
 from api.setting import API_ROUTE_PREFIX, DESCRIPTION, SUMMARY, TITLE, VERSION
 
+from google.auth import default
+from google.auth.transport.requests import Request as AuthRequest
+
+# Utility: get service account access token
+async def get_access_token():
+    credentials, _ = default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    auth_request = AuthRequest()
+    credentials.refresh(auth_request)
+    return credentials.token
+
 def get_gcp_target():
     """
     Check if the environment variable is set to use GCP.
@@ -79,6 +89,10 @@ if proxy_target:
             k: v for k, v in request.headers.items()
             if k.lower() not in {"host", "content-length", "accept-encoding", "connection"}
         }
+
+        # Fetch service account token
+        access_token = await get_access_token()
+        headers["Authorization"] = f"Bearer {access_token}"
 
         try:
             async with httpx.AsyncClient() as client:
