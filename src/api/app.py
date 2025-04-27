@@ -87,11 +87,11 @@ if proxy_target:
         # remove hop-by-hop headers
         headers = {
             k: v for k, v in request.headers.items()
-            if k.lower() not in {"host", "content-length", "accept-encoding", "connection"}
+            if k.lower() not in {"host", "content-length", "accept-encoding", "connection", "authorization"}
         }
 
         # Fetch service account token
-        access_token = await get_access_token()
+        access_token = get_access_token()
         headers["Authorization"] = f"Bearer {access_token}"
 
         try:
@@ -139,4 +139,4 @@ async def validation_exception_handler(request, exc):
 handler = Mangum(app)
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)), reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=int(os.getenv("LISTEN_PORT", 8000)), reload=True)
