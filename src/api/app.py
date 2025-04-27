@@ -87,11 +87,11 @@ if proxy_target:
         # remove hop-by-hop headers
         headers = {
             k: v for k, v in request.headers.items()
-            if k.lower() not in {"host", "content-length", "accept-encoding", "connection"}
+            if k.lower() not in {"host", "content-length", "accept-encoding", "connection", "authorization"}
         }
 
         # Fetch service account token
-        access_token = await get_access_token()
+        access_token = get_access_token()
         headers["Authorization"] = f"Bearer {access_token}"
 
         try:
