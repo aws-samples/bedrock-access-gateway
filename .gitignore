@@ -160,3 +160,10 @@ cython_debug/
 .idea/
 
 Config
+
+# Terraform
+*.tfvars
+*.tfvars.json
+*.tfstate
+*.tfstate.backup
+.terraform
