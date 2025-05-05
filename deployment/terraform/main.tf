@@ -1,17 +1,3 @@
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-  required_version = ">= 1.2.0"
-}
-
-provider "aws" {
-  region = var.aws_region
-}
-
 # Lambda Function and IAM Role
 resource "aws_iam_role" "proxy_api_handler_role" {
   name = "ProxyApiHandlerRole"
@@ -30,7 +16,8 @@ resource "aws_iam_role" "proxy_api_handler_role" {
   })
 
   managed_policy_arns = [
-    "arn:${data.aws_partition.current.partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+    "arn:${data.aws_partition.current.partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+    aws_iam_policy.proxy_api_handler_policy.arn
   ]
 }
 
