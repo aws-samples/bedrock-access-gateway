@@ -6,7 +6,9 @@ from fastapi.responses import StreamingResponse
 from api.auth import api_key_auth
 from api.models.bedrock import BedrockModel
 from api.schema import ChatRequest, ChatResponse, ChatStreamResponse
-from api.setting import DEFAULT_MODEL
+from modelmapper import get_model
+
+ENABLE_MAPPING = os.getenv("ENABLE_MAPPING", "true").lower() == "true"
 
 router = APIRouter(
     prefix="/chat",
@@ -34,6 +36,12 @@ async def chat_completions(
 ):
     if chat_request.model.lower().startswith("gpt-"):
         chat_request.model = DEFAULT_MODEL
+
+    # replace with mapped model name 
+    if ENABLE_MAPPING:
+        req_model = chat_request.model
+        req_model = get_model(req_model)
+        chat_request.model = req_model
 
     # Exception will be raised if model not supported.
     model = BedrockModel()

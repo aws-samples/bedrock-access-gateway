@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from mangum import Mangum
 import httpx
+import json
 import os
 from contextlib import asynccontextmanager
 
@@ -15,6 +16,13 @@ from api.setting import API_ROUTE_PREFIX, DESCRIPTION, SUMMARY, TITLE, VERSION
 
 from google.auth import default
 from google.auth.transport.requests import Request as AuthRequest
+
+from modelmapper import get_model, load_model_map
+
+ENABLE_MAPPING = os.getenv("ENABLE_MAPPING", "true").lower() == "true"
+
+if ENABLE_MAPPING:
+    load_model_map()
 
 # Utility: get service account access token
 def get_access_token():
@@ -94,14 +102,21 @@ if proxy_target:
         access_token = get_access_token()
         headers["Authorization"] = f"Bearer {access_token}"
 
+
         try:
+            content = await request.body()
+
+            if ENABLE_MAPPING:
+                request_model = content.get("model", None)
+                content["model"] = get_model(request_model)
+                content = json.dumps(content)
+
             async with httpx.AsyncClient() as client:
                 response = await client.request(
                     method=request.method,
                     url=target_url,
                     headers=headers,
-                    # TODO: can we avoid deserializing the body and re-serializing it?
-                    content=await request.body(),
+                    content=content,
                     params=request.query_params,
                     timeout=30.0,
                 )
