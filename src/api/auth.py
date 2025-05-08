@@ -1,6 +1,5 @@
-import json
 import os
-from typing import Annotated
+from typing import Annotated, Optional
 
 import boto3
 from botocore.exceptions import ClientError
@@ -9,36 +8,59 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from api.setting import DEFAULT_API_KEYS
 
-api_key_param = os.environ.get("API_KEY_PARAM_NAME")
-api_key_secret_arn = os.environ.get("API_KEY_SECRET_ARN")
-api_key_env = os.environ.get("API_KEY")
-if api_key_param:
-    # For backward compatibility.
-    # Please now use secrets manager instead.
-    ssm = boto3.client("ssm")
-    api_key = ssm.get_parameter(Name=api_key_param, WithDecryption=True)["Parameter"]["Value"]
-elif api_key_secret_arn:
-    sm = boto3.client("secretsmanager")
-    try:
-        response = sm.get_secret_value(SecretId=api_key_secret_arn)
-        if "SecretString" in response:
-            secret = json.loads(response["SecretString"])
-            api_key = secret["api_key"]
-    except ClientError:
-        raise RuntimeError("Unable to retrieve API KEY, please ensure the secret ARN is correct")
-    except KeyError:
-        raise RuntimeError('Please ensure the secret contains a "api_key" field')
-elif api_key_env:
-    api_key = api_key_env
-else:
-    # For local use only.
-    api_key = DEFAULT_API_KEYS
+# api_key_param = os.environ.get("API_KEY_PARAM_NAME")
+# api_key_secret_arn = os.environ.get("API_KEY_SECRET_ARN")
+# api_key_env = os.environ.get("API_KEY")
+
+DDB_TABLE = os.environ["API_KEYS_TABLE_NAME"]
+
+dynamodb = boto3.resource("dynamodb")
+table = dynamodb.Table(DDB_TABLE)
+
+_key_cache: dict[str, str] = {}
+_cache_initialized: bool = False
 
 security = HTTPBearer()
 
+def load_all_api_keys() -> None:
+
+    global _cache_initialized
+    try: 
+        resp = table.scan()
+    except Exception:
+        return
+    
+    items = resp.get("Items", []) or []
+    for item in items:
+        if "UserID" in item and "ARNKey" in item:
+            _key_cache[item["UserID"]] = item["ARNKey"]
+
+    _cache_initialized = True
+
+def get_api_key_for_user(user_id: str) ->  Optional[str]:
+    global _cache_initialized
+    if not _cache_initialized:
+        load_all_api_keys()
+    return _key_cache.get(user_id)
 
 def api_key_auth(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
 ):
-    if credentials.credentials != api_key:
+    token = credentials.credentials
+
+    prefix = "key:"
+    if not token.startswith(prefix):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Header Format")
+
+    body = token[len(prefix):]
+    user_id, sep, candidate_key = body.partition(":")
+    if not sep or not user_id or not candidate_key:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Header Format")
+
+    expected_key = get_api_key_for_user(user_id)
+    if expected_key is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Unknown User {user_id}")
+
+
+    if candidate_key != expected_key:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API Key")
