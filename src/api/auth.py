@@ -1,4 +1,5 @@
 import os
+import json
 from typing import Annotated, Optional
 
 import boto3
@@ -8,21 +9,19 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from api.setting import DEFAULT_API_KEYS
 
-# api_key_param = os.environ.get("API_KEY_PARAM_NAME")
-# api_key_secret_arn = os.environ.get("API_KEY_SECRET_ARN")
-# api_key_env = os.environ.get("API_KEY")
-
 DDB_TABLE = os.environ["API_KEYS_TABLE_NAME"]
+api_key_env = os.environ.get("API_KEY")
 
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(DDB_TABLE)
+sm = boto3.client("secretsmanager")
 
 _key_cache: dict[str, str] = {}
 _cache_initialized: bool = False
 
 security = HTTPBearer()
 
-def load_all_api_keys() -> None:
+def load_all_arns() -> None:
 
     global _cache_initialized
     try: 
@@ -37,11 +36,24 @@ def load_all_api_keys() -> None:
 
     _cache_initialized = True
 
-def get_api_key_for_user(user_id: str) ->  Optional[str]:
+def get_arn_for_user(user_id: str) ->  Optional[str]:
     global _cache_initialized
     if not _cache_initialized:
-        load_all_api_keys()
+        load_all_arns()
     return _key_cache.get(user_id)
+
+def get_secret_value(secret_arn: str) -> Optional[str]:
+    try:
+        response = sm.get_secret_value(SecretId=secret_arn)
+        if "SecretString" in response:
+            secret = json.loads(response["SecretString"])
+            api_key = secret["api_key"]
+    except ClientError:
+        raise RuntimeError("Unable to retrieve API KEY, please ensure the secret ARN is correct")
+    except KeyError:
+        raise RuntimeError('Please ensure the secret contains a "api_key" field')
+    
+    return api_key
 
 def api_key_auth(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
@@ -57,9 +69,13 @@ def api_key_auth(
     if not sep or not user_id or not candidate_key:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Header Format")
 
-    expected_key = get_api_key_for_user(user_id)
-    if expected_key is None:
+    secret_arn = get_arn_for_user(user_id)
+    if secret_arn is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Unknown User {user_id}")
+    
+    expected_key = get_secret_value(secret_arn)
+    if expected_key is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unable to retrieve API key")
 
 
     if candidate_key != expected_key:
