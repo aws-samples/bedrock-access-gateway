@@ -17,11 +17,9 @@ from api.setting import API_ROUTE_PREFIX, DESCRIPTION, SUMMARY, TITLE, VERSION
 from google.auth import default
 from google.auth.transport.requests import Request as AuthRequest
 
-from modelmapper import get_model, load_model_map
+from api.modelmapper import USE_MODEL_MAPPING, get_model, load_model_map
 
-ENABLE_MAPPING = os.getenv("ENABLE_MAPPING", "true").lower() == "true"
-
-if ENABLE_MAPPING:
+if USE_MODEL_MAPPING:
     load_model_map()
 
 # Utility: get service account access token
@@ -37,9 +35,10 @@ def get_gcp_target():
     """
     project_id = os.getenv("GCP_PROJECT_ID")
     region = os.getenv("GCP_REGION")
+    endpoint = os.getenv("GCP_ENDPOINT", "openai")
 
     if project_id and region:
-        return f"https://{region}-aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/{region}/endpoints/openapi/"
+        return f"https://{region}-aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/{region}/endpoints/{endpoint}/"
 
     return None
 
@@ -102,11 +101,10 @@ if proxy_target:
         access_token = get_access_token()
         headers["Authorization"] = f"Bearer {access_token}"
 
-
         try:
             content = await request.body()
 
-            if ENABLE_MAPPING:
+            if USE_MODEL_MAPPING:
                 request_model = content.get("model", None)
                 content["model"] = get_model(request_model)
                 content = json.dumps(content)

@@ -6,9 +6,12 @@ from fastapi.responses import StreamingResponse
 from api.auth import api_key_auth
 from api.models.bedrock import BedrockModel
 from api.schema import ChatRequest, ChatResponse, ChatStreamResponse
-from modelmapper import get_model
+from api.modelmapper import get_model
 
-ENABLE_MAPPING = os.getenv("ENABLE_MAPPING", "true").lower() == "true"
+from api.modelmapper import USE_MODEL_MAPPING, get_model
+from api.setting import DEFAULT_MODEL
+
+import asyncio
 
 router = APIRouter(
     prefix="/chat",
@@ -38,10 +41,18 @@ async def chat_completions(
         chat_request.model = DEFAULT_MODEL
 
     # replace with mapped model name 
-    if ENABLE_MAPPING:
+    if USE_MODEL_MAPPING:
         req_model = chat_request.model
         req_model = get_model(req_model)
         chat_request.model = req_model
+
+
+    # async def debug_text_stream():
+    #     yield f"Chat request: {chat_request}"
+    #     await asyncio.sleep(1)
+    #     yield "Another line\n"
+
+    # return StreamingResponse(debug_text_stream(), media_type="text/plain")
 
     # Exception will be raised if model not supported.
     model = BedrockModel()
