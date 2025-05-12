@@ -46,14 +46,6 @@ async def chat_completions(
         req_model = get_model(req_model)
         chat_request.model = req_model
 
-
-    # async def debug_text_stream():
-    #     yield f"Chat request: {chat_request}"
-    #     await asyncio.sleep(1)
-    #     yield "Another line\n"
-
-    # return StreamingResponse(debug_text_stream(), media_type="text/plain")
-
     # Exception will be raised if model not supported.
     model = BedrockModel()
     model.validate(chat_request)
