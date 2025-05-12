@@ -43,7 +43,7 @@ async def chat_completions(
     # replace with mapped model name 
     if USE_MODEL_MAPPING:
         req_model = chat_request.model
-        req_model = get_model(req_model)
+        req_model = get_model("AWS", req_model)
         chat_request.model = req_model
 
     # Exception will be raised if model not supported.

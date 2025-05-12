@@ -106,7 +106,7 @@ if proxy_target:
 
             if USE_MODEL_MAPPING:
                 request_model = content.get("model", None)
-                content["model"] = get_model(request_model)
+                content["model"] = get_model("GCP", request_model)
                 content = json.dumps(content)
 
             async with httpx.AsyncClient() as client:

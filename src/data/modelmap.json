@@ -1,4 +1,11 @@
 {
-    "ai/claude35": "anthropic.claude-3-5-sonnet-20241022-v2:0",
-    "ai/gemini25": "gemini-2.5-pro-preview-03-25"
+    "aws": {
+        "ai/claude3.5": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "ai/claude3.5-sonnet": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "ai/lama3.3:70B": "meta.llama3-3-70b-instruct-v1:0",
+        "ai/lama3.3:latest": "meta.llama3-3-70b-instruct-v1:0"
+    },
+    "gcp": {
+        "ai/gemini2.5": "gemini-2.5-pro-preview-03-25"
+    }
 }

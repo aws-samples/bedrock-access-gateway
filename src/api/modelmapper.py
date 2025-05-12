@@ -13,8 +13,11 @@ def load_model_map():
     with open(modelmap_path, "r") as f:
         _model_map = json.load(f)
 
-def get_model(key):
-    if _model_map and key in _model_map:
-        return _model_map[key]
+def get_model(provider, model):
+    provider = provider.lower()
+    model = model.lower()
+    if _model_map and provider in _model_map:
+        if model in _model_map[provider]:
+            return _model_map[provider][model]
 
-    return key
+    return model
