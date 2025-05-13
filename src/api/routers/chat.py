@@ -5,12 +5,10 @@ from fastapi.responses import StreamingResponse
 
 from api.auth import api_key_auth
 from api.models.bedrock import BedrockModel
-from api.schema import ChatRequest, ChatResponse, ChatStreamResponse
+from api.schema import ChatRequest, ChatResponse, ChatStreamResponse, Error
 from api.modelmapper import get_model
 
 from api.setting import DEFAULT_MODEL, TARGET_PROVIDER, USE_MODEL_MAPPING
-
-import asyncio
 
 router = APIRouter(
     prefix="/chat",
@@ -18,7 +16,9 @@ router = APIRouter(
 )
 
 
-@router.post("/completions", response_model=ChatResponse | ChatStreamResponse, response_model_exclude_unset=True)
+@router.post(
+    "/completions", response_model=ChatResponse | ChatStreamResponse | Error, response_model_exclude_unset=True
+)
 async def chat_completions(
     chat_request: Annotated[
         ChatRequest,

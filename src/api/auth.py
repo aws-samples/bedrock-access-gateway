@@ -28,17 +28,17 @@ elif api_key_secret_arn:
         raise RuntimeError("Unable to retrieve API KEY, please ensure the secret ARN is correct")
     except KeyError:
         raise RuntimeError('Please ensure the secret contains a "api_key" field')
-elif api_key_env:
+elif api_key_env != None:
     api_key = api_key_env
 else:
     # For local use only.
     api_key = DEFAULT_API_KEYS
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=api_key != "")
 
 
 def api_key_auth(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    authorization: Annotated[HTTPAuthorizationCredentials, Depends(security)],
 ):
-    if credentials.credentials != api_key:
+    if authorization and authorization.credentials != api_key:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API Key")
