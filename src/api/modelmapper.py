@@ -2,8 +2,6 @@ import os
 import json
 from pathlib import Path
 
-USE_MODEL_MAPPING = os.getenv("USE_MODEL_MAPPING", "true").lower() == "true"
-
 _model_map = None
 
 def load_model_map():
@@ -15,7 +13,7 @@ def load_model_map():
 
 def get_model(provider, model):
     provider = provider.lower()
-    model = model.lower()
+    model = model.lower().removesuffix(":latest")
     if _model_map and provider in _model_map:
         if model in _model_map[provider]:
             return _model_map[provider][model]

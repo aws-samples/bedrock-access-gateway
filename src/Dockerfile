@@ -1,6 +1,7 @@
 FROM public.ecr.aws/lambda/python:3.12
 
 COPY ./api ./api
+COPY ./data ./data
 
 COPY requirements.txt .
 

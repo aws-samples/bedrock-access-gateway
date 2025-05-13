@@ -12,12 +12,12 @@ import os
 from contextlib import asynccontextmanager
 
 from api.routers import chat, embeddings, model
-from api.setting import API_ROUTE_PREFIX, DESCRIPTION, SUMMARY, TITLE, VERSION
+from api.setting import API_ROUTE_PREFIX, DESCRIPTION, SUMMARY, TARGET_PROVIDER, TITLE, USE_MODEL_MAPPING, VERSION
 
 from google.auth import default
 from google.auth.transport.requests import Request as AuthRequest
 
-from api.modelmapper import USE_MODEL_MAPPING, get_model, load_model_map
+from api.modelmapper import get_model, load_model_map
 
 if USE_MODEL_MAPPING:
     load_model_map()
@@ -35,7 +35,7 @@ def get_gcp_target():
     """
     project_id = os.getenv("GCP_PROJECT_ID")
     region = os.getenv("GCP_REGION")
-    endpoint = os.getenv("GCP_ENDPOINT", "openai")
+    endpoint = os.getenv("GCP_ENDPOINT", "openapi")
 
     if project_id and region:
         return f"https://{region}-aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/{region}/endpoints/{endpoint}/"
@@ -106,7 +106,7 @@ if proxy_target:
 
             if USE_MODEL_MAPPING:
                 request_model = content.get("model", None)
-                content["model"] = get_model("GCP", request_model)
+                content["model"] = get_model(TARGET_PROVIDER, request_model)
                 content = json.dumps(content)
 
             async with httpx.AsyncClient() as client:

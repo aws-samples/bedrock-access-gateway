@@ -8,15 +8,13 @@ from api.models.bedrock import BedrockModel
 from api.schema import ChatRequest, ChatResponse, ChatStreamResponse
 from api.modelmapper import get_model
 
-from api.modelmapper import USE_MODEL_MAPPING, get_model
-from api.setting import DEFAULT_MODEL
+from api.setting import DEFAULT_MODEL, TARGET_PROVIDER, USE_MODEL_MAPPING
 
 import asyncio
 
 router = APIRouter(
     prefix="/chat",
     dependencies=[Depends(api_key_auth)],
-    # responses={404: {"description": "Not found"}},
 )
 
 
@@ -43,7 +41,7 @@ async def chat_completions(
     # replace with mapped model name 
     if USE_MODEL_MAPPING:
         req_model = chat_request.model
-        req_model = get_model("AWS", req_model)
+        req_model = get_model(TARGET_PROVIDER, req_model)
         chat_request.model = req_model
 
     # Exception will be raised if model not supported.

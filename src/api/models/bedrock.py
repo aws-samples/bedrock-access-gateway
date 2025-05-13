@@ -131,14 +131,32 @@ class BedrockModel(BaseChatModel):
         """Always refresh the latest model list"""
         global bedrock_model_list
         bedrock_model_list = list_bedrock_models()
+        if DEBUG:
+            logger.info("Bedrock model list: " + json.dumps(bedrock_model_list))
+
         return list(bedrock_model_list.keys())
 
     def validate(self, chat_request: ChatRequest):
         """Perform basic validation on requests"""
         error = ""
+        if DEBUG:
+            logger.info("Bedrock validate " + chat_request.model + " list: " + json.dumps(bedrock_model_list))
+
+        logger.info(f"Checking model: {repr(chat_request.model)}")
+        logger.info(f"Available keys include: {repr('anthropic.claude-3-5-sonnet-20241022-v2:0') in bedrock_model_list}")
+
         # check if model is supported
-        if chat_request.model not in bedrock_model_list.keys():
-            error = f"Unsupported model {chat_request.model}, please use models API to get a list of supported models"
+        if chat_request.model not in bedrock_model_list:
+            logger.info(f"Bedrock list: {list(bedrock_model_list.keys())}")
+            error = (
+                f"Unsupported model '{chat_request.model}'. "
+                "Please use the models API to get a list of supported models."
+            )
+
+        # check if model is supported        
+        # if chat_request.model not in bedrock_model_list.keys():
+        #     logger.info("Bedrock list: " + str(list(bedrock_model_list.keys())))
+        #     error = f"Unsupported model {chat_request.model}, please use the models API to get a list of supported models"
 
         if error:
             raise HTTPException(
