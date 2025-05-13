@@ -25,8 +25,15 @@ push-images: images login ## Push all docker images
 	docker push $(DOCKER_IMAGE_AMD64)
 	docker push $(DOCKER_IMAGE_ARM64)
 	docker manifest create --amend $(DOCKER_IMAGE_NAME):$(VERSION) $(DOCKER_IMAGE_AMD64) $(DOCKER_IMAGE_ARM64)
-	docker manifest create --amend $(DOCKER_IMAGE_NAME):latest $(DOCKER_IMAGE_AMD64) $(DOCKER_IMAGE_ARM64)
 	docker manifest push --purge $(DOCKER_IMAGE_NAME):$(VERSION)
+
+.PHONY: no-diff
+no-diff:
+	git diff-index --quiet HEAD --       # check that there are no uncommitted changes
+
+.PHONY: push
+push: no-diff push-images ## Push all docker images and "latest" manifest
+	docker manifest create --amend $(DOCKER_IMAGE_NAME):latest $(DOCKER_IMAGE_AMD64) $(DOCKER_IMAGE_ARM64)
 	docker manifest push --purge $(DOCKER_IMAGE_NAME):latest
 
 .PHONY: login
