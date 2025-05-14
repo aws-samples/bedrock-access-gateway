@@ -103,6 +103,7 @@ if proxy_target:
 
         try:
             content = await request.body()
+            content = json.loads(content)
 
             if USE_MODEL_MAPPING:
                 request_model = content.get("model", None)
