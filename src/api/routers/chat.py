@@ -13,6 +13,7 @@ from api.setting import DEFAULT_MODEL, PROVIDER, REGION, USE_MODEL_MAPPING
 router = APIRouter(
     prefix="/chat",
     dependencies=[Depends(api_key_auth)],
+    responses={404: {"description": "Not found"}},
 )
 
 

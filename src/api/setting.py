@@ -12,7 +12,7 @@ Use OpenAI-Compatible RESTful APIs for Amazon Bedrock models.
 """
 
 DEBUG = os.environ.get("DEBUG", "false").lower() != "false"
-USE_FALLBACK_MODEL = os.environ.get("USE_FALLBACK_MODEL", "true").lower() != "false"
+FALLBACK_MODEL = os.environ.get("FALLBACK_MODEL")
 USE_MODEL_MAPPING = os.getenv("USE_MODEL_MAPPING", "true").lower() != "false"
 
 AWS_REGION = os.environ.get("AWS_REGION", "us-west-2")

@@ -51,6 +51,60 @@ def get_proxy_target():
 
     return None
 
+def get_header(request, path):
+    path_no_prefix = f"/{path.lstrip('/')}".removeprefix(API_ROUTE_PREFIX)
+    target_url = f"{proxy_target.rstrip('/')}/{path_no_prefix.lstrip('/')}".rstrip("/")
+
+    # remove hop-by-hop headers
+    headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in {"host", "content-length", "accept-encoding", "connection", "authorization"}
+    }
+
+    # Fetch service account token
+    access_token = get_access_token()
+    headers["Authorization"] = f"Bearer {access_token}"
+    return target_url,headers
+
+async def handle_proxy(request: Request, path: str):
+    # Build safe target URL
+    target_url, headers = get_header(request, path)
+
+    try:
+        content = await request.body()
+        data = json.loads(content)
+
+        if USE_MODEL_MAPPING:
+            request_model = data.get("model", None)
+            data["model"] = get_model(PROVIDER, REGION, request_model)
+            content = json.dumps(data)
+
+        async with httpx.AsyncClient() as client:
+            response = await client.request(
+                method=request.method,
+                url=target_url,
+                headers=headers,
+                content=content,
+                params=request.query_params,
+                timeout=30.0,
+            )
+    except httpx.RequestError as e:
+        logging.error(f"Proxy request failed: {e}")
+        return Response(status_code=502, content=f"Upstream request failed: {e}")
+
+    # remove hop-by-hop headers
+    response_headers = {
+        k: v for k, v in response.headers.items()
+        if k.lower() not in {"content-encoding", "transfer-encoding", "connection"}
+    }
+
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=response_headers,
+        media_type=response.headers.get("content-type", "application/octet-stream"),
+    )
+
 config = {
     "title": TITLE,
     "description": DESCRIPTION,
@@ -83,54 +137,8 @@ if proxy_target:
     logging.info(f"Proxy target set to: {proxy_target}")
     @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
     async def proxy(request: Request, path: str):
-        # Build safe target URL
-        path_no_prefix = f"/{path.lstrip('/')}".removeprefix(API_ROUTE_PREFIX)
-        target_url = f"{proxy_target.rstrip('/')}/{path_no_prefix.lstrip('/')}".rstrip("/")
+        return await handle_proxy(request, path)
 
-        # remove hop-by-hop headers
-        headers = {
-            k: v for k, v in request.headers.items()
-            if k.lower() not in {"host", "content-length", "accept-encoding", "connection", "authorization"}
-        }
-
-        # Fetch service account token
-        access_token = get_access_token()
-        headers["Authorization"] = f"Bearer {access_token}"
-
-        try:
-            content = await request.body()
-            data = json.loads(content)
-
-            if USE_MODEL_MAPPING:
-                request_model = data.get("model", None)
-                data["model"] = get_model(PROVIDER, REGION, request_model)
-                content = json.dumps(data)
-
-            async with httpx.AsyncClient() as client:
-                response = await client.request(
-                    method=request.method,
-                    url=target_url,
-                    headers=headers,
-                    content=content,
-                    params=request.query_params,
-                    timeout=30.0,
-                )
-        except httpx.RequestError as e:
-            logging.error(f"Proxy request failed: {e}")
-            return Response(status_code=502, content=f"Upstream request failed: {e}")
-
-        # remove hop-by-hop headers
-        response_headers = {
-            k: v for k, v in response.headers.items()
-            if k.lower() not in {"content-encoding", "transfer-encoding", "connection"}
-        }
-
-        return Response(
-            content=response.content,
-            status_code=response.status_code,
-            headers=response_headers,
-            media_type=response.headers.get("content-type", "application/octet-stream"),
-        )
 else:
     logging.info("No proxy target set. Using internal routers.")
     app.include_router(model.router, prefix=API_ROUTE_PREFIX)

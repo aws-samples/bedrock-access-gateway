@@ -1,7 +1,7 @@
 import os
 import json
 from pathlib import Path
-from api.setting import USE_FALLBACK_MODEL
+from api.setting import FALLBACK_MODEL
 
 _model_map = None
 
@@ -18,5 +18,7 @@ def get_model(provider, region, model):
     model = model.lower().removesuffix(":latest")
 
     available_models = _model_map.get(provider, {}).get(region, {})
-    fallback = available_models.get("fallback", "") if USE_FALLBACK_MODEL else model
-    return available_models.get(model, fallback)
+    if FALLBACK_MODEL == None or FALLBACK_MODEL.lower() == model:
+        return available_models.get(model, model)
+    else:
+        return available_models.get(model, get_model(provider, region, FALLBACK_MODEL))
