@@ -1,0 +1,9 @@
+# Default .dockerignore file for Defang
+.dockerignore
+Dockerfile
+Dockerfile_ecs
+**/__pycache__
+**/.git
+**/.github
+**/.vscode
+**/.venv

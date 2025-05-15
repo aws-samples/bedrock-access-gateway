@@ -6,12 +6,14 @@ from fastapi.responses import StreamingResponse
 from api.auth import api_key_auth
 from api.models.bedrock import BedrockModel
 from api.schema import ChatRequest, ChatResponse, ChatStreamResponse, Error
-from api.setting import DEFAULT_MODEL
+from api.modelmapper import get_model
+
+from api.setting import DEFAULT_MODEL, PROVIDER, REGION, USE_MODEL_MAPPING
 
 router = APIRouter(
     prefix="/chat",
     dependencies=[Depends(api_key_auth)],
-    # responses={404: {"description": "Not found"}},
+    responses={404: {"description": "Not found"}},
 )
 
 
@@ -36,6 +38,12 @@ async def chat_completions(
 ):
     if chat_request.model.lower().startswith("gpt-"):
         chat_request.model = DEFAULT_MODEL
+
+    # replace with mapped model name 
+    if USE_MODEL_MAPPING:
+        req_model = chat_request.model
+        req_model = get_model(PROVIDER, REGION, req_model)
+        chat_request.model = req_model
 
     # Exception will be raised if model not supported.
     model = BedrockModel()
