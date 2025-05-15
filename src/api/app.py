@@ -99,12 +99,12 @@ if proxy_target:
 
         try:
             content = await request.body()
-            content = json.loads(content)
+            data = json.loads(content)
 
             if USE_MODEL_MAPPING:
-                request_model = content.get("model", None)
-                content["model"] = get_model(PROVIDER, REGION, request_model)
-                content = json.dumps(content)
+                request_model = data.get("model", None)
+                data["model"] = get_model(PROVIDER, REGION, request_model)
+                content = json.dumps(data)
 
             async with httpx.AsyncClient() as client:
                 response = await client.request(
