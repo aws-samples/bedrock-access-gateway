@@ -9,13 +9,15 @@ DOCKER_IMAGE_NAME:=$(DOCKER_REPO)/$(PROJECT_NAME)
 DOCKER_IMAGE_ARM64:=$(DOCKER_IMAGE_NAME):arm64-$(VERSION)
 DOCKER_IMAGE_AMD64:=$(DOCKER_IMAGE_NAME):amd64-$(VERSION)
 
+DEFAULT_MODEL := amazon.nova-micro-v1:0
+
 .PHONY: image-amd64
 image-amd64:
-	docker build --platform linux/amd64 -f ./src/Dockerfile_ecs -t ${PROJECT_NAME} -t $(DOCKER_IMAGE_AMD64) --provenance false ./src
+	docker build --platform linux/amd64 --build-arg DEFAULT_MODEL=$(DEFAULT_MODEL) -f ./src/Dockerfile_ecs -t ${PROJECT_NAME} -t $(DOCKER_IMAGE_AMD64) ./src
 
 .PHONY: image-arm64
 image-arm64:
-	docker build --platform linux/arm64 -f ./src/Dockerfile_ecs -t ${PROJECT_NAME} -t $(DOCKER_IMAGE_ARM64) --provenance false ./src
+	docker build --platform linux/arm64 --build-arg DEFAULT_MODEL=$(DEFAULT_MODEL) -f ./src/Dockerfile_ecs -t ${PROJECT_NAME} -t $(DOCKER_IMAGE_ARM64) ./src
 
 .PHONY: images
 images: image-amd64 image-arm64 ## Build all docker images and manifest
