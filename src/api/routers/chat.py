@@ -8,7 +8,7 @@ from api.models.bedrock import BedrockModel
 from api.schema import ChatRequest, ChatResponse, ChatStreamResponse, Error
 from api.modelmapper import get_model
 
-from api.setting import DEFAULT_MODEL, PROVIDER, REGION, USE_MODEL_MAPPING
+from api.setting import DEFAULT_MODEL, PROVIDER, USE_MODEL_MAPPING
 
 router = APIRouter(
     prefix="/chat",
@@ -42,12 +42,13 @@ async def chat_completions(
     # replace with mapped model name 
     if USE_MODEL_MAPPING:
         req_model = chat_request.model
-        req_model = get_model(PROVIDER, REGION, req_model)
+        req_model = get_model(PROVIDER, req_model)
         chat_request.model = req_model
 
-    # Exception will be raised if model not supported.
     model = BedrockModel()
+    # Exception will be raised if model not supported.
     model.validate(chat_request)
+
     if chat_request.stream:
         return StreamingResponse(content=model.chat_stream(chat_request), media_type="text/event-stream")
     return await model.chat(chat_request)

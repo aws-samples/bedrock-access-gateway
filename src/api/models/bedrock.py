@@ -152,7 +152,7 @@ class BedrockModel(BaseChatModel):
                 logger.debug(f"Bedrock list: {list(bedrock_model_list.keys())}")
             error = (
                 f"Unsupported model '{chat_request.model}'. "
-                "Please use the models API to get a list of supported models."
+                f"list of known models: {bedrock_model_list.keys()}"
             )
 
         if error:

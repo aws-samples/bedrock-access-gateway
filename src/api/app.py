@@ -12,7 +12,7 @@ import os
 from contextlib import asynccontextmanager
 
 from api.routers import chat, embeddings, model
-from api.setting import API_ROUTE_PREFIX, DESCRIPTION, GCP_ENDPOINT, GCP_PROJECT_ID, GCP_REGION, REGION, SUMMARY, PROVIDER, TITLE, USE_MODEL_MAPPING, VERSION
+from api.setting import API_ROUTE_PREFIX, DESCRIPTION, GCP_ENDPOINT, GCP_PROJECT_ID, REGION, SUMMARY, PROVIDER, TITLE, USE_MODEL_MAPPING, VERSION
 
 from google.auth import default
 from google.auth.transport.requests import Request as AuthRequest
@@ -76,7 +76,7 @@ async def handle_proxy(request: Request, path: str):
 
         if USE_MODEL_MAPPING:
             request_model = data.get("model", None)
-            data["model"] = get_model(PROVIDER, REGION, request_model)
+            data["model"] = get_model(PROVIDER, request_model)
             content = json.dumps(data)
 
         async with httpx.AsyncClient() as client:

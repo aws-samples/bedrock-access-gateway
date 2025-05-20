@@ -4,41 +4,37 @@ from api.modelmapper import get_model, load_model_map
 
 @patch("api.modelmapper._model_map", {
     "provider1": {
-        "region1": {
-            "model1": "mapped_model1",
-            "model2": "mapped_model2"
-        }
+        "model1": "mapped_model1",
+        "model2": "mapped_model2"
     }
 })
 class TestModelMapper(unittest.TestCase):
     def test_get_model_with_existing_model(self):
-        result = get_model("provider1", "region1", "model1")
+        result = get_model("provider1", "model1")
         self.assertEqual(result, "mapped_model1")
 
     @patch("api.modelmapper.FALLBACK_MODEL", "fallback_model")
     def test_get_model_with_non_existing_model(self):
-        result = get_model("provider1", "region1", "non_existing_model")
+        result = get_model("provider1", "non_existing_model")
         self.assertEqual(result, "fallback_model")
 
     @patch("api.modelmapper.FALLBACK_MODEL", None)
     def test_get_model_with_no_fallback(self):
-        result = get_model("provider1", "region1", "non_existing_model")
+        result = get_model("provider1", "non_existing_model")
         self.assertEqual(result, "non_existing_model")
 
     @patch("api.modelmapper._model_map", {
         "provider1": {
-            "region1": {
-                "model1": "mapped_model1"
-            }
+            "model1": "mapped_model1"
         }
     })
 
     @patch("api.modelmapper.FALLBACK_MODEL", "fallback_model")
     def test_get_model_with_case_insensitivity(self):
-        result = get_model("PROVIDER1", "REGION1", "MODEL1:latest")
+        result = get_model("PROVIDER1", "MODEL1:latest")
         self.assertEqual(result, "mapped_model1")
 
-    @patch("builtins.open", new_callable=mock_open, read_data='{"provider1": {"region1": {"model1": "mapped_model1"}}}')
+    @patch("builtins.open", new_callable=mock_open, read_data='{"provider1": {"model1": "mapped_model1"}}')
     @patch("os.path.join", return_value="/mocked/path/modelmap.json")
     @patch("os.path.dirname", return_value="/mocked/path")
     @patch("os.path.abspath", return_value="/mocked/path/modelmapper.py")
@@ -48,7 +44,7 @@ class TestModelMapper(unittest.TestCase):
         modelmapper.load_model_map()
         self.assertEqual(
             modelmapper._model_map,
-            {"provider1": {"region1": {"model1": "mapped_model1"}}}
+            {"provider1": {"model1": "mapped_model1"}}
         )
         
 if __name__ == "__main__":

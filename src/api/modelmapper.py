@@ -12,13 +12,12 @@ def load_model_map():
     with open(modelmap_path, "r") as f:
         _model_map = json.load(f)
 
-def get_model(provider, region, model):
+def get_model(provider, model):
     provider = provider.lower()
-    region = region.lower()
     model = model.lower().removesuffix(":latest")
 
-    available_models = _model_map.get(provider, {}).get(region, {})
+    available_models = _model_map.get(provider, {})
     if FALLBACK_MODEL == None or FALLBACK_MODEL.lower() == model:
         return available_models.get(model, model)
     else:
-        return available_models.get(model, get_model(provider, region, FALLBACK_MODEL))
+        return available_models.get(model, get_model(provider, FALLBACK_MODEL))
