@@ -1,7 +1,28 @@
 {
-    "aws": {
-        "us-west-2": {
-            "ai/claude3-haiku": "anthropic.claude-3-haiku-20240307-v1:0"
-        }
+  "aws": {
+    "us-west-2": {
+      "ai/mistral-7b-instruct-v0": "mistral.mistral-7b-instruct-v0:2",
+      "ai/r1-v1": "deepseek.r1-v1:0",
+      "ai/llama3-2-1b-instruct-v1": "meta.llama3-2-1b-instruct-v1:0",
+      "ai/llama3-2-3b-instruct-v1": "meta.llama3-2-3b-instruct-v1:0",
+      "ai/llama3-3-70b-instruct-v1": "meta.llama3-3-70b-instruct-v1:0",
+      "ai/llama3-1-8b-instruct-v1": "meta.llama3-1-8b-instruct-v1:0"
     }
+  },
+  "docker": {
+    "ai/mistral-7b-instruct-v0": "mistral:7B-Q4_K_M",
+    "ai/r1-v1": "deepseek-r1-distill-llama:8B-Q4_K_M",
+    "ai/llama3-2-1b-instruct-v1": "llama3.2:1B-Q8_0",
+    "ai/llama3-2-3b-instruct-v1": "llama3.2:3B-Q4_K_M",
+    "ai/llama3-3-70b-instruct-v1": "llama3.3:70B-Q4_K_M",
+    "ai/llama3-1-8b-instruct-v1": "llama3.1:8B-Q4_K_M"
+  },
+  "gcp": {
+    "ai/mistral-7b-instruct-v0": "publishers/mistralai/models/mistral-large-2411",
+    "ai/r1-v1": "publishers/deepseek/models/deepseek-r1",
+    "ai/llama3-2-1b-instruct-v1": "publishers/meta/models/llama3-2",
+    "ai/llama3-2-3b-instruct-v1": "publishers/meta/models/llama3-2",
+    "ai/llama3-3-70b-instruct-v1": "publishers/meta/models/llama3-2",
+    "ai/llama3-1-8b-instruct-v1": "publishers/meta/models/llama3-2"
+  }
 }
