@@ -38,7 +38,7 @@ from api.schema import (
     Usage,
     UserMessage,
 )
-from api.setting import AWS_REGION, DEBUG, DEFAULT_MODEL, ENABLE_CROSS_REGION_INFERENCE
+from api.setting import AWS_REGION, CUSTOM_MODEL_LIST, DEBUG, DEFAULT_MODEL, ENABLE_CROSS_REGION_INFERENCE
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +101,10 @@ def list_bedrock_models() -> dict:
 
             # currently, use this to filter out rerank models and legacy models
             if not stream_supported or status not in ["ACTIVE", "LEGACY"]:
+                continue
+
+            # if the user provides a custom model list, filter only those models
+            if CUSTOM_MODEL_LIST and model_id not in CUSTOM_MODEL_LIST:
                 continue
 
             inference_types = model.get("inferenceTypesSupported", [])
