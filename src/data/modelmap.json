@@ -27,5 +27,7 @@
     "default": "us.amazon.nova-micro-v1:0"
   },
   "gcp": {
+    "ai/mistral:latest": "mistralai/models/mistral-small-2503",
+    "default":"google/gemini-2.0-flash-lite-001"
   }
 }

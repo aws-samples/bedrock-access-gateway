@@ -22,7 +22,7 @@ ENABLE_CROSS_REGION_INFERENCE = os.environ.get("ENABLE_CROSS_REGION_INFERENCE", 
 
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCP_REGION = os.getenv("GCP_REGION")
-GCP_ENDPOINT = os.getenv("GCP_ENDPOINT", "openapi")
+GCP_ENDPOINT = os.getenv("GCP_ENDPOINT", "endpoints/openapi")
 
 PROVIDER = os.getenv("PROVIDER", "GCP" if GCP_PROJECT_ID and GCP_REGION else "AWS")
 REGION = os.getenv("REGION", GCP_REGION if PROVIDER == "GCP" else AWS_REGION)

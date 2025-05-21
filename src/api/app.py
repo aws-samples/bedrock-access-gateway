@@ -34,7 +34,7 @@ def get_gcp_target():
     Check if the environment variable is set to use GCP.
     """
     if GCP_PROJECT_ID and REGION:
-        return f"https://{REGION}-aiplatform.googleapis.com/v1beta1/projects/{GCP_PROJECT_ID}/locations/{REGION}/endpoints/{GCP_ENDPOINT}/"
+        return f"https://{REGION}-aiplatform.googleapis.com/v1beta1/projects/{GCP_PROJECT_ID}/locations/{REGION}/{GCP_ENDPOINT}/"
 
     return None
 

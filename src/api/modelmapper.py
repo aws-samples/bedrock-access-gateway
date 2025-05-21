@@ -14,7 +14,7 @@ def load_model_map():
 
 def get_model(provider, model):
     provider = provider.lower()
-    model = model.lower().removesuffix(":latest")
+    model = model.lower()
 
     available_models = _model_map.get(provider, {})
     if FALLBACK_MODEL == None or FALLBACK_MODEL.lower() == model:
