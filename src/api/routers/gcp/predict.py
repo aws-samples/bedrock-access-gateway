@@ -2,8 +2,7 @@ import requests
 import os
 from fastapi import APIRouter, Depends
 from api.setting import PROVIDER
-from google.cloud import aiplatform_v1beta1
-from google.cloud import aiplatform
+from google.cloud import aiplatform_v1beta1, aiplatform
 import google.auth.transport.requests
 
 from api.auth import api_key_auth

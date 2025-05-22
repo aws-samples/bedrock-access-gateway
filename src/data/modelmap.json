@@ -24,10 +24,12 @@
     "ai/llama3.1:8B-F16": "meta.llama3-1-8b-instruct-v1:0",
     "ai/llama3.1:8B-Q4_K_M": "meta.llama3-1-8b-instruct-v1:0",
     "ai/claude3-haiku": "anthropic.claude-3-haiku-20240307-v1:0",
+    "ai/smollm2:latest": "us.amazon.nova-micro-v1:0",
     "default": "us.amazon.nova-micro-v1:0"
   },
   "gcp": {
     "ai/mistral:latest": "mistralai/models/mistral-small-2503",
-    "default":"google/models/gemini-2.0-flash-lite-001"
+    "ai/smollm2:latest": "google/models/gemini-2.0-flash-lite-001",
+    "default": "google/models/gemini-2.0-flash-lite-001"
   }
 }
