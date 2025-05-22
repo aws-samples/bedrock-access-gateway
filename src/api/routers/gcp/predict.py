@@ -3,6 +3,7 @@ import os
 from fastapi import APIRouter, Depends
 from api.setting import PROVIDER
 from google.cloud import aiplatform_v1beta1
+from google.cloud import aiplatform
 import google.auth.transport.requests
 
 from api.auth import api_key_auth
@@ -99,19 +100,20 @@ def handle_gemini(request: ChatRequest):
 
     return make_response(content)
 
+def to_prompt_instances(messages):
+    return [
+            {
+                "prompt": msg.content,
+                "temperature": 0.7, # balance between randomness and determinism
+                "max_tokens": 100, # short summary sizes
+            }
+            for msg in messages
+        ]
+
 def handle_vertex(request: ChatRequest):
     modelId = get_model(PROVIDER, request.model)
     endpoint = f"https://{location}-aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/{location}/{modelId}:rawPredict"
-
-    payload = {
-        "instances": [
-            {
-                "prompt": request.messages[0].content,
-                "temperature": 0.7,
-                "max_tokens": 100,
-            }
-        ]
-    }
+    payload = {"instances": to_prompt_instances(request.messages)}
 
     # Send request
     headers = {
@@ -122,11 +124,18 @@ def handle_vertex(request: ChatRequest):
     response = requests.post(endpoint, headers=headers, json=payload)
     return make_response(response.json())
 
+# def handle_predict(request: ChatRequest):
+#     modelId = get_model(PROVIDER, request.model)
+#     model = aiplatform.Model(modelId)
+#     payload = to_prompt_instances(request.messages)
+#     prediction = model.predict(instances=payload)
+#     return make_response(prediction.predictions[0])
+
 @router.post("/completions", response_model=ChatCompletionResponse)
 async def chat_completion(request: ChatRequest):
     model = get_model(PROVIDER, request.model)
     if "gemini" in model.lower():
-       return handle_gemini(request)
+        return handle_gemini(request)
     else:
         return handle_vertex(request)
 
