@@ -392,9 +392,12 @@ class BedrockModel(BaseChatModel):
         # Base inference parameters.
         inference_config = {
             "temperature": chat_request.temperature,
-            "maxTokens": chat_request.max_tokens,
             "topP": chat_request.top_p,
         }
+        max_tokens = (
+            chat_request.max_completion_tokens if chat_request.max_completion_tokens else chat_request.max_tokens
+        )
+        inference_config["maxTokens"] = max_tokens
 
         if chat_request.stop is not None:
             stop = chat_request.stop
