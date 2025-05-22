@@ -24,10 +24,10 @@ def get_project_and_location():
     from google.auth import default
 
     # Try ADC for project
-    credentials, project_id = default()
 
     # Try metadata server for region
     try:
+        credentials, project_id = default()
         zone = requests.get(
             "http://metadata.google.internal/computeMetadata/v1/instance/zone",
             headers={"Metadata-Flavor": "Google"},
@@ -58,7 +58,6 @@ def aggregate_parts(response):
 
 credentials, project_id, location = get_project_and_location()
 auth_req = google.auth.transport.requests.Request()
-credentials.refresh(auth_req)
 
 vertexai.init(
     project=project_id,
@@ -132,6 +131,7 @@ def handle_vertex(request: ChatRequest):
 
 @router.post("/completions", response_model=ChatCompletionResponse)
 async def chat_completion(request: ChatRequest):
+    credentials.refresh(auth_req)
     model = get_model(PROVIDER, request.model)
     if "gemini" in model.lower():
         return handle_gemini(request)

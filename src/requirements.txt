@@ -11,7 +11,7 @@ httpx==0.28.1
 
 # Google Cloud client libraries
 google-auth==2.22.0
-google-auth-oauthlib
-google-auth-httplib2
-google-api-python-client
+google-auth-oauthlib==1.0.0
+google-auth-httplib2==0.1.0
+google-api-python-client==2.108.0
 google-cloud-aiplatform==1.90.0
