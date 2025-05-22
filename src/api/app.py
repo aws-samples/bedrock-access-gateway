@@ -1,109 +1,23 @@
+import os
 import logging
-
 import uvicorn
-from fastapi import FastAPI, Request, Response
+
+from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from mangum import Mangum
-import httpx
-import json
-import os
-from contextlib import asynccontextmanager
 
-from api.routers import chat, embeddings, model
+from api.routers.aws import chat, embeddings, model
+from api.routers.gcp import predict
+from api.routers.generic import proxy
 from api.setting import API_ROUTE_PREFIX, DESCRIPTION, GCP_ENDPOINT, GCP_PROJECT_ID, REGION, SUMMARY, PROVIDER, TITLE, USE_MODEL_MAPPING, VERSION
 
-from google.auth import default
-from google.auth.transport.requests import Request as AuthRequest
-
-from api.modelmapper import get_model, load_model_map
+from api.modelmapper import load_model_map
 
 if USE_MODEL_MAPPING:
     load_model_map()
 
-# Utility: get service account access token
-def get_access_token():
-    credentials, _ = default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
-    auth_request = AuthRequest()
-    credentials.refresh(auth_request)
-    return credentials.token
-
-def get_gcp_target():
-    """
-    Check if the environment variable is set to use GCP.
-    """
-    if GCP_PROJECT_ID and REGION:
-        return f"https://{REGION}-aiplatform.googleapis.com/v1beta1/projects/{GCP_PROJECT_ID}/locations/{REGION}/{GCP_ENDPOINT}/"
-
-    return None
-
-def get_proxy_target():
-    """
-    Check if the environment variable is set to use a proxy.
-    """
-    proxy_target = os.getenv("PROXY_TARGET")
-    if proxy_target:
-        return proxy_target
-    gcp_target = get_gcp_target()
-    if gcp_target:
-        return gcp_target
-
-    return None
-
-def get_header(request, path):
-    path_no_prefix = f"/{path.lstrip('/')}".removeprefix(API_ROUTE_PREFIX)
-    target_url = f"{proxy_target.rstrip('/')}/{path_no_prefix.lstrip('/')}".rstrip("/")
-
-    # remove hop-by-hop headers
-    headers = {
-        k: v for k, v in request.headers.items()
-        if k.lower() not in {"host", "content-length", "accept-encoding", "connection", "authorization"}
-    }
-
-    # Fetch service account token
-    access_token = get_access_token()
-    headers["Authorization"] = f"Bearer {access_token}"
-    return target_url,headers
-
-async def handle_proxy(request: Request, path: str):
-    # Build safe target URL
-    target_url, headers = get_header(request, path)
-
-    try:
-        content = await request.body()
-        data = json.loads(content)
-
-        if USE_MODEL_MAPPING:
-            request_model = data.get("model", None)
-            data["model"] = get_model(PROVIDER, request_model)
-            content = json.dumps(data)
-
-        async with httpx.AsyncClient() as client:
-            response = await client.request(
-                method=request.method,
-                url=target_url,
-                headers=headers,
-                content=content,
-                params=request.query_params,
-                timeout=30.0,
-            )
-    except httpx.RequestError as e:
-        logging.error(f"Proxy request failed: {e}")
-        return Response(status_code=502, content=f"Upstream request failed: {e}")
-
-    # remove hop-by-hop headers
-    response_headers = {
-        k: v for k, v in response.headers.items()
-        if k.lower() not in {"content-encoding", "transfer-encoding", "connection"}
-    }
-
-    return Response(
-        content=response.content,
-        status_code=response.status_code,
-        headers=response_headers,
-        media_type=response.headers.get("content-type", "application/octet-stream"),
-    )
 
 config = {
     "title": TITLE,
@@ -117,12 +31,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 
-proxy_target = get_proxy_target()
-if proxy_target:
-    logging.info(f"Proxy target set to: {proxy_target}")
-else:
-    logging.info("No proxy target set. Using internal routers.")
-
 app = FastAPI(**config)
 
 app.add_middleware(
@@ -133,14 +41,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-if proxy_target:
-    logging.info(f"Proxy target set to: {proxy_target}")
-    @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
-    async def proxy(request: Request, path: str):
-        return await handle_proxy(request, path)
-
+if os.getenv("PROXY_TARGET"):
+    logging.info("Proxy target set to: Generic")
+    app.include_router(proxy.router, prefix=API_ROUTE_PREFIX)
+elif PROVIDER.lower() == "gcp":
+    logging.info("Proxy target set to: GCP")
+    app.include_router(predict.router, prefix=API_ROUTE_PREFIX)
 else:
-    logging.info("No proxy target set. Using internal routers.")
+    logging.info("Proxy target set to: AWS")
     app.include_router(model.router, prefix=API_ROUTE_PREFIX)
     app.include_router(chat.router, prefix=API_ROUTE_PREFIX)
     app.include_router(embeddings.router, prefix=API_ROUTE_PREFIX)

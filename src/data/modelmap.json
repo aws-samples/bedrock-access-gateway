@@ -28,6 +28,6 @@
   },
   "gcp": {
     "ai/mistral:latest": "mistralai/models/mistral-small-2503",
-    "default":"google/gemini-2.0-flash-lite-001"
+    "default":"google/models/gemini-2.0-flash-lite-001"
   }
 }
