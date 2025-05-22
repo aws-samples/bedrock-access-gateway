@@ -2,7 +2,8 @@ import requests
 import os
 from fastapi import APIRouter, Depends
 from api.setting import PROVIDER
-from google import genai
+from google.cloud import aiplatform_v1beta1
+import google.auth.transport.requests
 
 from api.auth import api_key_auth
 from api.modelmapper import get_model
@@ -23,7 +24,7 @@ def get_project_and_location():
     from google.auth import default
 
     # Try ADC for project
-    _, project_id = default()
+    credentials, project_id = default()
 
     # Try metadata server for region
     try:
@@ -36,7 +37,7 @@ def get_project_and_location():
     except Exception:
         location = os.getenv("GCP_LOCATION", "us-central1")
 
-    return project_id, location
+    return credentials, project_id, location
 
 def to_vertex_content(messages):
     return [
@@ -55,27 +56,18 @@ def aggregate_parts(response):
                 generated_texts.append(part.text)
     return "\n".join(generated_texts)
 
-project_id, location = get_project_and_location()
+credentials, project_id, location = get_project_and_location()
+auth_req = google.auth.transport.requests.Request()
+credentials.refresh(auth_req)
+
 vertexai.init(
     project=project_id,
     location=location,
 )
 
-@router.post("/completions", response_model=ChatCompletionResponse)
-async def chat_completion(request: ChatRequest):
-    content = ""
-    try:
-        modelId = get_model(PROVIDER, request.model) 
-        model_name = modelId.split("/")[-1]
-        model = GenerativeModel(model_name)
+client = aiplatform_v1beta1.PredictionServiceClient()
 
-        content = to_vertex_content(request.messages)
-        response = model.generate_content(content)
-
-        content = aggregate_parts(response)
-    except Exception as e:
-        content = f"ProjectID({project_id} - Location({location}))Error: {str(e)}"
-
+def make_response(content):
     return {
         "id": "chat-response",
         "object": "chat.completion",
@@ -90,3 +82,51 @@ async def chat_completion(request: ChatRequest):
             }
         ]
     }
+
+def handle_gemini(request: ChatRequest):
+    content = ""
+    try:
+        modelId = get_model(PROVIDER, request.model) 
+        model_name = modelId.split("/")[-1]
+        model = GenerativeModel(model_name)
+
+        content = to_vertex_content(request.messages)
+        response = model.generate_content(content)
+
+        content = aggregate_parts(response)
+    except Exception as e:
+        content = f"ProjectID({project_id} - Location({location}))Error: {str(e)}"
+
+    return make_response(content)
+
+def handle_vertex(request: ChatRequest):
+    modelId = get_model(PROVIDER, request.model)
+    endpoint = f"https://{location}-aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/{location}/{modelId}:rawPredict"
+
+    payload = {
+        "instances": [
+            {
+                "prompt": request.messages[0].content,
+                "temperature": 0.7,
+                "max_tokens": 100,
+            }
+        ]
+    }
+
+    # Send request
+    headers = {
+        "Authorization": f"Bearer {credentials.token}",
+        "Content-Type": "application/json"
+    }
+
+    response = requests.post(endpoint, headers=headers, json=payload)
+    return make_response(response.json())
+
+@router.post("/completions", response_model=ChatCompletionResponse)
+async def chat_completion(request: ChatRequest):
+    model = get_model(PROVIDER, request.model)
+    if "gemini" in model.lower():
+       return handle_gemini(request)
+    else:
+        return handle_vertex(request)
+
