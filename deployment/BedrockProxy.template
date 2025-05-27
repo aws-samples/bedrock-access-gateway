@@ -140,6 +140,10 @@ Resources:
       PolicyDocument:
         Statement:
           - Action:
+              - iam:SimulatePrincipalPolicy
+            Effect: Allow
+            Resource: "*"
+          - Action:
               - bedrock:ListFoundationModels
               - bedrock:ListInferenceProfiles
             Effect: Allow
