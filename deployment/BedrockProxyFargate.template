@@ -222,6 +222,8 @@ Resources:
               Value: cohere.embed-multilingual-v3
             - Name: ENABLE_CROSS_REGION_INFERENCE
               Value: "true"
+            - Name: ENABLE_APPLICATION_INFERENCE_PROFILES
+              Value: "true"
           Essential: true
           Image:
             Fn::Join:
