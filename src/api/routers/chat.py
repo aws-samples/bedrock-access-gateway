@@ -37,8 +37,8 @@ async def chat_completions(
                     ],
                     "guardrail_id": "0b4da9d9dc474a578f34a4d9a94d4a1a",  # Example ID - replace with real guardrail ID
                     "guardrail_version": "DRAFT",  # Optional - specify "DRAFT" or version number
-                    "trace": "ENABLED"  # Optional - enable/disable guardrail tracing
-                }
+                    "trace": "ENABLED",  # Optional - enable/disable guardrail tracing
+                },
             ],
         ),
     ],

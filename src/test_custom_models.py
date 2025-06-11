@@ -25,22 +25,40 @@ client.headers.update({"Authorization": f"Bearer {DEFAULT_API_KEYS}"})
 
 # Configure AWS client
 config = Config(connect_timeout=60, read_timeout=120, retries={"max_attempts": 1})
-AWS_REGION = os.environ.get("AWS_REGION", "us-west-2")
+AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 
 def get_custom_model_id() -> str:
-    """Find a custom model to test with. Raises AssertionError if none found."""
+    """Find a custom model to test with.
+
+    Returns:
+        The ID of a custom model to test with
+
+    Raises:
+        AssertionError: If custom models are not enabled or no custom models are found
+    """
     # Make sure custom models are enabled
     assert ENABLE_CUSTOM_MODELS is True, "Custom models are not enabled"
 
     # Get the list of models
     model_list = list_bedrock_models()
+    logger.info(f"Found {len(model_list)} total models in region {AWS_REGION}")
 
     # Find custom models
     custom_models = {k: v for k, v in model_list.items() if v.get("type") == "custom"}
+    logger.info(f"Found {len(custom_models)} custom models in region {AWS_REGION}")
 
-    # Require at least one custom model for testing
-    assert custom_models, "No custom models found. Tests require at least one custom imported model."
+    # Log all model types for debugging
+    model_types = {}
+    for _, v in model_list.items():
+        model_type = v.get("type", "unknown")
+        model_types[model_type] = model_types.get(model_type, 0) + 1
+    logger.info(f"Model types distribution: {model_types}")
+
+    # Fail tests if no custom models are available
+    assert custom_models, (
+        f"No custom models found in region {AWS_REGION}. Tests require at least one custom imported model."
+    )
 
     # Return the first custom model ID
     model_id = list(custom_models.keys())[0]
@@ -53,6 +71,9 @@ class TestCustomModels(unittest.TestCase):
 
     def test_list_models_includes_custom_models(self):
         """Test that the model list includes custom models."""
+        # Verify custom models are available - will fail if none found
+        get_custom_model_id()
+
         # Get the list of models
         response = client.get("/api/v1/models")
         self.assertEqual(response.status_code, 200)
