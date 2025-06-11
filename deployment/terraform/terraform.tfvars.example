@@ -1,0 +1,4 @@
+aws_region         = "us-east-1"
+api_key_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-api-key-secret"
+default_model_id   = "anthropic.claude-3-sonnet-20240229-v1:0"
+ecr_account_id     = "366590864501"
