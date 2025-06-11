@@ -30,7 +30,9 @@ resource "aws_iam_policy" "proxy_api_handler_policy" {
       {
         Action = [
           "bedrock:ListFoundationModels",
-          "bedrock:ListInferenceProfiles"
+          "bedrock:ListInferenceProfiles",
+          "bedrock:ListCustomModels",
+          "bedrock:ListImportedModels"
         ]
         Effect   = "Allow"
         Resource = "*"
@@ -43,7 +45,9 @@ resource "aws_iam_policy" "proxy_api_handler_policy" {
         Effect = "Allow"
         Resource = [
           "arn:aws:bedrock:*::foundation-model/*",
-          "arn:aws:bedrock:*:*:inference-profile/*"
+          "arn:aws:bedrock:*:*:inference-profile/*",
+          "arn:aws:bedrock:*:*:custom-model/*",
+          "arn:aws:bedrock:*:*:imported-model/*"
         ]
       },
       {
