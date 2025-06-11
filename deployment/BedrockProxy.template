@@ -145,6 +145,8 @@ Resources:
           - Action:
               - bedrock:ListFoundationModels
               - bedrock:ListInferenceProfiles
+              - bedrock:ListCustomModels
+              - bedrock:ListImportedModels
             Effect: Allow
             Resource: "*"
           - Action:
@@ -154,6 +156,8 @@ Resources:
             Resource:
               - arn:aws:bedrock:*::foundation-model/*
               - arn:aws:bedrock:*:*:inference-profile/*
+              - arn:aws:bedrock:*:*:custom-model/*
+              - arn:aws:bedrock:*:*:imported-model/*
           - Action:
               - secretsmanager:GetSecretValue
               - secretsmanager:DescribeSecret

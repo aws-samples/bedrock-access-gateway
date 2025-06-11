@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ENABLE_CUSTOM_MODELS=true uv run test_api.py)",
+      "Bash(ENABLE_CUSTOM_MODELS=true uv run test_custom_models.py)",
+      "Bash(awk:*)",
+      "Bash(aws:*)",
+      "Bash(cat:*)",
+      "Bash(chmod:*)",
+      "Bash(egrep:*)",
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(git checkout:*)",
+      "Bash(git push:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(pipx run ruff:*)",
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(rm:*)",
+      "Bash(ruff check:*)",
+      "Bash(ruff format:*)",
+      "Bash(sed:*)",
+      "Bash(source:*)",
+      "Bash(uv pip install:*)",
+      "Bash(uv run:*)",
+      "Bash(uv venv:*)",
+      "WebFetchTool(domain:docs.aws.amazon.com)",
+      "WebFetchTool(domain:github.com)",
+      "WebFetchTool(domain:platform.openai.com)",
+      "WebFetchTool(domain:raw.githubusercontent.com)",
+      "Bash(export:*)",
+      "Bash(export MANUAL_IMPORTED_MODELS='[{\"\"name\"\": \"\"Test Imported Model\"\", \"\"arn\"\": \"\"arn:aws:bedrock:us-east-1:529237317113:imported-model/okp1jkklp8kk\"\", \"\"status\"\": \"\"ACTIVE\"\"}]')"
+    ]
+  },
+  "enableAllProjectMcpServers": false
+}

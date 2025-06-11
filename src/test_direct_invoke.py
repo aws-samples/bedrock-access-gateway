@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import boto3
 import json
 import logging
+
+import boto3
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -17,6 +18,7 @@ bedrock_runtime = boto3.client(
     service_name="bedrock-runtime",
     region_name=REGION,
 )
+
 
 # Test direct invocation
 def test_direct_invocation():
@@ -63,6 +65,7 @@ def test_direct_invocation():
         logger.error(f"Error invoking model: {str(e)}")
         return False
 
+
 # Test streaming invocation
 def test_streaming_invocation():
     """Test streaming invocation of the custom model."""
@@ -87,25 +90,25 @@ def test_streaming_invocation():
         # Process the streaming response
         stream = response.get("body")
         full_response = ""
-        
+
         logger.info("Streaming chunks:")
         for chunk in stream:
             # Log raw chunk info (only first few to avoid flooding logs)
             if full_response == "":
                 logger.info(f"Raw chunk: {chunk}")
-                
+
             # For the imported models, the contentType might be missing from each chunk
             # but we can still process the chunks
-                
+
             try:
                 chunk_bytes = chunk.get("chunk", {}).get("bytes")
                 if not chunk_bytes:
                     logger.warning("No bytes in chunk")
                     continue
-                    
+
                 chunk_body = json.loads(chunk_bytes.decode())
                 logger.info(f"Chunk body: {json.dumps(chunk_body)}")
-                
+
                 # Extract text based on common response formats
                 text = None
                 if "completion" in chunk_body:
@@ -119,7 +122,7 @@ def test_streaming_invocation():
                     text = chunk_body["content"]
                 elif "text" in chunk_body:
                     text = chunk_body["text"]
-                
+
                 if text:
                     full_response += text
                     logger.info(f"Extracted text: {text}")
@@ -127,7 +130,7 @@ def test_streaming_invocation():
                     logger.warning(f"No text extracted from chunk: {chunk_body}")
             except Exception as e:
                 logger.error(f"Error processing chunk: {str(e)}")
-        
+
         logger.info(f"Full response: {full_response}")
         return len(full_response) > 0
 
@@ -135,11 +138,12 @@ def test_streaming_invocation():
         logger.error(f"Error in streaming: {str(e)}")
         return False
 
+
 if __name__ == "__main__":
     # Run both tests
     direct_result = test_direct_invocation()
     streaming_result = test_streaming_invocation()
-    
+
     if direct_result and streaming_result:
         logger.info("All tests passed")
     elif direct_result:

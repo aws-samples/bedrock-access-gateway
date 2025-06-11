@@ -42,9 +42,13 @@ from api.schema import (
 from api.setting import (
     AWS_REGION,
     DEBUG,
+    DEFAULT_GUARDRAIL_ID,
+    DEFAULT_GUARDRAIL_TRACE,
+    DEFAULT_GUARDRAIL_VERSION,
     DEFAULT_MODEL,
     ENABLE_CROSS_REGION_INFERENCE,
     ENABLE_CUSTOM_MODELS,
+    ENABLE_GUARDRAILS,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,7 +56,7 @@ logger = logging.getLogger(__name__)
 # Standard configuration for foundation models
 config = Config(connect_timeout=60, read_timeout=120, retries={"max_attempts": 1})
 # Configuration with exponential backoff for custom models, which may need retries
-custom_model_config = Config(connect_timeout=60, read_timeout=120, retries={"max_attempts": 10, "mode": "standard"})
+custom_model_config = Config(connect_timeout=60, read_timeout=120, retries={"max_attempts": 20, "mode": "standard"})
 
 # Initialize the Bedrock clients
 if DEBUG:
@@ -134,36 +138,67 @@ def list_bedrock_models() -> dict:
 
         # Get custom imported models if enabled
         if ENABLE_CUSTOM_MODELS:
-            logger.debug("Custom models enabled, checking for custom and imported models")
+            logger.info(f"Custom models enabled, checking for custom and imported models in region {AWS_REGION}")
 
             # List custom models (fine-tuned models)
             try:
                 custom_models_response = bedrock_client.list_custom_models()
+                custom_models_count = len(custom_models_response.get("modelSummaries", []))
+                logger.info(f"Found {custom_models_count} fine-tuned custom models via list_custom_models API")
                 for model in custom_models_response.get("modelSummaries", []):
                     _add_custom_model_to_list(model, model_list)
             except Exception as e:
                 logger.warning(f"Unable to list custom models: {str(e)}")
 
-            # List imported models
+            # List imported models - check if the method exists
             try:
-                imported_models_response = bedrock_client.list_imported_models()
-                for model in imported_models_response.get("modelSummaries", []):
-                    _add_custom_model_to_list(model, model_list)
+                if hasattr(bedrock_client, "list_imported_models"):
+                    logger.info("list_imported_models method exists in boto3, attempting to call it")
+                    imported_models_response = bedrock_client.list_imported_models()
+                    imported_models = imported_models_response.get("modelSummaries", [])
+                    imported_models_count = len(imported_models)
+                    logger.info(f"Found {imported_models_count} imported models via list_imported_models API")
+
+                    if imported_models_count > 0:
+                        for model in imported_models:
+                            model_arn = model.get("modelArn", "unknown")
+                            model_name = model.get("modelName", "unknown")
+                            logger.info(f"Found imported model: ARN={model_arn}, Name={model_name}")
+                            _add_custom_model_to_list(model, model_list)
+                    else:
+                        logger.warning("No imported models found via list_imported_models API")
+                else:
+                    logger.warning(
+                        "list_imported_models method not available in this boto3 version - may need to upgrade boto3"
+                    )
             except Exception as e:
                 logger.warning(f"Unable to list imported models: {str(e)}")
 
+
     except Exception as e:
-        logger.error(f"Unable to list models: {str(e)}")
+        error_message = str(e)
+        logger.error(f"Unable to list models: {error_message}")
+
+        # Add more helpful information for common errors
+        if "Unable to locate credentials" in error_message:
+            logger.error("AWS credentials not found. Make sure AWS credentials are properly configured.")
+            logger.error(
+                "Try running 'aws configure' or setting AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables."
+            )
 
     if not model_list:
         # In case stack not updated.
         model_list[DEFAULT_MODEL] = {"modalities": ["TEXT", "IMAGE"], "type": "foundation"}
 
-    logger.debug(f"Final model list contains {len(model_list)} models")
+    logger.info(f"Final model list contains {len(model_list)} models")
     custom_models = {k: v for k, v in model_list.items() if v.get("type") == "custom"}
-    logger.debug(f"Custom models in final list: {len(custom_models)}")
+    logger.info(f"Custom models in final list: {len(custom_models)}")
     if custom_models:
-        logger.debug(f"Custom model IDs: {list(custom_models.keys())}")
+        logger.info(f"Custom model IDs: {list(custom_models.keys())}")
+    else:
+        logger.warning(
+            f"No custom models found in region {AWS_REGION}. Check that your imported model exists and is active."
+        )
 
     return model_list
 
@@ -172,21 +207,22 @@ def _add_custom_model_to_list(model, model_list):
     """Helper to add a custom or imported model to the model list"""
     model_arn = model.get("modelArn")
     if not model_arn:
+        logger.warning("Skipping model with no ARN")
         return
 
     # Extract ID from ARN
     model_id_from_arn = model_arn.split("/")[-1]
-    
+
     # Get the model name (fallback to ID if no name)
     model_name = model.get("modelName", model_id_from_arn)
-    
+
     # Create a more descriptive ID that includes model name
     sanitized_name = model_name.replace(" ", "-").replace("/", "-")
     model_id = f"{sanitized_name}-id:custom.{model_id_from_arn}"
-    
+
     # Store the original ID for reference when invoking models
     original_id = f"custom.{model_id_from_arn}"
-    
+
     # Custom models are currently only supporting TEXT modality
     model_list[model_id] = {
         "modalities": ["TEXT"],
@@ -196,8 +232,8 @@ def _add_custom_model_to_list(model, model_list):
         "region": AWS_REGION,
         "original_id": original_id,
     }
-    
-    logger.debug(f"Added custom model: {model_id} (Name: {model_name})")
+
+    logger.info(f"Added custom model: {model_id} (Name: {model_name}, ARN: {model_arn})")
 
 
 # Initialize the model list.
@@ -547,6 +583,14 @@ class BedrockModel(BaseChatModel):
             "system": system_prompts,
             "inferenceConfig": inference_config,
         }
+
+        # Apply guardrails if enabled at the gateway level
+        if ENABLE_GUARDRAILS and DEFAULT_GUARDRAIL_ID:
+            logger.debug(f"Applying guardrail: {DEFAULT_GUARDRAIL_ID} to {chat_request.model}")
+            args["guardrailIdentifier"] = DEFAULT_GUARDRAIL_ID
+            args["guardrailVersion"] = DEFAULT_GUARDRAIL_VERSION
+            args["trace"] = DEFAULT_GUARDRAIL_TRACE
+
         if chat_request.reasoning_effort:
             # From OpenAI api, the max_token is not supported in reasoning mode
             # Use max_completion_tokens if provided.
@@ -876,16 +920,26 @@ class BedrockModel(BaseChatModel):
         # Serialize the body for the API call
         serialized_body = json.dumps(body)
 
+        # Prepare common invoke parameters
+        invoke_args = {
+            "modelId": model_arn,
+            "contentType": "application/json",
+            "accept": "application/json",
+            "body": serialized_body,
+        }
+
+        # Apply guardrails if enabled at the gateway level
+        if ENABLE_GUARDRAILS and DEFAULT_GUARDRAIL_ID:
+            logger.debug(f"Applying guardrail: {DEFAULT_GUARDRAIL_ID} to custom model {model_arn}")
+            invoke_args["guardrailIdentifier"] = DEFAULT_GUARDRAIL_ID
+            invoke_args["guardrailVersion"] = DEFAULT_GUARDRAIL_VERSION
+            invoke_args["trace"] = DEFAULT_GUARDRAIL_TRACE
+
         try:
             if stream:
                 # Streaming response for custom models
                 response = await run_in_threadpool(
-                    lambda: custom_runtime.invoke_model_with_response_stream(
-                        modelId=model_arn,
-                        contentType="application/json",
-                        accept="application/json",
-                        body=serialized_body,
-                    )
+                    lambda: custom_runtime.invoke_model_with_response_stream(**invoke_args)
                 )
 
                 # Return a special response structure for the streaming handler
@@ -896,21 +950,14 @@ class BedrockModel(BaseChatModel):
                 }
             else:
                 # Non-streaming response
-                response = await run_in_threadpool(
-                    lambda: custom_runtime.invoke_model(
-                        modelId=model_arn,
-                        contentType="application/json",
-                        accept="application/json",
-                        body=serialized_body,
-                    )
-                )
+                response = await run_in_threadpool(lambda: custom_runtime.invoke_model(**invoke_args))
 
                 # Parse the response body
                 response_body = json.loads(response.get("body").read())
 
                 # Extract the completion text from common response formats
                 completion_text = self._extract_completion_from_response(response_body)
-                
+
                 # Extract token usage if available
                 input_tokens, output_tokens = self._extract_usage_from_response(response_body)
 
@@ -954,7 +1001,7 @@ class BedrockModel(BaseChatModel):
             return response_body["generated_text"]
         elif "choices" in response_body and isinstance(response_body["choices"], list):
             return response_body["choices"][0].get("text", "")
-        
+
         # Default to an empty string if no recognized format
         return ""
 
@@ -962,14 +1009,14 @@ class BedrockModel(BaseChatModel):
         """Extract token usage information from various response formats."""
         input_tokens = 0
         output_tokens = 0
-        
+
         if "usage" in response_body:
             input_tokens = response_body["usage"].get("prompt_tokens", 0)
             output_tokens = response_body["usage"].get("completion_tokens", 0)
         elif "prompt_token_count" in response_body:
             input_tokens = response_body.get("prompt_token_count", 0)
             output_tokens = response_body.get("generation_token_count", 0)
-            
+
         return input_tokens, output_tokens
 
     def _create_prompt_from_messages(self, messages: list) -> str:
@@ -1029,9 +1076,9 @@ class BedrockModel(BaseChatModel):
                     chunk_bytes = chunk.get("chunk", {}).get("bytes")
                     if not chunk_bytes:
                         continue
-                        
+
                     chunk_body = json.loads(chunk_bytes.decode())
-                    
+
                     # Extract the delta text using common formats
                     delta_text = ""
                     if "completion" in chunk_body:
