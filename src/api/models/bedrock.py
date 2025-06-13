@@ -68,8 +68,9 @@ cr_inference_prefix = get_inference_region_prefix()
 SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
     "cohere.embed-multilingual-v3": "Cohere Embed Multilingual",
     "cohere.embed-english-v3": "Cohere Embed English",
-    # Disable Titan embedding.
+    "amazon.titan-embed-text-v1": "Titan Embeddings G1 - Text",
     "amazon.titan-embed-text-v2:0": "Titan Embeddings G2 - Text",
+    # Disable Titan embedding.
     # "amazon.titan-embed-image-v1": "Titan Multimodal Embeddings G1"
 }
 
