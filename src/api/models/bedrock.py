@@ -38,11 +38,15 @@ from api.schema import (
     Usage,
     UserMessage,
 )
-from api.setting import AWS_REGION, CUSTOM_MODEL_LIST, DEBUG, DEFAULT_MODEL, ENABLE_CROSS_REGION_INFERENCE
+from api.setting import AWS_REGION, CUSTOM_MODEL_LIST, DEBUG, DEFAULT_MODEL, ENABLE_CROSS_REGION_INFERENCE, MAX_RETRIES_AWS
 
 logger = logging.getLogger(__name__)
 
-config = Config(connect_timeout=60, read_timeout=120, retries={"max_attempts": 1})
+config = Config(
+    connect_timeout=60,
+    read_timeout=120,
+    retries={"mode": "standard", "max_attempts": MAX_RETRIES_AWS}
+)
 
 bedrock_runtime = boto3.client(
     service_name="bedrock-runtime",

@@ -18,3 +18,4 @@ DEFAULT_EMBEDDING_MODEL = os.environ.get("DEFAULT_EMBEDDING_MODEL", "cohere.embe
 CUSTOM_MODEL_CSV = os.environ.get("CUSTOM_MODEL_LIST", "")
 CUSTOM_MODEL_LIST = [m.strip() for m in CUSTOM_MODEL_CSV.split(",") if m.strip()]
 ENABLE_CROSS_REGION_INFERENCE = os.environ.get("ENABLE_CROSS_REGION_INFERENCE", "true").lower() != "false"
+MAX_RETRIES_AWS = int(os.environ.get("MAX_RETRIES_AWS", "3"))
