@@ -1,3 +1,6 @@
+# Data sources
+data "aws_partition" "current" {}
+
 # Lambda Function and IAM Role
 resource "aws_iam_role" "proxy_api_handler_role" {
   name = "ProxyApiHandlerRole"
@@ -15,10 +18,6 @@ resource "aws_iam_role" "proxy_api_handler_role" {
     ]
   })
 
-  managed_policy_arns = [
-    "arn:${data.aws_partition.current.partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-    aws_iam_policy.proxy_api_handler_policy.arn
-  ]
 }
 
 resource "aws_iam_policy" "proxy_api_handler_policy" {
@@ -29,10 +28,15 @@ resource "aws_iam_policy" "proxy_api_handler_policy" {
     Statement = [
       {
         Action = [
-          "bedrock:ListFoundationModels",
-          "bedrock:ListInferenceProfiles",
-          "bedrock:ListCustomModels",
-          "bedrock:ListImportedModels"
+          "bedrock:*",
+          "iam:GetRole",
+          "iam:ListRoles", 
+          "iam:PassRole",
+          "pricing:GetProducts",
+          "servicequotas:GetServiceQuota",
+          "servicequotas:ListServiceQuotas",
+          "support:DescribeCases",
+          "trustedadvisor:Describe*"
         ]
         Effect   = "Allow"
         Resource = "*"
@@ -57,6 +61,16 @@ resource "aws_iam_policy" "proxy_api_handler_policy" {
         ]
         Effect   = "Allow"
         Resource = var.api_key_secret_arn
+      },
+      {
+        Action = [
+          "ssm:GetParameter",
+          "ssm:PutParameter"
+        ]
+        Effect = "Allow"
+        Resource = [
+          "arn:aws:ssm:*:${data.aws_caller_identity.current.account_id}:parameter/bedrock-gateway/model-availability/*"
+        ]
       }
     ]
   })
@@ -65,6 +79,11 @@ resource "aws_iam_policy" "proxy_api_handler_policy" {
 resource "aws_iam_role_policy_attachment" "proxy_api_handler_policy_attachment" {
   role       = aws_iam_role.proxy_api_handler_role.name
   policy_arn = aws_iam_policy.proxy_api_handler_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "proxy_api_handler_basic_execution" {
+  role       = aws_iam_role.proxy_api_handler_role.name
+  policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 resource "aws_lambda_function" "proxy_api_handler" {
@@ -91,7 +110,8 @@ resource "aws_lambda_function" "proxy_api_handler" {
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.proxy_api_handler_policy_attachment
+    aws_iam_role_policy_attachment.proxy_api_handler_policy_attachment,
+    aws_iam_role_policy_attachment.proxy_api_handler_basic_execution
   ]
 }
 
@@ -198,6 +218,3 @@ resource "aws_lambda_permission" "api_gateway_lambda_permission" {
   # Allow invocation from any method on any resource within the API
   source_arn = "${aws_api_gateway_rest_api.proxy_api.execution_arn}/*/*"
 }
-
-# Data sources
-data "aws_partition" "current" {}

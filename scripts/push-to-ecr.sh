@@ -17,21 +17,21 @@ build_and_push_images() {
     local IMAGE_NAME=$1
     local TAG=$2
     local ENABLE_MULTI_ARCH=${3:-true}  # Parameter for enabling multi-arch build, default is true
-    local podmanFILE_PATH=${4:-"../src/podmanfile_ecs"}  # Parameter for podmanfile path, default is "../src/podmanfile_ecs"
+    local DOCKERFILE_PATH=${4:-"../src/Dockerfile_ecs"}  # Parameter for Dockerfile path, default is "../src/Dockerfile_ecs"
 
-    # Build podman image for each architecture
+    # Build docker image for each architecture
     if [ "$ENABLE_MULTI_ARCH" == "true" ]; then
         for ARCH in "${ARCHS[@]}"
         do
-            # Build multi-architecture podman image
-            podman buildx build --platform linux/$ARCH -t $IMAGE_NAME:$TAG-$ARCH -f $podmanFILE_PATH --load ../src/
+            # Build multi-architecture docker image
+            docker buildx build --platform linux/$ARCH -t $IMAGE_NAME:$TAG-$ARCH -f $DOCKERFILE_PATH --load ../src/
         done
     else
-        # Build single architecture podman image
-        podman buildx build --platform linux/${ARCHS[0]} -t $IMAGE_NAME:$TAG -f $podmanFILE_PATH --load ../src/
+        # Build single architecture docker image
+        docker buildx build --platform linux/${ARCHS[0]} -t $IMAGE_NAME:$TAG -f $DOCKERFILE_PATH --load ../src/
     fi
 
-    # Push podman image to ECR for each architecture in each AWS region
+    # Push docker image to ECR for each architecture in each AWS region
     for REGION in "${AWS_REGIONS[@]}"
     do
         # Get the account ID for the current region
@@ -44,34 +44,34 @@ build_and_push_images() {
         aws ecr create-repository --repository-name "${IMAGE_NAME}" --region $REGION || true
 
         # Log in to ECR
-        aws ecr get-login-password --region $REGION | podman login --username AWS --password-stdin $REPOSITORY_URI
+        aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
 
         # Push the image to ECR for each architecture
         if [ "$ENABLE_MULTI_ARCH" == "true" ]; then
             for ARCH in "${ARCHS[@]}"
             do
                 # Tag the image for the current region
-                podman tag $IMAGE_NAME:$TAG-$ARCH $REPOSITORY_URI:$TAG-$ARCH
+                docker tag $IMAGE_NAME:$TAG-$ARCH $REPOSITORY_URI:$TAG-$ARCH
                 # Push the image to ECR
-                podman push $REPOSITORY_URI:$TAG-$ARCH
+                docker push $REPOSITORY_URI:$TAG-$ARCH
                 # Create a manifest for the image
-                podman manifest create $REPOSITORY_URI:$TAG $REPOSITORY_URI:$TAG-$ARCH --amend
+                docker manifest create $REPOSITORY_URI:$TAG $REPOSITORY_URI:$TAG-$ARCH --amend
                 # Annotate the manifest with architecture information
-                podman manifest annotate $REPOSITORY_URI:$TAG "$REPOSITORY_URI:$TAG-$ARCH" --os linux --arch $ARCH
+                docker manifest annotate $REPOSITORY_URI:$TAG "$REPOSITORY_URI:$TAG-$ARCH" --os linux --arch $ARCH
             done
 
             # Push the manifest to ECR
-            podman manifest push $REPOSITORY_URI:$TAG
+            docker manifest push $REPOSITORY_URI:$TAG
         else
             # Tag the image for the current region
-            podman tag $IMAGE_NAME:$TAG $REPOSITORY_URI:$TAG
+            docker tag $IMAGE_NAME:$TAG $REPOSITORY_URI:$TAG
             # Push the image to ECR
-            podman push $REPOSITORY_URI:$TAG
+            docker push $REPOSITORY_URI:$TAG
         fi
 
         echo "Pushed $IMAGE_NAME:$TAG to $REPOSITORY_URI"
     done
 }
 
-build_and_push_images "bedrock-proxy-api" "$TAG" "false" "../src/podmanfile"
-build_and_push_images "bedrock-proxy-api-ecs" "$TAG"
+build_and_push_images "bedrock-proxy-api" "$TAG" "false" "../src/Dockerfile"
+build_and_push_images "bedrock-proxy-api-ecs" "false" "$TAG"

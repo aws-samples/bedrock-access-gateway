@@ -143,10 +143,7 @@ Resources:
       PolicyDocument:
         Statement:
           - Action:
-              - bedrock:ListFoundationModels
-              - bedrock:ListInferenceProfiles
-              - bedrock:ListCustomModels
-              - bedrock:ListImportedModels
+              - bedrock:*
             Effect: Allow
             Resource: "*"
           - Action:
@@ -164,6 +161,12 @@ Resources:
             Effect: Allow
             Resource:
               Ref: ApiKeySecretArn
+          - Action:
+              - ssm:GetParameter
+              - ssm:PutParameter
+            Effect: Allow
+            Resource:
+              - Fn::Sub: "arn:aws:ssm:*:${AWS::AccountId}:parameter/bedrock-gateway/model-availability/*"
         Version: "2012-10-17"
       PolicyName: ProxyApiHandlerServiceRoleDefaultPolicy86681202
       Roles:

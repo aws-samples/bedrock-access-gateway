@@ -7,3 +7,5 @@ requests
 numpy
 boto3
 botocore
+pytest
+pytest-asyncio

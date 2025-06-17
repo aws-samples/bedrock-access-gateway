@@ -174,7 +174,6 @@ def list_bedrock_models() -> dict:
             except Exception as e:
                 logger.warning(f"Unable to list imported models: {str(e)}")
 
-
     except Exception as e:
         error_message = str(e)
         logger.error(f"Unable to list models: {error_message}")
@@ -189,6 +188,10 @@ def list_bedrock_models() -> dict:
     if not model_list:
         # In case stack not updated.
         model_list[DEFAULT_MODEL] = {"modalities": ["TEXT", "IMAGE"], "type": "foundation"}
+
+    # Note: Model availability filtering is handled at the router level
+    # to avoid async/await issues in this sync function
+    logger.info("Model availability filtering will be handled at router level")
 
     logger.info(f"Final model list contains {len(model_list)} models")
     custom_models = {k: v for k, v in model_list.items() if v.get("type") == "custom"}
@@ -236,8 +239,16 @@ def _add_custom_model_to_list(model, model_list):
     logger.info(f"Added custom model: {model_id} (Name: {model_name}, ARN: {model_arn})")
 
 
-# Initialize the model list.
-bedrock_model_list = list_bedrock_models()
+# Initialize the model list lazily to avoid slow cold starts
+bedrock_model_list = None
+
+
+def get_bedrock_model_list():
+    """Get the bedrock model list, initializing it lazily if needed."""
+    global bedrock_model_list
+    if bedrock_model_list is None:
+        bedrock_model_list = list_bedrock_models()
+    return bedrock_model_list
 
 
 class BedrockModel(BaseChatModel):
@@ -245,14 +256,14 @@ class BedrockModel(BaseChatModel):
         """Always refresh the latest model list"""
         global bedrock_model_list
         bedrock_model_list = list_bedrock_models()
-        return list(bedrock_model_list.keys())
+        return list(get_bedrock_model_list().keys())
 
     def validate(self, chat_request: ChatRequest):
         """Perform basic validation on requests"""
         model_id = chat_request.model
 
         # Check if model is directly supported
-        if model_id in bedrock_model_list.keys():
+        if model_id in get_bedrock_model_list().keys():
             # For models with custom format, extract the AWS ID
             if "-id:custom." in model_id:
                 # Extract information from the ID
@@ -274,7 +285,7 @@ class BedrockModel(BaseChatModel):
         # Special case handling for direct custom.* format (backward compatibility)
         if model_id.startswith("custom."):
             # Check if this is a valid custom model ID
-            for listed_id, info in bedrock_model_list.items():
+            for listed_id, info in get_bedrock_model_list().items():
                 if "-id:" in listed_id and listed_id.split("-id:")[1] == model_id:
                     # Found a matching custom model
                     # Store the display name if available
@@ -297,11 +308,12 @@ class BedrockModel(BaseChatModel):
         model_info = None
 
         # Look for model info, handling both friendly ID and AWS ID formats
-        if model_id in bedrock_model_list:
-            model_info = bedrock_model_list[model_id]
+        bedrock_models = get_bedrock_model_list()
+        if model_id in bedrock_models:
+            model_info = bedrock_models[model_id]
         else:
             # This might be using the AWS ID format after validation
-            for _, info in bedrock_model_list.items():
+            for _, info in bedrock_models.items():
                 if info.get("original_id") == model_id:
                     model_info = info
                     break
@@ -851,7 +863,7 @@ class BedrockModel(BaseChatModel):
 
     @staticmethod
     def is_supported_modality(model_id: str, modality: str = "IMAGE") -> bool:
-        model = bedrock_model_list.get(model_id, {})
+        model = get_bedrock_model_list().get(model_id, {})
         modalities = model.get("modalities", [])
         if modality in modalities:
             return True
