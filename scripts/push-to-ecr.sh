@@ -74,4 +74,4 @@ build_and_push_images() {
 }
 
 build_and_push_images "bedrock-proxy-api" "$TAG" "false" "../src/Dockerfile"
-build_and_push_images "bedrock-proxy-api-ecs" "false" "$TAG"
+build_and_push_images "bedrock-proxy-api-ecs" "$TAG" "false" "../src/Dockerfile_ecs"
