@@ -24,11 +24,11 @@ build_and_push_images() {
         for ARCH in "${ARCHS[@]}"
         do
             # Build multi-architecture docker image
-            docker buildx build --platform linux/$ARCH -t $IMAGE_NAME:$TAG-$ARCH -f $DOCKERFILE_PATH --load ../src/
+            docker buildx build --no-cache --platform linux/$ARCH -t $IMAGE_NAME:$TAG-$ARCH -f $DOCKERFILE_PATH --load ../src/
         done
     else
         # Build single architecture docker image
-        docker buildx build --platform linux/${ARCHS[0]} -t $IMAGE_NAME:$TAG -f $DOCKERFILE_PATH --load ../src/
+        docker buildx build --no-cache --platform linux/${ARCHS[0]} -t $IMAGE_NAME:$TAG -f $DOCKERFILE_PATH --load ../src/
     fi
 
     # Push docker image to ECR for each architecture in each AWS region
