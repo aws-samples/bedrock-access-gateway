@@ -3,7 +3,7 @@ pydantic==2.7.1
 uvicorn==0.29.0
 mangum==0.17.0
 tiktoken==0.6.0
-requests==2.32.3
+requests==2.32.4
 numpy==1.26.4
 boto3==1.37.0
 botocore==1.37.0
