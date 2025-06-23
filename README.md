@@ -26,6 +26,7 @@ If you find this GitHub repository useful, please consider giving it a free star
 - [x] Support Embedding API
 - [x] Support Multimodal API
 - [x] Support Cross-Region Inference
+- [x] Support Application Inference Profiles (**new**)
 - [x] Support Reasoning (**new**)
 
 Please check [Usage Guide](./docs/Usage.md) for more details about how to use the new APIs.
@@ -148,7 +149,48 @@ print(completion.choices[0].message.content)
 
 Please check [Usage Guide](./docs/Usage.md) for more details about how to use embedding API, multimodal API and tool call.
 
+### Application Inference Profiles
 
+This proxy now supports **Application Inference Profiles**, which allow you to track usage and costs for your model invocations. You can use application inference profiles created in your AWS account for cost tracking and monitoring purposes.
+
+**Using Application Inference Profiles:**
+
+```bash
+# Use an application inference profile ARN as the model ID
+curl $OPENAI_BASE_URL/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "model": "arn:aws:bedrock:us-west-2:123456789012:application-inference-profile/your-profile-id",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello!"
+      }
+    ]
+  }'
+```
+
+**SDK Usage with Application Inference Profiles:**
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+completion = client.chat.completions.create(
+    model="arn:aws:bedrock:us-west-2:123456789012:application-inference-profile/your-profile-id",
+    messages=[{"role": "user", "content": "Hello!"}],
+)
+
+print(completion.choices[0].message.content)
+```
+
+**Benefits of Application Inference Profiles:**
+- **Cost Tracking**: Track usage and costs for specific applications or use cases
+- **Usage Monitoring**: Monitor model invocation metrics through CloudWatch
+- **Tag-based Cost Allocation**: Use AWS cost allocation tags for detailed billing analysis
+
+For more information about creating and managing application inference profiles, see the [Amazon Bedrock User Guide](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-create.html).
 
 ## Other Examples
 
