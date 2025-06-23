@@ -38,7 +38,13 @@ from api.schema import (
     Usage,
     UserMessage,
 )
-from api.setting import AWS_REGION, DEBUG, DEFAULT_MODEL, ENABLE_CROSS_REGION_INFERENCE
+from api.setting import (
+    AWS_REGION,
+    DEBUG,
+    DEFAULT_MODEL,
+    ENABLE_CROSS_REGION_INFERENCE,
+    ENABLE_APPLICATION_INFERENCE_PROFILES,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,14 +89,39 @@ def list_bedrock_models() -> dict:
     Returns a model list combines:
         - ON_DEMAND models.
         - Cross-Region Inference Profiles (if enabled via Env)
+        - Application Inference Profiles (if enabled via Env)
     """
     model_list = {}
     try:
         profile_list = []
+        app_profile_dict = {}
+        
         if ENABLE_CROSS_REGION_INFERENCE:
             # List system defined inference profile IDs
             response = bedrock_client.list_inference_profiles(maxResults=1000, typeEquals="SYSTEM_DEFINED")
             profile_list = [p["inferenceProfileId"] for p in response["inferenceProfileSummaries"]]
+
+        if ENABLE_APPLICATION_INFERENCE_PROFILES:
+            # List application defined inference profile IDs and create mapping
+            response = bedrock_client.list_inference_profiles(maxResults=1000, typeEquals="APPLICATION")
+            
+            for profile in response["inferenceProfileSummaries"]:
+                try:
+                    profile_arn = profile.get("inferenceProfileArn")
+                    if not profile_arn:
+                        continue
+                    
+                    # Process all models in the profile
+                    models = profile.get("models", [])
+                    for model in models:
+                        model_arn = model.get("modelArn", "")
+                        if model_arn:
+                            model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
+                            if model_id:
+                                app_profile_dict[model_id] = profile_arn
+                except Exception as e:
+                    logger.warning(f"Error processing application profile: {e}")
+                    continue
 
         # List foundation models, only cares about text outputs here.
         response = bedrock_client.list_foundation_models(byOutputModality="TEXT")
@@ -114,6 +145,10 @@ def list_bedrock_models() -> dict:
             profile_id = cr_inference_prefix + "." + model_id
             if profile_id in profile_list:
                 model_list[profile_id] = {"modalities": input_modalities}
+
+            # Add application inference profiles
+            if model_id in app_profile_dict:
+                model_list[app_profile_dict[model_id]] = {"modalities": input_modalities}
 
     except Exception as e:
         logger.error(f"Unable to list models: {str(e)}")
@@ -162,7 +197,9 @@ class BedrockModel(BaseChatModel):
         try:
             if stream:
                 # Run the blocking boto3 call in a thread pool
-                response = await run_in_threadpool(bedrock_runtime.converse_stream, **args)
+                response = await run_in_threadpool(
+                    bedrock_runtime.converse_stream, **args
+                )
             else:
                 # Run the blocking boto3 call in a thread pool
                 response = await run_in_threadpool(bedrock_runtime.converse, **args)
@@ -274,7 +311,9 @@ class BedrockModel(BaseChatModel):
                 messages.append(
                     {
                         "role": message.role,
-                        "content": self._parse_content_parts(message, chat_request.model),
+                        "content": self._parse_content_parts(
+                            message, chat_request.model
+                        ),
                     }
                 )
             elif isinstance(message, AssistantMessage):
@@ -283,7 +322,9 @@ class BedrockModel(BaseChatModel):
                     messages.append(
                         {
                             "role": message.role,
-                            "content": self._parse_content_parts(message, chat_request.model),
+                            "content": self._parse_content_parts(
+                                message, chat_request.model
+                            ),
                         }
                     )
                 if message.tool_calls:
@@ -363,7 +404,9 @@ class BedrockModel(BaseChatModel):
             # If the next role is different from the previous message, add the previous role's messages to the list
             if next_role != current_role:
                 if current_content:
-                    reformatted_messages.append({"role": current_role, "content": current_content})
+                    reformatted_messages.append(
+                        {"role": current_role, "content": current_content}
+                    )
                 # Switch to the new role
                 current_role = next_role
                 current_content = []
@@ -376,7 +419,9 @@ class BedrockModel(BaseChatModel):
 
         # Add the last role's messages to the list
         if current_content:
-            reformatted_messages.append({"role": current_role, "content": current_content})
+            reformatted_messages.append(
+                {"role": current_role, "content": current_content}
+            )
 
         return reformatted_messages
 
@@ -414,9 +459,13 @@ class BedrockModel(BaseChatModel):
             # Use max_completion_tokens if provided.
 
             max_tokens = (
-                chat_request.max_completion_tokens if chat_request.max_completion_tokens else chat_request.max_tokens
+                chat_request.max_completion_tokens
+                if chat_request.max_completion_tokens
+                else chat_request.max_tokens
             )
-            budget_tokens = self._calc_budget_tokens(max_tokens, chat_request.reasoning_effort)
+            budget_tokens = self._calc_budget_tokens(
+                max_tokens, chat_request.reasoning_effort
+            )
             inference_config["maxTokens"] = max_tokens
             # unset topP - Not supported
             inference_config.pop("topP")
@@ -428,7 +477,9 @@ class BedrockModel(BaseChatModel):
         if chat_request.tools:
             tool_config = {"tools": [self._convert_tool_spec(t.function) for t in chat_request.tools]}
 
-            if chat_request.tool_choice and not chat_request.model.startswith("meta.llama3-1-"):
+            if chat_request.tool_choice and not chat_request.model.startswith(
+                "meta.llama3-1-"
+            ):
                 if isinstance(chat_request.tool_choice, str):
                     # auto (default) is mapped to {"auto" : {}}
                     # required is mapped to {"any" : {}}
@@ -477,11 +528,15 @@ class BedrockModel(BaseChatModel):
             message.content = ""
             for c in content:
                 if "reasoningContent" in c:
-                    message.reasoning_content = c["reasoningContent"]["reasoningText"].get("text", "")
+                    message.reasoning_content = c["reasoningContent"][
+                        "reasoningText"
+                    ].get("text", "")
                 elif "text" in c:
                     message.content = c["text"]
                 else:
-                    logger.warning("Unknown tag in message content " + ",".join(c.keys()))
+                    logger.warning(
+                        "Unknown tag in message content " + ",".join(c.keys())
+                    )
 
         response = ChatResponse(
             id=message_id,
@@ -505,7 +560,9 @@ class BedrockModel(BaseChatModel):
         response.created = int(time.time())
         return response
 
-    def _create_response_stream(self, model_id: str, message_id: str, chunk: dict) -> ChatStreamResponse | None:
+    def _create_response_stream(
+        self, model_id: str, message_id: str, chunk: dict
+    ) -> ChatStreamResponse | None:
         """Parsing the Bedrock stream response chunk.
 
         Ref: https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html#message-inference-examples
@@ -627,7 +684,9 @@ class BedrockModel(BaseChatModel):
             image_content = response.content
             return image_content, content_type
         else:
-            raise HTTPException(status_code=500, detail="Unable to access the image url")
+            raise HTTPException(
+                status_code=500, detail="Unable to access the image url"
+            )
 
     def _parse_content_parts(
         self,
@@ -687,7 +746,9 @@ class BedrockModel(BaseChatModel):
             }
         }
 
-    def _calc_budget_tokens(self, max_tokens: int, reasoning_effort: Literal["low", "medium", "high"]) -> int:
+    def _calc_budget_tokens(
+        self, max_tokens: int, reasoning_effort: Literal["low", "medium", "high"]
+    ) -> int:
         # Helper function to calculate budget_tokens based on the max_tokens.
         # Ratio for efforts:  Low - 30%, medium - 60%, High: Max token - 1
         # Note that The minimum budget_tokens is 1,024 tokens so far.
@@ -718,7 +779,9 @@ class BedrockModel(BaseChatModel):
                 "complete": "stop",
                 "content_filtered": "content_filter",
             }
-            return finish_reason_mapping.get(finish_reason.lower(), finish_reason.lower())
+            return finish_reason_mapping.get(
+                finish_reason.lower(), finish_reason.lower()
+            )
         return None
 
 
@@ -809,7 +872,9 @@ class CohereEmbeddingsModel(BedrockEmbeddingsModel):
         return args
 
     def embed(self, embeddings_request: EmbeddingsRequest) -> EmbeddingsResponse:
-        response = self._invoke_model(args=self._parse_args(embeddings_request), model_id=embeddings_request.model)
+        response = self._invoke_model(
+            args=self._parse_args(embeddings_request), model_id=embeddings_request.model
+        )
         response_body = json.loads(response.get("body").read())
         if DEBUG:
             logger.info("Bedrock response body: " + str(response_body))
@@ -825,10 +890,15 @@ class TitanEmbeddingsModel(BedrockEmbeddingsModel):
     def _parse_args(self, embeddings_request: EmbeddingsRequest) -> dict:
         if isinstance(embeddings_request.input, str):
             input_text = embeddings_request.input
-        elif isinstance(embeddings_request.input, list) and len(embeddings_request.input) == 1:
+        elif (
+            isinstance(embeddings_request.input, list)
+            and len(embeddings_request.input) == 1
+        ):
             input_text = embeddings_request.input[0]
         else:
-            raise ValueError("Amazon Titan Embeddings models support only single strings as input.")
+            raise ValueError(
+                "Amazon Titan Embeddings models support only single strings as input."
+            )
         args = {
             "inputText": input_text,
             # Note: inputImage is not supported!
@@ -842,7 +912,9 @@ class TitanEmbeddingsModel(BedrockEmbeddingsModel):
         return args
 
     def embed(self, embeddings_request: EmbeddingsRequest) -> EmbeddingsResponse:
-        response = self._invoke_model(args=self._parse_args(embeddings_request), model_id=embeddings_request.model)
+        response = self._invoke_model(
+            args=self._parse_args(embeddings_request), model_id=embeddings_request.model
+        )
         response_body = json.loads(response.get("body").read())
         if DEBUG:
             logger.info("Bedrock response body: " + str(response_body))
