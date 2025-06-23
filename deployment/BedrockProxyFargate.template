@@ -193,6 +193,7 @@ Resources:
             Resource:
               - arn:aws:bedrock:*::foundation-model/*
               - arn:aws:bedrock:*:*:inference-profile/*
+              - arn:aws:bedrock:*:*:application-inference-profile/*
         Version: "2012-10-17"
       PolicyName: ProxyTaskRoleDefaultPolicy933321B8
       Roles:
