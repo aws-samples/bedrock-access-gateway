@@ -97,73 +97,31 @@ def list_bedrock_models() -> dict:
         app_profile_dict = {}
         
         if ENABLE_CROSS_REGION_INFERENCE:
-            try:
-                # List system defined inference profile IDs
-                response = bedrock_client.list_inference_profiles(
-                    maxResults=1000, typeEquals="SYSTEM_DEFINED"
-                )
-                profile_list = [
-                    p["inferenceProfileId"] for p in response.get("inferenceProfileSummaries", [])
-                    if p and isinstance(p, dict) and p.get("inferenceProfileId")
-                ]
-                logger.info(f"Found {len(profile_list)} system inference profiles")
-            except Exception as e:
-                logger.error(f"Failed to list system inference profiles: {e}")
+            # List system defined inference profile IDs
+            response = bedrock_client.list_inference_profiles(maxResults=1000, typeEquals="SYSTEM_DEFINED")
+            profile_list = [p["inferenceProfileId"] for p in response["inferenceProfileSummaries"]]
 
         if ENABLE_APPLICATION_INFERENCE_PROFILES:
-            try:
-                # List application defined inference profile IDs and create mapping
-                response = bedrock_client.list_inference_profiles(
-                    maxResults=1000, typeEquals="APPLICATION"
-                )
-                
-                profiles_processed = 0
-                for profile in response.get("inferenceProfileSummaries", []):
-                    try:
-                        # Validate profile structure
-                        if not profile or not isinstance(profile, dict):
-                            continue
-                            
-                        profile_arn = profile.get("inferenceProfileArn")
-                        profile_id = profile.get("inferenceProfileId", "unknown")
-                        
-                        if not profile_arn:
-                            logger.warning(f"Application profile missing ARN: {profile_id}")
-                            continue
-                        
-                        # Process all models in the profile
-                        models = profile.get("models", [])
-                        if not models:
-                            logger.warning(f"Application profile has no models: {profile_id}")
-                            continue
-                            
-                        models_added = 0
-                        for model in models:
-                            if not isinstance(model, dict):
-                                continue
-                                
-                            model_arn = model.get("modelArn", "")
-                            if model_arn:
-                                # More robust model ID extraction
-                                try:
-                                    model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
-                                    if model_id and model_id != "":
-                                        app_profile_dict[model_id] = profile_arn
-                                        models_added += 1
-                                except Exception as e:
-                                    logger.warning(f"Error extracting model ID from ARN {model_arn}: {e}")
-                        
-                        if models_added > 0:
-                            profiles_processed += 1
-                            logger.debug(f"Processed application profile {profile_id} with {models_added} models")
-                                    
-                    except Exception as e:
-                        logger.warning(f"Error processing application profile {profile.get('inferenceProfileId', 'unknown')}: {e}")
+            # List application defined inference profile IDs and create mapping
+            response = bedrock_client.list_inference_profiles(maxResults=1000, typeEquals="APPLICATION")
+            
+            for profile in response["inferenceProfileSummaries"]:
+                try:
+                    profile_arn = profile.get("inferenceProfileArn")
+                    if not profile_arn:
                         continue
-                
-                logger.info(f"Processed {profiles_processed} application inference profiles with {len(app_profile_dict)} model mappings")
-            except Exception as e:
-                logger.error(f"Failed to list application inference profiles: {e}")
+                    
+                    # Process all models in the profile
+                    models = profile.get("models", [])
+                    for model in models:
+                        model_arn = model.get("modelArn", "")
+                        if model_arn:
+                            model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
+                            if model_id:
+                                app_profile_dict[model_id] = profile_arn
+                except Exception as e:
+                    logger.warning(f"Error processing application profile: {e}")
+                    continue
 
         # List foundation models, only cares about text outputs here.
         response = bedrock_client.list_foundation_models(byOutputModality="TEXT")
@@ -179,7 +137,6 @@ def list_bedrock_models() -> dict:
 
             inference_types = model.get("inferenceTypesSupported", [])
             input_modalities = model["inputModalities"]
-            
             # Add on-demand model list
             if "ON_DEMAND" in inference_types:
                 model_list[model_id] = {"modalities": input_modalities}
@@ -189,7 +146,7 @@ def list_bedrock_models() -> dict:
             if profile_id in profile_list:
                 model_list[profile_id] = {"modalities": input_modalities}
 
-            # Add application inference profiles (optimized lookup)
+            # Add application inference profiles
             if model_id in app_profile_dict:
                 model_list[app_profile_dict[model_id]] = {"modalities": input_modalities}
 
