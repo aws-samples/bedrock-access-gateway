@@ -1,0 +1,67 @@
+{
+  "api_key": "bedrock-single-key-fallback",
+  "multi_tenant_config": {
+    "enabled": true,
+    "users": {
+      "engineering-team-key-uuid-1234": {
+        "inference_profiles": [
+          "arn:aws:bedrock:us-west-2:123456789012:application-inference-profile/engineering-team"
+        ],
+        "allowed_models": [
+          "anthropic.claude-3-sonnet-*",
+          "anthropic.claude-3-haiku-*",
+          "anthropic.claude-3-opus-*"
+        ],
+        "metadata": {
+          "user_id": "engineering_team",
+          "department": "engineering",
+          "email": "engineering@company.com",
+          "cost_center": "eng-001"
+        }
+      },
+      "marketing-team-key-uuid-5678": {
+        "inference_profiles": [
+          "arn:aws:bedrock:us-west-2:123456789012:application-inference-profile/marketing-team"
+        ],
+        "allowed_models": [
+          "anthropic.claude-3-haiku-*"
+        ],
+        "metadata": {
+          "user_id": "marketing_team",
+          "department": "marketing", 
+          "email": "marketing@company.com",
+          "cost_center": "mkt-001"
+        }
+      },
+      "data-science-key-uuid-9012": {
+        "inference_profiles": [
+          "arn:aws:bedrock:us-west-2:123456789012:application-inference-profile/data-science"
+        ],
+        "allowed_models": [
+          "*"
+        ],
+        "metadata": {
+          "user_id": "data_science_team",
+          "department": "data_science",
+          "email": "datascience@company.com",
+          "cost_center": "ds-001"
+        }
+      },
+      "external-contractor-key-uuid-3456": {
+        "inference_profiles": [
+          "arn:aws:bedrock:us-west-2:123456789012:application-inference-profile/external-contractors"
+        ],
+        "allowed_models": [
+          "anthropic.claude-3-haiku-20240307-v1:0"
+        ],
+        "metadata": {
+          "user_id": "external_contractor_1",
+          "department": "external",
+          "email": "contractor@external.com",
+          "cost_center": "ext-001",
+          "access_level": "limited"
+        }
+      }
+    }
+  }
+}

@@ -4,7 +4,7 @@ import logging
 import re
 import time
 from abc import ABC
-from typing import AsyncIterable, Iterable, Literal
+from typing import AsyncIterable, Iterable, Literal, Optional
 
 import boto3
 import numpy as np
@@ -184,13 +184,17 @@ class BedrockModel(BaseChatModel):
                 detail=error,
             )
 
-    async def _invoke_bedrock(self, chat_request: ChatRequest, stream=False):
+    async def _invoke_bedrock(self, chat_request: ChatRequest, stream=False, user_inference_profile: Optional[str] = None):
         """Common logic for invoke bedrock models"""
         if DEBUG:
             logger.info("Raw request: " + chat_request.model_dump_json())
 
         # convert OpenAI chat request to Bedrock SDK request
         args = self._parse_request(chat_request)
+        
+        # Use user's inference profile if provided for cost tracking
+        if user_inference_profile:
+            args["modelId"] = user_inference_profile
         if DEBUG:
             logger.info("Bedrock request: " + json.dumps(str(args)))
 
@@ -214,11 +218,11 @@ class BedrockModel(BaseChatModel):
             raise HTTPException(status_code=500, detail=str(e))
         return response
 
-    async def chat(self, chat_request: ChatRequest) -> ChatResponse:
+    async def chat(self, chat_request: ChatRequest, user_inference_profile: Optional[str] = None) -> ChatResponse:
         """Default implementation for Chat API."""
 
         message_id = self.generate_message_id()
-        response = await self._invoke_bedrock(chat_request)
+        response = await self._invoke_bedrock(chat_request, user_inference_profile=user_inference_profile)
 
         output_message = response["output"]["message"]
         input_tokens = response["usage"]["inputTokens"]
@@ -243,10 +247,10 @@ class BedrockModel(BaseChatModel):
             await run_in_threadpool(lambda: chunk)
             yield chunk
 
-    async def chat_stream(self, chat_request: ChatRequest) -> AsyncIterable[bytes]:
+    async def chat_stream(self, chat_request: ChatRequest, user_inference_profile: Optional[str] = None) -> AsyncIterable[bytes]:
         """Default implementation for Chat Stream API"""
         try:
-            response = await self._invoke_bedrock(chat_request, stream=True)
+            response = await self._invoke_bedrock(chat_request, stream=True, user_inference_profile=user_inference_profile)
             message_id = self.generate_message_id()
             stream = response.get("stream")
             async for chunk in self._async_iterate(stream):
