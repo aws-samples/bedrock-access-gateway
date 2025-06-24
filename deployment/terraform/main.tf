@@ -166,6 +166,7 @@ resource "aws_api_gateway_integration" "lambda_integration" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = aws_lambda_function.proxy_api_handler.invoke_arn
+  timeout_milliseconds    = 59000
 }
 
 # ANY method for the /api/v1 resource
@@ -185,6 +186,7 @@ resource "aws_api_gateway_integration" "v1_lambda_integration" {
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = aws_lambda_function.proxy_api_handler.invoke_arn
+  timeout_milliseconds    = 59000
 }
 
 # Deployment

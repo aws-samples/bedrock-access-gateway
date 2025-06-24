@@ -25,6 +25,20 @@ default_model_id   = "anthropic.claude-3-sonnet-20240229-v1:0"  # Default Bedroc
 ecr_account_id     = "366590864501"  # ECR account ID for the container image
 ```
 
+## Service Quota Requirements
+
+This deployment uses an API Gateway integration timeout of 59000ms (59 seconds), which exceeds the default AWS Service Quota of 29000ms (29 seconds). Before deploying, you should request a Service Quota increase for the "API Gateway integration timeout" in your AWS account.
+
+To request a quota increase:
+
+1. Navigate to the AWS Service Quotas console
+2. Search for "Amazon API Gateway"
+3. Find "Integration timeout" and request an increase to at least 59000ms
+4. Provide a business justification (e.g., "Required for Bedrock model inference which can take longer than 29 seconds")
+
+Deployment may still succeed without the quota increase, but API calls that take longer than 29 seconds will time out.
+
+
 ## Deployment
 
 Initialize the Terraform configuration:

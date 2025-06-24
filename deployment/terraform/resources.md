@@ -26,11 +26,13 @@ This document provides an overview of all resources created by the Terraform con
 | `aws_api_gateway_resource` | `v1` | API resource for the `/api/v1` path |
 | `aws_api_gateway_resource` | `proxy` | Proxy resource for all paths under `/api/v1` |
 | `aws_api_gateway_method` | `proxy_any` | ANY method for the proxy resource |
-| `aws_api_gateway_integration` | `lambda_integration` | Lambda integration for the proxy resource |
+| `aws_api_gateway_integration` | `lambda_integration` | Lambda integration for the proxy resource with 59000ms timeout |
 | `aws_api_gateway_method` | `v1_any` | ANY method for the `/api/v1` resource |
-| `aws_api_gateway_integration` | `v1_lambda_integration` | Lambda integration for the `/api/v1` resource |
+| `aws_api_gateway_integration` | `v1_lambda_integration` | Lambda integration for the `/api/v1` resource with 59000ms timeout |
 | `aws_api_gateway_deployment` | `api_deployment` | Deployment of the API Gateway |
 | `aws_api_gateway_stage` | `api_stage` | Stage for the API Gateway deployment |
+
+> **Note**: The API Gateway integration timeout is set to 59000ms (59 seconds), which exceeds the default AWS Service Quota of 29000ms. A Service Quota increase request is required before deployment. See the README for details.
 
 ## Data Sources
 

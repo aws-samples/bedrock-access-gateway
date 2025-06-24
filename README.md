@@ -39,8 +39,11 @@ Please check [Usage Guide](./docs/Usage.md) for more details about how to use th
 Please make sure you have met below prerequisites:
 
 - Access to Amazon Bedrock foundation models.
+- If using the Terraform deployment method, you need to request a Service Quota increase for "API Gateway integration timeout" to 59000ms (59 seconds) - the default AWS limit is 29000ms.
 
 > For more information on how to request model access, please refer to the [Amazon Bedrock User Guide](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) (Set Up > Model access)
+>
+> To request a Service Quota increase, visit the AWS Service Quotas console, select Amazon API Gateway, find "Integration timeout" and request an increase to at least 59000ms.
 
 ### Architecture
 
