@@ -1,3 +1,4 @@
+import logging
 import time
 import uuid
 from abc import ABC, abstractmethod
@@ -13,6 +14,8 @@ from api.schema import (
     EmbeddingsResponse,
     Error,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class BaseChatModel(ABC):
@@ -46,6 +49,7 @@ class BaseChatModel(ABC):
     @staticmethod
     def stream_response_to_bytes(response: ChatStreamResponse | Error | None = None) -> bytes:
         if isinstance(response, Error):
+            logger.error("Stream error: %s", response.error.message if response.error else "Unknown error")
             data = response.model_dump_json()
         elif isinstance(response, ChatStreamResponse):
             # to populate other fields when using exclude_unset=True
