@@ -49,15 +49,7 @@ from api.setting import (
 
 logger = logging.getLogger(__name__)
 
-config = Config(
-            connect_timeout=60,      # Connection timeout: 60 seconds
-            read_timeout=900,        # Read timeout: 15 minutes (suitable for long streaming responses)
-            retries={
-                'max_attempts': 8,   # Maximum retry attempts
-                'mode': 'adaptive'   # Adaptive retry mode
-            },
-            max_pool_connections=50  # Maximum connection pool size
-        )
+config = Config(connect_timeout=60, read_timeout=120, retries={"max_attempts": 1})
 
 bedrock_runtime = boto3.client(
     service_name="bedrock-runtime",
@@ -183,10 +175,13 @@ class BedrockModel(BaseChatModel):
     def validate(self, chat_request: ChatRequest):
         """Perform basic validation on requests"""
         error = ""
+        # Regex check for model_id ARN pattern
+        arn_pattern = r"^arn:aws:bedrock:us-east-1:031129538722:application-inference-profile.*"
+        if not re.match(arn_pattern, chat_request.model):
+            error = f"model_id must match pattern: {arn_pattern}"
         # check if model is supported
-        if chat_request.model not in bedrock_model_list.keys():
+        elif chat_request.model not in bedrock_model_list.keys():
             error = f"Unsupported model {chat_request.model}, please use models API to get a list of supported models"
-            logger.error("Unsupported model: %s", chat_request.model)
 
         if error:
             raise HTTPException(
@@ -214,13 +209,13 @@ class BedrockModel(BaseChatModel):
                 # Run the blocking boto3 call in a thread pool
                 response = await run_in_threadpool(bedrock_runtime.converse, **args)
         except bedrock_runtime.exceptions.ValidationException as e:
-            logger.error("Bedrock validation error for model %s: %s", chat_request.model, str(e))
+            logger.error("Validation Error: " + str(e))
             raise HTTPException(status_code=400, detail=str(e))
         except bedrock_runtime.exceptions.ThrottlingException as e:
-            logger.warning("Bedrock throttling for model %s: %s", chat_request.model, str(e))
+            logger.error("Throttling Error: " + str(e))
             raise HTTPException(status_code=429, detail=str(e))
         except Exception as e:
-            logger.error("Bedrock invocation failed for model %s: %s", chat_request.model, str(e))
+            logger.error(e)
             raise HTTPException(status_code=500, detail=str(e))
         return response
 
@@ -280,7 +275,6 @@ class BedrockModel(BaseChatModel):
             # return an [DONE] message at the end.
             yield self.stream_response_to_bytes()
         except Exception as e:
-            logger.error("Stream error for model %s: %s", chat_request.model, str(e))
             error_event = Error(error=ErrorMessage(message=str(e)))
             yield self.stream_response_to_bytes(error_event)
 
@@ -328,16 +322,7 @@ class BedrockModel(BaseChatModel):
                     }
                 )
             elif isinstance(message, AssistantMessage):
-                # Check if message has content that's not empty
-                has_content = False
-                if isinstance(message.content, str):
-                    has_content = message.content.strip() != ""
-                elif isinstance(message.content, list):
-                    has_content = len(message.content) > 0
-                elif message.content is not None:
-                    has_content = True
-                
-                if has_content:
+                if message.content is not None and isinstance(message.content, str) and message.content.strip():
                     # Text message
                     messages.append(
                         {
@@ -369,10 +354,6 @@ class BedrockModel(BaseChatModel):
                 # Bedrock does not support tool role,
                 # Add toolResult to content
                 # https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ToolResultBlock.html
-                
-                # Handle different content formats from OpenAI SDK
-                tool_content = self._extract_tool_content(message.content)
-                
                 messages.append(
                     {
                         "role": "user",
@@ -380,7 +361,7 @@ class BedrockModel(BaseChatModel):
                             {
                                 "toolResult": {
                                     "toolUseId": message.tool_call_id,
-                                    "content": [{"text": tool_content}],
+                                    "content": [{"text": message.content}],
                                 }
                             }
                         ],
@@ -391,57 +372,6 @@ class BedrockModel(BaseChatModel):
                 # ignore others, such as system messages
                 continue
         return self._reframe_multi_payloard(messages)
-
-    def _extract_tool_content(self, content) -> str:
-        """Extract text content from various OpenAI SDK tool message formats.
-        
-        Handles:
-        - String content (legacy format)
-        - List of content objects (OpenAI SDK 1.91.0+)
-        - Nested JSON structures within text content
-        """
-        try:
-            if isinstance(content, str):
-                return content
-            
-            if isinstance(content, list):
-                text_parts = []
-                for i, item in enumerate(content):
-                    if isinstance(item, dict):
-                        # Handle dict with 'text' field
-                        if "text" in item:
-                            item_text = item["text"]
-                            if isinstance(item_text, str):
-                                # Try to parse as JSON if it looks like JSON
-                                if item_text.strip().startswith('{') and item_text.strip().endswith('}'):
-                                    try:
-                                        parsed_json = json.loads(item_text)
-                                        # Convert JSON object to readable text
-                                        text_parts.append(json.dumps(parsed_json, indent=2))
-                                    except json.JSONDecodeError:
-                                        # Silently fallback to original text
-                                        text_parts.append(item_text)
-                                else:
-                                    text_parts.append(item_text)
-                            else:
-                                text_parts.append(str(item_text))
-                        else:
-                            # Handle other dict formats - convert to JSON string
-                            text_parts.append(json.dumps(item, indent=2))
-                    elif hasattr(item, 'text'):
-                        # Handle ToolContent objects
-                        text_parts.append(item.text)
-                    else:
-                        # Convert any other type to string
-                        text_parts.append(str(item))
-                return "\n".join(text_parts)
-            
-            # Fallback for any other type
-            return str(content)
-        except Exception as e:
-            logger.warning("Tool content extraction failed: %s", str(e))
-            # Return a safe fallback
-            return str(content) if content is not None else ""
 
     def _reframe_multi_payloard(self, messages: list) -> list:
         """Receive messages and reformat them to comply with the Claude format
