@@ -15,6 +15,8 @@ export OPENAI_BASE_URL=<API base url>
 - [Multimodal API](#multimodal-api)
 - [Tool Call](#tool-call)
 - [Reasoning](#reasoning)
+- [Interleaved thinking (beta)](#Interleaved thinking (beta))
+
 
 ## Models API
 
@@ -440,4 +442,56 @@ for chunk in response:
         reasoning_content += chunk.choices[0].delta.reasoning_content
     elif chunk.choices[0].delta.content:
         content += chunk.choices[0].delta.content
+```
+
+## Interleaved thinking (beta)
+
+**重要提示**：在使用 Chat Completion API 的推理模式（reasoning mode）前，请务必仔细阅读以下内容。
+
+Claude 4 模型支持借助工具使用的扩展思维功能（Extended Thinking），其中包含交错思考（[interleaved thinking](https://docs.aws.amazon.com/bedrock/latest/userguide/claude-messages-extended-thinking.html#claude-messages-extended-thinking-tool-use-interleaved) ）。该功能使 Claude 4 可以在多次调用工具之间进行思考，并在收到工具结果后执行更复杂的推理，这对处理更复杂的 Agentic AI 交互非常有帮助。
+
+在交错思考模式下，budget_tokens 可以超过 max_tokens 参数，因为它代表一次助手回合中所有思考块的总 Token 预算。
+
+
+**Request 示例**
+
+- Non-Streaming
+
+```bash
+curl http://127.0.0.1:8000/api/v1/chat/completions \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer bedrock" \
+-d '{
+"model": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+"max_tokens": 2048,
+"messages": [{
+"role": "user",
+"content": "有一天，一个女孩参加数学考试只得了 38 分。她心里对父亲的惩罚充满恐惧，于是偷偷把分数改成了 88 分。她的父亲看到试卷后，怒发冲冠，狠狠地给了她一巴掌，怒吼道：“你这 8 怎么一半是绿的一半是红的，你以为我是傻子吗？”女孩被打后，委屈地哭了起来，什么也没说。过了一会儿，父亲突然崩溃了。请问这位父亲为什么过一会崩溃了？"
+}],
+"extra_body": {
+"anthropic_beta": ["interleaved-thinking-2025-05-14"],
+"thinking": {"type": "enabled", "budget_tokens": 4096}
+}
+}'
+```
+
+- Streaming
+
+```bash
+curl http://127.0.0.1:8000/api/v1/chat/completions \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer bedrock" \
+-d '{
+"model": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+"max_tokens": 2048,
+"messages": [{
+"role": "user",
+"content": "有一天，一个女孩参加数学考试只得了 38 分。她心里对父亲的惩罚充满恐惧，于是偷偷把分数改成了 88 分。她的父亲看到试卷后，怒发冲冠，狠狠地给了她一巴掌，怒吼道：“你这 8 怎么一半是绿的一半是红的，你以为我是傻子吗？”女孩被打后，委屈地哭了起来，什么也没说。过了一会儿，父亲突然崩溃了。请问这位父亲为什么过一会崩溃了？"
+}],
+"stream": true,
+"extra_body": {
+"anthropic_beta": ["interleaved-thinking-2025-05-14"],
+"thinking": {"type": "enabled", "budget_tokens": 4096}
+}
+}'
 ```
