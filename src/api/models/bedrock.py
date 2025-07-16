@@ -34,7 +34,6 @@ from api.schema import (
     ResponseFunction,
     TextContent,
     ToolCall,
-    ToolContent,
     ToolMessage,
     Usage,
     UserMessage,
