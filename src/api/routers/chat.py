@@ -5,6 +5,7 @@ from fastapi.responses import StreamingResponse
 
 from api.auth import api_key_auth
 from api.models.bedrock import BedrockModel
+from api.models.bedrock_agents import BedrockAgents
 from api.schema import ChatRequest, ChatResponse, ChatStreamResponse, Error
 from api.setting import DEFAULT_MODEL
 
@@ -36,10 +37,18 @@ async def chat_completions(
 ):
     if chat_request.model.lower().startswith("gpt-"):
         chat_request.model = DEFAULT_MODEL
+    
+    model = None
+
+    for mods_inst in [BedrockModel(), BedrockAgents()]:
+        try:
+            mods_inst.validate(chat_request)
+        except:
+            continue
+
+        model = mods_inst    
 
     # Exception will be raised if model not supported.
-    model = BedrockModel()
-    model.validate(chat_request)
     if chat_request.stream:
         return StreamingResponse(content=model.chat_stream(chat_request), media_type="text/event-stream")
     return await model.chat(chat_request)

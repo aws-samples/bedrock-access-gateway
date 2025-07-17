@@ -15,6 +15,7 @@ from fastapi import HTTPException
 from starlette.concurrency import run_in_threadpool
 
 from api.models.base import BaseChatModel, BaseEmbeddingsModel
+from api.models.model_manager import ModelManager
 from api.schema import (
     AssistantMessage,
     ChatRequest,
@@ -158,6 +159,8 @@ def list_bedrock_models() -> dict:
             # Add application inference profiles
             if model_id in app_profile_dict:
                 model_list[app_profile_dict[model_id]] = {"modalities": input_modalities}
+        
+        return model_list
 
     except Exception as e:
         logger.error(f"Unable to list models: {str(e)}")
@@ -169,22 +172,21 @@ def list_bedrock_models() -> dict:
     return model_list
 
 
-# Initialize the model list.
-bedrock_model_list = list_bedrock_models()
-
-
 class BedrockModel(BaseChatModel):
+    def __init__(self):
+        """Instantiate with initial model grouping."""
+        self._model_manager = ModelManager()
+        [self._model_manager.add_model({k: v}) for k,v in list_bedrock_models().items()]
+
     def list_models(self) -> list[str]:
         """Always refresh the latest model list"""
-        global bedrock_model_list
-        bedrock_model_list = list_bedrock_models()
-        return list(bedrock_model_list.keys())
+        return self._model_manager.model_keys
 
     def validate(self, chat_request: ChatRequest):
         """Perform basic validation on requests"""
         error = ""
         # check if model is supported
-        if chat_request.model not in bedrock_model_list.keys():
+        if chat_request.model not in self._model_manager.model_keys:
             error = f"Unsupported model {chat_request.model}, please use models API to get a list of supported models"
             logger.error("Unsupported model: %s", chat_request.model)
 
