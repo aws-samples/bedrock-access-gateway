@@ -38,15 +38,8 @@ async def chat_completions(
     if chat_request.model.lower().startswith("gpt-"):
         chat_request.model = DEFAULT_MODEL
     
-    model = None
-
-    for mods_inst in [BedrockModel(), BedrockAgents()]:
-        try:
-            mods_inst.validate(chat_request)
-        except:
-            continue
-
-        model = mods_inst    
+    model = BedrockAgents()
+    model.validate(chat_request)
 
     # Exception will be raised if model not supported.
     if chat_request.stream:
