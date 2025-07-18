@@ -53,7 +53,7 @@ class BedrockAgents(BedrockModel):
         super().__init__()
         self.get_agents()
     
-    def get_latest_agent_alias(self, client, agent_id):
+    def get_latest_agent_aliases(self, client, agent_id):#, limit=2):
 
         # List all aliases for the agent
         response = client.list_agent_aliases(
@@ -63,24 +63,29 @@ class BedrockAgents(BedrockModel):
         
         if not response.get('agentAliasSummaries'):
             return None
-            
-        # Sort aliases by creation time to get the latest one
-        aliases = response['agentAliasSummaries']
-        latest_alias = None
-        latest_creation_time = None
-        
-        for alias in aliases:
-            # Only consider aliases that are in PREPARED state
-            if alias['agentAliasStatus'] == 'PREPARED':
-                creation_time = alias.get('creationDateTime')
-                if latest_creation_time is None or creation_time > latest_creation_time:
-                    latest_creation_time = creation_time
-                    latest_alias = alias
-        
-        if latest_alias:
-            return latest_alias['agentAliasId']
-            
-        return None
+
+        # Sort aliases by createdAt descending
+        aliases = response.get('agentAliasSummaries', [])
+
+        sorted_aliases = sorted(
+            [a for a in aliases if a.get('agentAliasName')],
+            key=lambda a: a['createdAt'],
+            reverse=True
+        )
+
+        # Init
+        result = {}
+        seen_statuses = set()
+
+        for alias in sorted_aliases:
+            if "PREPARED" in alias.get('agentAliasStatus'):
+                name = alias.get('agentAliasName').replace('AgentTestAlias', 'DRAFT')
+                result[name]=alias
+
+            #if len(result) >= limit:
+            #    break
+
+        return result
 
     def get_agents(self):
         bedrock_ag = boto3.client(
@@ -97,25 +102,29 @@ class BedrockAgents(BedrockModel):
             if (agent['agentStatus'] != 'PREPARED'):
                 continue
 
-            name = f"{AGENT_PREFIX}{agent['agentName']}"
             agentId = agent['agentId']
 
-            aliasId = self.get_latest_agent_alias(bedrock_ag, agentId)
-            if (aliasId is None):
+            all_latest_aliases = self.get_latest_agent_aliases(bedrock_ag, agentId)
+            if not all_latest_aliases:
                 continue
 
-            val = {
-                "system": False,      # Supports system prompts for context setting. These are already set in Bedrock Agent configuration
-                "multimodal": True,  # Capable of processing both text and images
-                "tool_call": False,  # Tool Use not required for Agents
-                "stream_tool_call": False,
-                "agent_id": agentId,
-                "alias_id": aliasId
-            }
-            
-            model = {}
-            model[name]=val
-            self._model_manager.add_model(model)
+            for alias_name, latest_alias in all_latest_aliases.items():         
+                key_alias_id = 'agentAliasId'
+
+                name = f"{AGENT_PREFIX}{agent['agentName']}-{alias_name}"
+
+                val = {
+                    "system": False,      # Supports system prompts for context setting. These are already set in Bedrock Agent configuration
+                    "multimodal": True,  # Capable of processing both text and images
+                    "tool_call": False,  # Tool Use not required for Agents
+                    "stream_tool_call": True,
+                    "agent_id": agentId,
+                    "alias_id": latest_alias[key_alias_id]
+                }
+                
+                model = {}
+                model[name]=val
+                self._model_manager.add_model(model)
     
 
     async def _invoke_bedrock(self, chat_request: ChatRequest, stream=False):
