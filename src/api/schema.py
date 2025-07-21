@@ -107,6 +107,7 @@ class ChatRequest(BaseModel):
     tools: list[Tool] | None = None
     tool_choice: str | object = "auto"
     stop: list[str] | str | None = None
+    extra_body: dict | None = None
 
 
 class Usage(BaseModel):

@@ -28,6 +28,7 @@ If you find this GitHub repository useful, please consider giving it a free star
 - [x] Support Cross-Region Inference
 - [x] Support Application Inference Profiles (**new**)
 - [x] Support Reasoning (**new**)
+- [x] Support Interleaved thinking (**new**)
 
 Please check [Usage Guide](./docs/Usage.md) for more details about how to use the new APIs.
 

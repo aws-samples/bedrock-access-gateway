@@ -15,6 +15,7 @@ export OPENAI_BASE_URL=<API base url>
 - [Multimodal API](#multimodal-api)
 - [Tool Call](#tool-call)
 - [Reasoning](#reasoning)
+- [Interleaved thinking (beta)](#Interleaved thinking (beta))
 
 ## Models API
 
@@ -135,6 +136,7 @@ print(doc_result[0][:5])
 **Example Request**
 
 ```bash
+curl $OPENAI_BASE_URL/chat/completions \
 curl $OPENAI_BASE_URL/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
@@ -340,7 +342,6 @@ curl $OPENAI_BASE_URL/chat/completions \
   -d '{
     "model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
     "messages": [
-        {
             "role": "user",
             "content": "which one is bigger, 3.9 or 3.11?"
         }
@@ -441,4 +442,55 @@ for chunk in response:
         reasoning_content += chunk.choices[0].delta.reasoning_content
     elif chunk.choices[0].delta.content:
         content += chunk.choices[0].delta.content
+```
+
+## Interleaved thinking (beta)
+
+**Important Notice**: Please carefully review the following points before using reasoning mode for Chat completion API.
+
+Extended thinking with tool use in Claude 4 models supports [interleaved thinking](https://docs.aws.amazon.com/bedrock/latest/userguide/claude-messages-extended-thinking.html#claude-messages-extended-thinking-tool-use-interleaved) enables Claude 4 models to think between tool calls and run more sophisticated reasoning after receiving tool results. which is helpful for more complex agentic interactions.
+With interleaved thinking, the `budget_tokens` can exceed the `max_tokens` parameter because it represents the total budget across all thinking blocks within one assistant turn.
+
+
+**Example Request**
+
+- Non-Streaming
+
+```bash
+curl http://127.0.0.1:8000/api/v1/chat/completions \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer bedrock" \
+-d '{
+"model": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+"max_tokens": 2048,
+"messages": [{
+"role": "user",
+"content": "有一天，一个女孩参加数学考试只得了 38 分。她心里对父亲的惩罚充满恐惧，于是偷偷把分数改成了 88 分。她的父亲看到试卷后，怒发冲冠，狠狠地给了她一巴掌，怒吼道：“你这 8 怎么一半是绿的一半是红的，你以为我是傻子吗？”女孩被打后，委屈地哭了起来，什么也没说。过了一会儿，父亲突然崩溃了。请问这位父亲为什么过一会崩溃了？"
+}],
+"extra_body": {
+"anthropic_beta": ["interleaved-thinking-2025-05-14"],
+"thinking": {"type": "enabled", "budget_tokens": 4096}
+}
+}'
+```
+
+- Streaming
+
+```bash
+curl http://127.0.0.1:8000/api/v1/chat/completions \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer bedrock" \
+-d '{
+"model": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+"max_tokens": 2048,
+"messages": [{
+"role": "user",
+"content": "有一天，一个女孩参加数学考试只得了 38 分。她心里对父亲的惩罚充满恐惧，于是偷偷把分数改成了 88 分。她的父亲看到试卷后，怒发冲冠，狠狠地给了她一巴掌，怒吼道：“你这 8 怎么一半是绿的一半是红的，你以为我是傻子吗？”女孩被打后，委屈地哭了起来，什么也没说。过了一会儿，父亲突然崩溃了。请问这位父亲为什么过一会崩溃了？"
+}],
+"stream": true,
+"extra_body": {
+"anthropic_beta": ["interleaved-thinking-2025-05-14"],
+"thinking": {"type": "enabled", "budget_tokens": 4096}
+}
+}'
 ```
