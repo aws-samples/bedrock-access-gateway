@@ -175,7 +175,7 @@ class BedrockModel(BaseChatModel):
         """Perform basic validation on requests"""
         error = ""
         # Regex check for model_id ARN pattern
-        arn_pattern = r"^arn:aws:bedrock:us-east-1:031129538722:application-inference-profile.*"
+        arn_pattern = r"^.*application-inference-profile.*"
         if not re.match(arn_pattern, chat_request.model):
             error = f"model_id must match pattern: {arn_pattern}"
         # check if model is supported
