@@ -496,6 +496,10 @@ class BedrockModel(BaseChatModel):
                     assert "function" in chat_request.tool_choice
                     tool_config["toolChoice"] = {"tool": {"name": chat_request.tool_choice["function"].get("name", "")}}
             args["toolConfig"] = tool_config
+        # add Additional fields to enable extend thinking
+        if chat_request.extra_body:
+            # reasoning_config will not be used 
+            args["additionalModelRequestFields"] = chat_request.extra_body
         return args
 
     def _create_response(
