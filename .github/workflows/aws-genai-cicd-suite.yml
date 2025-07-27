@@ -25,16 +25,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
+    - name: Set up Python
+      uses: actions/setup-python@v2
       with:
-        node-version: '20'
+        python-version: 3.12  # Adjust the Python version as needed
 
-    - name: Install dependencies @actions/core and @actions/github
-      run: |
-        npm install @actions/core
-        npm install @actions/github
-      shell: bash
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Test
+      run: python -m unittest
+      working-directory: ./tests
 
     # check if required dependencies @actions/core and @actions/github are installed
     - name: Check if required dependencies are installed
