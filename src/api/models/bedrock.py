@@ -145,10 +145,6 @@ def list_bedrock_models() -> dict:
             if not stream_supported or status not in ["ACTIVE", "LEGACY"]:
                 continue
 
-            # if the user provides a custom model list, filter only those models
-            if CUSTOM_MODEL_LIST and model_id not in CUSTOM_MODEL_LIST:
-                continue
-
             inference_types = model.get("inferenceTypesSupported", [])
             input_modalities = model["inputModalities"]
             # Add on-demand model list
