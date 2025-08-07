@@ -45,6 +45,11 @@ class ImageContent(BaseModel):
     image_url: ImageUrl
 
 
+class ToolContent(BaseModel):
+    type: Literal["text"] = "text"
+    text: str
+
+
 class SystemMessage(BaseModel):
     name: str | None = None
     role: Literal["system"] = "system"
@@ -66,7 +71,7 @@ class AssistantMessage(BaseModel):
 
 class ToolMessage(BaseModel):
     role: Literal["tool"] = "tool"
-    content: str
+    content: str | list[ToolContent] | list[dict]
     tool_call_id: str
 
 
@@ -102,6 +107,7 @@ class ChatRequest(BaseModel):
     tools: list[Tool] | None = None
     tool_choice: str | object = "auto"
     stop: list[str] | str | None = None
+    extra_body: dict | None = None
 
 
 class Usage(BaseModel):

@@ -151,6 +151,7 @@ Resources:
             Resource:
               - arn:aws:bedrock:*::foundation-model/*
               - arn:aws:bedrock:*:*:inference-profile/*
+              - arn:aws:bedrock:*:*:application-inference-profile/*
           - Action:
               - secretsmanager:GetSecretValue
               - secretsmanager:DescribeSecret
@@ -185,6 +186,7 @@ Resources:
             Ref: DefaultModelId
           DEFAULT_EMBEDDING_MODEL: cohere.embed-multilingual-v3
           ENABLE_CROSS_REGION_INFERENCE: "true"
+          ENABLE_APPLICATION_INFERENCE_PROFILES: "true"
       MemorySize: 1024
       PackageType: Image
       Role:
