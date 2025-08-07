@@ -6,6 +6,7 @@ from urllib.parse import quote
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse, Response
+from aws_bedrock_token_generator import provide_token
 
 from api.auth import api_key_auth
 from api.setting import AWS_REGION, DEBUG
@@ -14,11 +15,23 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/bedrock")
 
-# Get AWS bearer token from environment
+# Get static token if provided (convenience feature)
 AWS_BEARER_TOKEN = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
 
-if not AWS_BEARER_TOKEN:
-    logger.warning("AWS_BEARER_TOKEN_BEDROCK not set - bedrock proxy endpoints will not work")
+def get_aws_bearer_token() -> str:
+    """Get AWS bearer token - static if provided, otherwise auto-generate"""
+    if AWS_BEARER_TOKEN:
+        logger.debug("Using static AWS bearer token")
+        return AWS_BEARER_TOKEN
+    
+    # Default: auto-generate token using AWS SDK credentials
+    try:
+        token = provide_token(region=AWS_REGION)
+        logger.debug("Generated fresh AWS Bedrock token")
+        return token
+    except Exception as e:
+        logger.error(f"Failed to generate AWS token: {e}")
+        raise HTTPException(status_code=503, detail="Failed to generate AWS authentication token. Ensure AWS credentials are configured or set AWS_BEARER_TOKEN_BEDROCK")
 
 
 def get_aws_url(model_id: str, endpoint_path: str) -> str:
@@ -36,8 +49,9 @@ def get_proxy_headers(request: Request) -> Dict[str, str]:
     headers.pop("authorization", None)
     headers.pop("host", None)  # Let httpx set the correct host
 
-    if AWS_BEARER_TOKEN:
-        headers["Authorization"] = f"Bearer {AWS_BEARER_TOKEN}"
+    # Get fresh AWS token (static or auto-generated)
+    aws_token = get_aws_bearer_token()
+    headers["Authorization"] = f"Bearer {aws_token}"
 
     return headers
 
@@ -53,12 +67,8 @@ async def transparent_proxy(
     """
     Transparent HTTP proxy to AWS Bedrock.
     Forwards all requests as-is, only changing auth and URL.
+    Supports both static tokens and auto-refresh tokens.
     """
-    if not AWS_BEARER_TOKEN:
-        raise HTTPException(
-            status_code=503,
-            detail="AWS_BEARER_TOKEN_BEDROCK not configured"
-        )
 
     # Build AWS URL
     aws_url = get_aws_url(model_id, endpoint_path)

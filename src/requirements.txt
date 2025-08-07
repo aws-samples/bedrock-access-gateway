@@ -8,3 +8,4 @@ httpx==0.27.0
 numpy==1.26.4
 boto3==1.37.0
 botocore==1.37.0
+aws-bedrock-token-generator
