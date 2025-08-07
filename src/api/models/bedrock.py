@@ -108,31 +108,32 @@ def list_bedrock_models() -> dict:
         
         if ENABLE_CROSS_REGION_INFERENCE:
             # List system defined inference profile IDs
-            response = bedrock_client.list_inference_profiles(maxResults=1000, typeEquals="SYSTEM_DEFINED")
-            profile_list = [p["inferenceProfileId"] for p in response["inferenceProfileSummaries"]]
+            paginator = bedrock_client.get_paginator('list_inference_profiles')
+            for page in paginator.paginate(maxResults=1000, typeEquals="SYSTEM_DEFINED"):
+                profile_list.extend([p["inferenceProfileId"] for p in page["inferenceProfileSummaries"]])
 
         if ENABLE_APPLICATION_INFERENCE_PROFILES:
             # List application defined inference profile IDs and create mapping
-            response = bedrock_client.list_inference_profiles(maxResults=1000, typeEquals="APPLICATION")
-            
-            for profile in response["inferenceProfileSummaries"]:
-                try:
-                    profile_arn = profile.get("inferenceProfileArn")
-                    if not profile_arn:
+            paginator = bedrock_client.get_paginator('list_inference_profiles')
+            for page in paginator.paginate(maxResults=1000, typeEquals="APPLICATION"):
+                for profile in page["inferenceProfileSummaries"]:
+                    try:
+                        profile_arn = profile.get("inferenceProfileArn")
+                        if not profile_arn:
+                            continue
+                        
+                        # Process all models in the profile
+                        models = profile.get("models", [])
+                        for model in models:
+                            model_arn = model.get("modelArn", "")
+                            if model_arn:
+                                model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
+                                if model_id:
+                                    app_profile_dict[model_id] = profile_arn
+                    except Exception as e:
+                        logger.warning(f"Error processing application profile: {e}")
                         continue
                     
-                    # Process all models in the profile
-                    models = profile.get("models", [])
-                    for model in models:
-                        model_arn = model.get("modelArn", "")
-                        if model_arn:
-                            model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
-                            if model_id:
-                                app_profile_dict[model_id] = profile_arn
-                except Exception as e:
-                    logger.warning(f"Error processing application profile: {e}")
-                    continue
-
         # List foundation models, only cares about text outputs here.
         response = bedrock_client.list_foundation_models(byOutputModality="TEXT")
 
