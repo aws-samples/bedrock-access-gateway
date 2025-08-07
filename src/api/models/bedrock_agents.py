@@ -31,7 +31,15 @@ from api.schema import (
 from api.setting import (DEBUG, AWS_REGION, AGENT_PREFIX)
 
 logger = logging.getLogger(__name__)
-config = Config(connect_timeout=1, read_timeout=120, retries={"max_attempts": 1})
+config = Config(
+            connect_timeout=60,      # Connection timeout: 60 seconds
+            read_timeout=900,        # Read timeout: 15 minutes (suitable for long streaming responses)
+            retries={
+                'max_attempts': 8,   # Maximum retry attempts
+                'mode': 'adaptive'   # Adaptive retry mode
+            },
+            max_pool_connections=50  # Maximum connection pool size
+        )
 
 bedrock_agent = boto3.client(
             service_name="bedrock-agent",
