@@ -45,6 +45,16 @@ async def health():
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
+    logger = logging.getLogger(__name__)
+    
+    # Log essential info only - avoid sensitive data and performance overhead
+    logger.warning(
+        "Request validation failed: %s %s - %s", 
+        request.method, 
+        request.url.path,
+        str(exc).split('\n')[0]  # First line only
+    )
+    
     return PlainTextResponse(str(exc), status_code=400)
 
 

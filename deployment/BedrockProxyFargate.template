@@ -193,6 +193,7 @@ Resources:
             Resource:
               - arn:aws:bedrock:*::foundation-model/*
               - arn:aws:bedrock:*:*:inference-profile/*
+              - arn:aws:bedrock:*:*:application-inference-profile/*
         Version: "2012-10-17"
       PolicyName: ProxyTaskRoleDefaultPolicy933321B8
       Roles:
@@ -221,6 +222,8 @@ Resources:
             - Name: DEFAULT_EMBEDDING_MODEL
               Value: cohere.embed-multilingual-v3
             - Name: ENABLE_CROSS_REGION_INFERENCE
+              Value: "true"
+            - Name: ENABLE_APPLICATION_INFERENCE_PROFILES
               Value: "true"
           Essential: true
           Image:
