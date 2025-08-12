@@ -95,20 +95,35 @@ async def transparent_proxy(
 
         background_tasks.add_task(cleanup_client)
 
-        async def stream_generator():
-            async with client.stream(
-                method=request.method,
-                url=aws_url,
-                headers=proxy_headers,
-                content=body,
-                params=request.query_params,
-                timeout=120.0
-            ) as response:
-                async for chunk in response.aiter_bytes():
-                    if chunk:  # Only yield non-empty chunks
-                        yield chunk
+        # Use a custom response class that captures headers from the stream
+        stream_request = client.stream(
+            method=request.method,
+            url=aws_url,
+            headers=proxy_headers,
+            content=body,
+            params=request.query_params,
+            timeout=120.0
+        )
+        
+        # Start the stream to get response object
+        response = await stream_request.__aenter__()
+        
+        # Schedule cleanup
+        async def cleanup_stream():
+            await stream_request.__aexit__(None, None, None)
+        background_tasks.add_task(cleanup_stream)
 
-        return StreamingResponse(content=stream_generator())
+        async def stream_generator():
+            async for chunk in response.aiter_bytes():
+                if chunk:  # Only yield non-empty chunks
+                    yield chunk
+
+        # Create StreamingResponse with AWS response headers and status
+        return StreamingResponse(
+            content=stream_generator(),
+            status_code=response.status_code,
+            headers=dict(response.headers)
+        )
 
     except httpx.RequestError as e:
         logger.error(f"Proxy request failed: {e}")
