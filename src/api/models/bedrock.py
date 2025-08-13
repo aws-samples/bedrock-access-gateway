@@ -135,14 +135,6 @@ def list_bedrock_models() -> dict:
                         logger.warning(f"Error processing application profile: {e}")
                         continue
                     
-                    # Process all models in the profile
-                    models = profile.get("models", [])
-                    for model in models:
-                        model_arn = model.get("modelArn", "")
-                        if model_arn:
-                            model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
-                            if model_id:
-                                app_profiles_by_model[model_id].add(profile_arn)
         # List foundation models, only cares about text outputs here.
         response = bedrock_client.list_foundation_models(byOutputModality="TEXT")
 
