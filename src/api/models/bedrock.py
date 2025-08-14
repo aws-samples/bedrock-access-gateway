@@ -4,6 +4,7 @@ import logging
 import re
 import time
 from abc import ABC
+from collections import defaultdict
 from typing import AsyncIterable, Iterable, Literal
 
 import boto3
@@ -104,35 +105,37 @@ def list_bedrock_models() -> dict:
     model_list = {}
     try:
         profile_list = []
-        app_profile_dict = {}
+        # Map foundation model_id -> set of application inference profile ARNs
+        app_profiles_by_model = defaultdict(set)
         
         if ENABLE_CROSS_REGION_INFERENCE:
             # List system defined inference profile IDs
-            response = bedrock_client.list_inference_profiles(maxResults=1000, typeEquals="SYSTEM_DEFINED")
-            profile_list = [p["inferenceProfileId"] for p in response["inferenceProfileSummaries"]]
+            paginator = bedrock_client.get_paginator('list_inference_profiles')
+            for page in paginator.paginate(maxResults=1000, typeEquals="SYSTEM_DEFINED"):
+                profile_list.extend([p["inferenceProfileId"] for p in page["inferenceProfileSummaries"]])
 
         if ENABLE_APPLICATION_INFERENCE_PROFILES:
             # List application defined inference profile IDs and create mapping
-            response = bedrock_client.list_inference_profiles(maxResults=1000, typeEquals="APPLICATION")
-            
-            for profile in response["inferenceProfileSummaries"]:
-                try:
-                    profile_arn = profile.get("inferenceProfileArn")
-                    if not profile_arn:
+            paginator = bedrock_client.get_paginator('list_inference_profiles')
+            for page in paginator.paginate(maxResults=1000, typeEquals="APPLICATION"):
+                for profile in page["inferenceProfileSummaries"]:
+                    try:
+                        profile_arn = profile.get("inferenceProfileArn")
+                        if not profile_arn:
+                            continue
+                        
+                        # Process all models in the profile
+                        models = profile.get("models", [])
+                        for model in models:
+                            model_arn = model.get("modelArn", "")
+                            if model_arn:
+                                model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
+                                if model_id:
+                                    app_profiles_by_model[model_id].add(profile_arn)
+                    except Exception as e:
+                        logger.warning(f"Error processing application profile: {e}")
                         continue
                     
-                    # Process all models in the profile
-                    models = profile.get("models", [])
-                    for model in models:
-                        model_arn = model.get("modelArn", "")
-                        if model_arn:
-                            model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
-                            if model_id:
-                                app_profile_dict[model_id] = profile_arn
-                except Exception as e:
-                    logger.warning(f"Error processing application profile: {e}")
-                    continue
-
         # List foundation models, only cares about text outputs here.
         response = bedrock_client.list_foundation_models(byOutputModality="TEXT")
 
@@ -156,11 +159,10 @@ def list_bedrock_models() -> dict:
             if profile_id in profile_list:
                 model_list[profile_id] = {"modalities": input_modalities}
 
-            # Add application inference profiles
-            if model_id in app_profile_dict:
-                model_list[app_profile_dict[model_id]] = {"modalities": input_modalities}
-        
-        return model_list
+            # Add application inference profiles (emit all profiles for this model)
+            if model_id in app_profiles_by_model:
+                for profile_arn in app_profiles_by_model[model_id]:
+                    model_list[profile_arn] = {"modalities": input_modalities}
 
     except Exception as e:
         logger.error(f"Unable to list models: {str(e)}")
@@ -569,6 +571,10 @@ class BedrockModel(BaseChatModel):
                     assert "function" in chat_request.tool_choice
                     tool_config["toolChoice"] = {"tool": {"name": chat_request.tool_choice["function"].get("name", "")}}
             args["toolConfig"] = tool_config
+        # add Additional fields to enable extend thinking
+        if chat_request.extra_body:
+            # reasoning_config will not be used 
+            args["additionalModelRequestFields"] = chat_request.extra_body
         return args
 
     def _create_response(
