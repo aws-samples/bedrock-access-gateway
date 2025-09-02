@@ -95,6 +95,7 @@ def list_bedrock_models() -> dict:
     try:
         profile_list = []
         app_profile_dict = {}
+        all_app_profiles = []
         
         if ENABLE_CROSS_REGION_INFERENCE:
             # List system defined inference profile IDs
@@ -111,17 +112,26 @@ def list_bedrock_models() -> dict:
                     if not profile_arn:
                         continue
                     
-                    # Process all models in the profile
+                    # Add to list of all profiles
+                    all_app_profiles.append(profile_arn)
+                    
+                    # Process all models in the profile for model-to-profile mapping
                     models = profile.get("models", [])
                     for model in models:
                         model_arn = model.get("modelArn", "")
                         if model_arn:
                             model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
                             if model_id:
-                                app_profile_dict[model_id] = profile_arn
+                                if model_id not in app_profile_dict:
+                                    app_profile_dict[model_id] = []
+                                app_profile_dict[model_id].append(profile_arn)
                 except Exception as e:
                     logger.warning(f"Error processing application profile: {e}")
                     continue
+
+        # Add all application inference profiles to model list first
+        for profile_arn in all_app_profiles:
+            model_list[profile_arn] = {"modalities": ["TEXT", "IMAGE"]}
 
         # List foundation models, only cares about text outputs here.
         response = bedrock_client.list_foundation_models(byOutputModality="TEXT")
@@ -146,9 +156,13 @@ def list_bedrock_models() -> dict:
             if profile_id in profile_list:
                 model_list[profile_id] = {"modalities": input_modalities}
 
-            # Add application inference profiles
+            # # Add application inference profiles
+            # if model_id in app_profile_dict:
+            #     model_list[app_profile_dict[model_id]] = {"modalities": input_modalities}
+            # Update application inference profiles with correct modalities if we have foundation model info
             if model_id in app_profile_dict:
-                model_list[app_profile_dict[model_id]] = {"modalities": input_modalities}
+                for profile_arn in app_profile_dict[model_id]:
+                    model_list[profile_arn] = {"modalities": input_modalities}
 
     except Exception as e:
         logger.error(f"Unable to list models: {str(e)}")
