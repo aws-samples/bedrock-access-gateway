@@ -33,14 +33,11 @@ pipeline {
             quarter = 4
           }
           
-          // Use currentBuild.number which is more reliable than BUILD_NUMBER
-          def buildNumber = currentBuild.number ?: '1'
-          
           // Set BUILD_VERSION as environment variable
           env.BUILD_VERSION = "${year}.${quarter}-SNAPSHOT-${BUILD_NUMBER}"
           
           echo "Generated BUILD_VERSION: ${env.BUILD_VERSION}"
-          echo "Building and pushing Docker image with version: ${env.BUILD_VERSION}"
+          echo "Year: 20${year}, Quarter: ${quarter}, Build Number: ${BUILD_NUMBER}"
           
           sh '''#!/bin/bash
             # Install required tools if not available
