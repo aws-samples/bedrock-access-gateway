@@ -70,13 +70,13 @@ pipeline {
             
             # Assume the staging role for ECR access
             echo "Assuming AWS role for ECR push..."
-            TEMP_ROLE=$(aws sts assume-role \\
+            TEMP_ROLE=\$(aws sts assume-role \\
               --role-arn "arn:aws:iam::382254873799:role/jenkins_ai-foundation_runway" \\
               --role-session-name "jenkins-docker-push-${BUILD_NUMBER}")
             
-            export AWS_ACCESS_KEY_ID=$(echo $TEMP_ROLE | jq -r .Credentials.AccessKeyId)
-            export AWS_SECRET_ACCESS_KEY=$(echo $TEMP_ROLE | jq -r .Credentials.SecretAccessKey)
-            export AWS_SESSION_TOKEN=$(echo $TEMP_ROLE | jq -r .Credentials.SessionToken)
+            export AWS_ACCESS_KEY_ID=\$(echo \$TEMP_ROLE | jq -r .Credentials.AccessKeyId)
+            export AWS_SECRET_ACCESS_KEY=\$(echo \$TEMP_ROLE | jq -r .Credentials.SecretAccessKey)
+            export AWS_SESSION_TOKEN=\$(echo \$TEMP_ROLE | jq -r .Credentials.SessionToken)
             
             # Login to ECR
             echo "Logging into ECR..."
