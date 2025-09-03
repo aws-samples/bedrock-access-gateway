@@ -33,6 +33,9 @@ pipeline {
             quarter = 4
           }
           
+          // Use currentBuild.number which is more reliable than BUILD_NUMBER
+          def buildNumber = currentBuild.number ?: '1'
+          
           // Set BUILD_VERSION as environment variable
           env.BUILD_VERSION = "${year}.${quarter}-SNAPSHOT-${BUILD_NUMBER}"
           
