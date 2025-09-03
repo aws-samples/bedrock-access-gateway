@@ -57,7 +57,7 @@ pipeline {
             
             # Build the Docker image
             echo "Building Docker image: bedrock-access-gateway:${BUILD_VERSION}"
-            docker build -t bedrock-access-gateway .
+            docker build -t bedrock-access-gateway ./src
             
             # Tag image for ECR
             docker tag bedrock-access-gateway:latest 382254873799.dkr.ecr.us-east-1.amazonaws.com/bedrock-access-gateway:${BUILD_VERSION}
