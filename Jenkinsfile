@@ -8,14 +8,35 @@ pipeline {
   }
 
   environment {
-    // Generate dynamic build version based on current date
-    BUILD_VERSION = "${new Date().format('yy')}.${(new Date().format('MM') as Integer <= 3) ? 1 : (new Date().format('MM') as Integer <= 6) ? 2 : (new Date().format('MM') as Integer <= 9) ? 3 : 4}-SNAPSHOT-${BUILD_NUMBER}"
+    // Build version will be generated in the pipeline
+    BUILD_VERSION = ""
   }
 
   stages {
     stage('Build & Push Docker Image') {
       steps {
         script {
+          // Generate dynamic build version based on current date
+          def currentDate = new Date()
+          def year = currentDate.format('yy')  // Last 2 digits of year
+          def month = currentDate.format('MM') as Integer
+          
+          // Determine quarter based on month
+          def quarter
+          if (month >= 1 && month <= 3) {
+            quarter = 1
+          } else if (month >= 4 && month <= 6) {
+            quarter = 2
+          } else if (month >= 7 && month <= 9) {
+            quarter = 3
+          } else {
+            quarter = 4
+          }
+          
+          // Set BUILD_VERSION as environment variable
+          env.BUILD_VERSION = "${year}.${quarter}-SNAPSHOT-${BUILD_NUMBER}"
+          
+          echo "Generated BUILD_VERSION: ${env.BUILD_VERSION}"
           echo "Building and pushing Docker image with version: ${env.BUILD_VERSION}"
           
           sh '''#!/bin/bash
