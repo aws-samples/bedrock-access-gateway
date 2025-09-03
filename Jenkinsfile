@@ -33,13 +33,16 @@ pipeline {
             quarter = 4
           }
           
-          // Set BUILD_VERSION as environment variable
-          env.BUILD_VERSION = "${year}.${quarter}-SNAPSHOT-${BUILD_NUMBER}"
+          // Create BUILD_VERSION as local variable first
+          def BUILD_VERSION = "${year}.${quarter}-SNAPSHOT-${BUILD_NUMBER}"
           
-          echo "Generated BUILD_VERSION: ${env.BUILD_VERSION}"
+          // Set it as environment variable for shell scripts
+          env.BUILD_VERSION = BUILD_VERSION
+          
+          echo "Generated BUILD_VERSION: ${BUILD_VERSION}"
           echo "Year: 20${year}, Quarter: ${quarter}, Build Number: ${BUILD_NUMBER}"
           
-          sh '''#!/bin/bash
+          sh """#!/bin/bash
             # Install required tools if not available
             if ! command -v docker &> /dev/null; then
               apt-get update
@@ -85,7 +88,7 @@ pipeline {
             
             echo "Successfully pushed image:"
             echo "382254873799.dkr.ecr.us-east-1.amazonaws.com/bedrock-access-gateway:${BUILD_VERSION}"
-          '''
+          """
         }
       }
     }
