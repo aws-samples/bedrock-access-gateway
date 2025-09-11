@@ -29,7 +29,7 @@ If you find this GitHub repository useful, please consider giving it a free star
 - [x] Support Application Inference Profiles (**new**)
 - [x] Support Reasoning (**new**)
 - [x] Support Interleaved thinking (**new**)
-- [x] Support for AWS Bedrock Guardrails (**new**)
+- [x] Support for Guardrails (**new**)
 
 Please check [Usage Guide](./docs/Usage.md) for more details about how to use the new APIs.
 
@@ -99,6 +99,17 @@ After creation, you'll see your secret in the Secrets Manager console.  Make not
 6. On the "Review" page, review the details of the stack you're about to create. Check the "I acknowledge that AWS CloudFormation might create IAM resources" checkbox at the bottom. Click "Create stack".
 
 That is it! 🎉 Once deployed, click the CloudFormation stack and go to **Outputs** tab, you can find the API Base URL from `APIBaseUrl`, the value should look like `http://xxxx.xxx.elb.amazonaws.com/api/v1`.
+
+### Guardrails Integration
+If you would like to create an AWS Bedrock Guardrail that is applied to FM interactions then please follow the following steps.
+1. Create the AWS Bedrock Guardrail via the console or your favorite IaC language
+2. Inject the following environment variables into your chosen deployment
+
+```bash
+ENABLE_GUARDRAIL=true
+GUARDRAIL_IDENTIFIER=<arn of your guardrail - e.g. arn:aws:bedrock:us-east-1:123456789012:guardrail/ab4z4asdre90>
+GUARDRAIL_VERSION=<version of your guardrail - e.g. 1>
+```
 
 ### Troubleshooting
 
