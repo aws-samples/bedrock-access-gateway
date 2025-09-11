@@ -45,7 +45,7 @@ from api.setting import (
     DEBUG,
     DEFAULT_MODEL,
     ENABLE_CROSS_REGION_INFERENCE,
-    ENABLE_APPLICATION_INFERENCE_PROFILES,
+    ENABLE_APPLICATION_INFERENCE_PROFILES, ENABLE_GUARDRAIL, GUARDRAIL_IDENTIFIER, GUARDRAIL_VERSION,
 )
 
 logger = logging.getLogger(__name__)
@@ -527,12 +527,27 @@ class BedrockModel(BaseChatModel):
                 stop = [stop]
             inference_config["stopSequences"] = stop
 
-        args = {
-            "modelId": chat_request.model,
-            "messages": messages,
-            "system": system_prompts,
-            "inferenceConfig": inference_config,
-        }
+        if ENABLE_GUARDRAIL:
+            guardrail_config = {
+                "guardrailIdentifier": GUARDRAIL_IDENTIFIER,
+                "guardrailVersion": GUARDRAIL_VERSION,
+            }
+
+            args = {
+                "modelId": chat_request.model,
+                "messages": messages,
+                "system": system_prompts,
+                "inferenceConfig": inference_config,
+                "guardrailConfig": guardrail_config,
+            }
+        else:
+            args = {
+                "modelId": chat_request.model,
+                "messages": messages,
+                "system": system_prompts,
+                "inferenceConfig": inference_config,
+            }
+
         if chat_request.reasoning_effort:
             # From OpenAI api, the max_token is not supported in reasoning mode
             # Use max_completion_tokens if provided.
@@ -878,12 +893,22 @@ class BedrockEmbeddingsModel(BaseEmbeddingsModel, ABC):
             logger.info("Invoke Bedrock Model: " + model_id)
             logger.info("Bedrock request body: " + body)
         try:
-            return bedrock_runtime.invoke_model(
-                body=body,
-                modelId=model_id,
-                accept=self.accept,
-                contentType=self.content_type,
-            )
+            if ENABLE_GUARDRAIL:
+                return bedrock_runtime.invoke_model(
+                    body=body,
+                    modelId=model_id,
+                    accept=self.accept,
+                    contentType=self.content_type,
+                    guardrailIdentifier=GUARDRAIL_IDENTIFIER,
+                    guardrailVersion=GUARDRAIL_VERSION,
+                )
+            else:
+                return bedrock_runtime.invoke_model(
+                    body=body,
+                    modelId=model_id,
+                    accept=self.accept,
+                    contentType=self.content_type,
+                )
         except bedrock_runtime.exceptions.ValidationException as e:
             logger.error("Validation Error: " + str(e))
             raise HTTPException(status_code=400, detail=str(e))
