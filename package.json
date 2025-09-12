@@ -1,0 +1,14 @@
+{
+  "name": "bedrock-access-gateway",
+  "version": "0.0.1",
+  "description": "OpenAI-Compatible RESTful APIs for Amazon Bedrock",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ImpresaPizzarotti/bedrock-access-gateway.git"
+  }
+}

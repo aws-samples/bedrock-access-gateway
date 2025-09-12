@@ -1,0 +1,75 @@
+version: 0.2
+env:
+
+  # Secrets used to store credentials, example Docker credentials are needed to pull base images, otherwise 
+  # the system will occur into a API block by Docker
+  parameter-store:
+    DOCKERHUB_USERNAME: "/lw/dockerhub/user"
+    DOCKERHUB_PASS: "/lw/dockerhub/password"
+
+phases:
+  install:
+    commands:
+    # DO not change the login into docker 
+    - echo 'Logging into docker to prevent pull limits...'
+    - docker login --username $DOCKERHUB_USERNAME --password $DOCKERHUB_PASS
+    # - echo $DOCKERHUB_USERNAME
+    # - echo $DOCKERHUB_PASS
+    # Install buildx to build multi-arch images
+    # Testing pull rates limits, this should be avoided once we login into docker 
+    # but a test doesn't hurt
+    - echo 'Testing pull rate limits...'
+    - TOKEN=$(curl "https://auth.docker.io/token?service=registry.docker.io&scope=repository:ratelimitpreview/test:pull" | jq -r .token)
+    - echo 'Pull rate status <'$TOKEN'>'
+
+    - echo 'Installing buildx version...'
+    - export BUILDX_VERSION=$(curl --silent "https://api.github.com/repos/docker/buildx/releases/latest" |jq -r .tag_name)
+    - curl -JLO "https://github.com/docker/buildx/releases/download/$BUILDX_VERSION/buildx-$BUILDX_VERSION.linux-amd64"
+    - mkdir -p ~/.docker/cli-plugins
+    - mv "buildx-$BUILDX_VERSION.linux-amd64" ~/.docker/cli-plugins/docker-buildx
+    - chmod +x ~/.docker/cli-plugins/docker-buildx
+    - docker run --privileged --rm tonistiigi/binfmt --install arm64
+    # To install all the supported platforms:
+    # - docker run --privileged --rm tonistiigi/binfmt --install all
+
+  pre_build:
+    commands:
+    - aws --version
+
+    # Image registry base uri DO NOT CHANGE, REPO_NAME is from ENV VARS
+    - REPOSITORY_URI=$(aws ecr describe-repositories --repository-names "$REPO_NAME" --query 'repositories[0].repositoryUri' --output text)
+
+    # Getting the ECR token to push images DO NOT CHANGE
+    - echo Logging in to Amazon ECR...
+    - echo 'Aws region <'$AWS_DEFAULT_REGION'>'
+    - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
+    - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+
+    # - IMAGE_TAG=build-$(echo $CODEBUILD_BUILD_ID | awk -F":" '{print $2}')
+
+    # Image tag is now taken from he package.json file
+    - IMAGE_TAG=$(cat package.json | jq -r '.version')
+    # Set the IMAGE_TAG with a prefix if the branch is not "master" or "main"
+    - |
+      if [ "$BRANCH_NAME" != "master" ] && [ "$BRANCH_NAME" != "main" ]; then
+        IMAGE_TAG="$BRANCH_NAME-$IMAGE_TAG"
+      fi
+
+    - echo 'CODEBUILD_RESOLVED_SOURCE_VERSION <'$CODEBUILD_RESOLVED_SOURCE_VERSION'>'
+    - echo 'COMMIT_HASH <'$COMMIT_HASH'>'
+    - echo 'IMAGE_TAG <'$IMAGE_TAG'>'
+
+  build:
+    commands:
+
+    - echo Build started on `date`
+    - echo Building the Docker image...
+
+    # - docker buildx create --use --name multiarch
+    # - docker buildx build --push --platform linux/amd64,linux/arm64 -t $REPOSITORY_URI:$IMAGE_TAG -t $REPOSITORY_URI:latest .
+    - docker build  -f ./src/Dockerfile_ecs -t $REPOSITORY_URI:$IMAGE_TAG -t $REPOSITORY_URI:latest .
+  post_build:
+    commands:
+    - docker push $REPOSITORY_URI:$IMAGE_TAG
+    - docker push $REPOSITORY_URI:latest
+    - echo Build completed on `date`
