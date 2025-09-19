@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path
 
 from api.auth import api_key_auth
-from api.models.bedrock import BedrockModel
+from api.models.bedrock_agents import BedrockAgents
 from api.schema import Model, Models
 
 router = APIRouter(
@@ -12,7 +12,7 @@ router = APIRouter(
     # responses={404: {"description": "Not found"}},
 )
 
-chat_model = BedrockModel()
+chat_model = BedrockAgents()
 
 
 async def validate_model_id(model_id: str):
