@@ -30,6 +30,8 @@ from api.schema import (
                                 
 from api.setting import (DEBUG, AWS_REGION, AGENT_PREFIX)
 
+from md import MetaData
+
 logger = logging.getLogger(__name__)
 config = Config(
             connect_timeout=60,      # Connection timeout: 60 seconds
@@ -295,14 +297,36 @@ class BedrockAgents(BedrockModel):
             messages = args['messages']
             query = messages[len(messages)-1]['content'][0]['text']
 
+            md = MetaData(query)
+            md_args = {}
+            session_state = {}
             
+            if md.has_metadata:
+                md_args = md.get_metadata_args()
+                query = md.get_clean_query()
+                kb_id = "D3Q2K57HXU"
+
+                session_state['knowledgeBaseConfigurations'] = [{
+                    'knowledgeBaseId': kb_id, # TODO: Don't hard-wire!
+                    'retrievalConfiguration': {
+                        'vectorSearchConfiguration': {
+                            'filter': md_args
+                        }
+                    }
+                }]
+
             # Step 1 - Retrieve Context
+            # TODO: Session state
             request_params = {
                 'agentId': model['agent_id'],
                 'agentAliasId': model['alias_id'],
                 'sessionId': 'unique-session-id',  # Generate a unique session ID
-                'inputText': query
+                'inputText': query,
             }
+
+            # Append KB config if present
+            if session_state:
+                request_params['sessionState'] = session_state
                 
             # Make the retrieve request
             # Invoke the agent
