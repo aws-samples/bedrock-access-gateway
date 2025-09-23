@@ -24,3 +24,10 @@ class MetaData(object):
     
     def get_clean_query(self):
         return re.sub(r'"[^"]*"\s*=\s*"[^"]*"', '', self._prompt).strip()
+
+if __name__ == "__main__":
+    md = MetaData('"OE_Number"="111" Tell me about the event.')
+    prompt = md.get_clean_query()
+    filters = md.get_metadata_args()
+
+    print(f"Prompt: {prompt}\nFilters: {filters}")
