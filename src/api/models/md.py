@@ -19,6 +19,10 @@ class MetaData(object):
         for k,v in dict(matches).items():
             sub_map = {"equals": {"key": k, "value": v}}
             md_args[key_and_all].append(sub_map)
+        
+        # Can't have andAll with just one filter :(
+        if len(matches) == 1:
+            md_args = md_args[key_and_all][0]
 
         return md_args
     

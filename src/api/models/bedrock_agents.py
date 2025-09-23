@@ -30,7 +30,7 @@ from api.schema import (
                                 
 from api.setting import (DEBUG, AWS_REGION, AGENT_PREFIX)
 
-from md import MetaData
+from api.models.md import MetaData
 
 logger = logging.getLogger(__name__)
 config = Config(
