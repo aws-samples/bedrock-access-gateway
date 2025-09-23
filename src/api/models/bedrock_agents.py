@@ -303,6 +303,7 @@ class BedrockAgents(BedrockModel):
             
             if md.has_metadata:
                 md_args = md.get_metadata_args()
+                print(md_args)
                 query = md.get_clean_query()
                 kb_id = "D3Q2K57HXU"
 
