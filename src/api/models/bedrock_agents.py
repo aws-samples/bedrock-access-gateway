@@ -1,5 +1,6 @@
 # Original Credit: GitHub user dhapola 
 import base64
+import uuid
 import json
 import logging
 import re
@@ -300,9 +301,11 @@ class BedrockAgents(BedrockModel):
             md = MetaData(query)
             md_args = {}
             session_state = {}
+            session_id = 'unique-session-id'
             
             if md.has_metadata:
                 md_args = md.get_metadata_args()
+                session_id = str(uuid.uuid4())
                 logger.info(md_args)
                 query = md.get_clean_query()
                 kb_id = "D3Q2K57HXU"
@@ -321,7 +324,7 @@ class BedrockAgents(BedrockModel):
             request_params = {
                 'agentId': model['agent_id'],
                 'agentAliasId': model['alias_id'],
-                'sessionId': 'unique-session-id',  # Generate a unique session ID
+                'sessionId': session_id,
                 'inputText': query,
             }
 
