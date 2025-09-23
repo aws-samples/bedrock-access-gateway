@@ -46,6 +46,7 @@ from api.setting import (
     ENABLE_CROSS_REGION_INFERENCE,
     ENABLE_APPLICATION_INFERENCE_PROFILES,
     MAX_RETRIES_AWS,
+    MODEL_CACHE_TTL,
 )
 
 logger = logging.getLogger(__name__)
@@ -171,15 +172,40 @@ def list_bedrock_models() -> dict:
     return model_list
 
 
+# In-memory cache
+_model_cache = {
+    "data": None,
+    "timestamp": 0
+}
+
+def _get_cached_models():
+    """Get models from in-memory cache if still valid."""
+    global _model_cache
+    
+    current_time = time.time()
+    cache_age = current_time - _model_cache["timestamp"]
+    
+    if _model_cache["data"] is None or cache_age > MODEL_CACHE_TTL:
+        fresh_models = list_bedrock_models()
+        if fresh_models:
+            _model_cache["data"] = fresh_models
+            _model_cache["timestamp"] = current_time
+        return fresh_models
+    else:
+        # Cache hit
+        return _model_cache["data"]
+
 # Initialize the model list.
-bedrock_model_list = list_bedrock_models()
+bedrock_model_list = _get_cached_models()
 
 
 class BedrockModel(BaseChatModel):
     def list_models(self) -> list[str]:
-        """Always refresh the latest model list"""
+        """Get model list using in-memory cache with TTL"""
         global bedrock_model_list
-        bedrock_model_list = list_bedrock_models()
+        cached_models = _get_cached_models()
+        if cached_models:
+            bedrock_model_list = cached_models
         return list(bedrock_model_list.keys())
 
     def validate(self, chat_request: ChatRequest):
