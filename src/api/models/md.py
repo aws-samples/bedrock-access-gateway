@@ -10,19 +10,19 @@ class MetaData(object):
         self._prompt = prompt
     
     def get_metadata_args(self):
-        key_and_all = "andAll"
-        md_args = {key_and_all: []}
+        outer_key = "orAll"
+        md_args = {outer_key: []}
 
         pattern = r'"([^"]*)"\s*=\s*"([^"]*)"' # TODO: DRY on pattern
         matches = re.findall(pattern, self._prompt)
 
         for k,v in dict(matches).items():
             sub_map = {"equals": {"key": k, "value": v}}
-            md_args[key_and_all].append(sub_map)
+            md_args[outer_key].append(sub_map)
         
         # Can't have andAll with just one filter :(
         if len(matches) == 1:
-            md_args = md_args[key_and_all][0]
+            md_args = md_args[outer_key][0]
 
         return md_args
     
