@@ -577,8 +577,7 @@ class BedrockModel(BaseChatModel):
             args["additionalModelRequestFields"] = chat_request.extra_body
 
         # Add user
-        if chat_request.user:
-            args["user"] = chat_request.user
+        args["session_id"] = chat_request.session_id
             
         return args
 
