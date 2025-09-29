@@ -143,6 +143,7 @@ class BedrockAgents(BedrockModel):
 
         # convert OpenAI chat request to Bedrock SDK request
         args = self._parse_request(chat_request)
+        del args["session_id"] # Not used for foundation models
         if DEBUG:
             logger.info("Bedrock request: " + json.dumps(str(args)))
 
@@ -301,7 +302,7 @@ class BedrockAgents(BedrockModel):
             md = MetaData(query)
             md_args = {}
             session_state = {}
-            session_id = 'unique-session-id'
+            session_id = args["session_id"]
             
             if md.has_metadata:
                 md_args = md.get_metadata_args()
