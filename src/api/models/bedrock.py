@@ -575,6 +575,11 @@ class BedrockModel(BaseChatModel):
         if chat_request.extra_body:
             # reasoning_config will not be used 
             args["additionalModelRequestFields"] = chat_request.extra_body
+
+        # Add user
+        if chat_request.user:
+            args["user"] = chat_request.user
+            
         return args
 
     def _create_response(

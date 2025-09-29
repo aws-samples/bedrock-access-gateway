@@ -301,7 +301,7 @@ class BedrockAgents(BedrockModel):
             md = MetaData(query)
             md_args = {}
             session_state = {}
-            session_id = 'unique-session-id'
+            session_id = args["user"]
             
             if md.has_metadata:
                 md_args = md.get_metadata_args()
