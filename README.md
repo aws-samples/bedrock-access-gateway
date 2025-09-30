@@ -4,7 +4,9 @@ OpenAI-compatible RESTful APIs for Amazon Bedrock
 
 ## What's New 🔥
 
-This project supports reasoning for both **Claude 3.7 Sonnet** and **DeepSeek R1**, check [How to Use](./docs/Usage.md#reasoning) for more details. You need to first run the Models API to refresh the model list.
+This project now supports **Claude Sonnet 4.5**, Anthropic's most intelligent model with enhanced coding capabilities and complex agent support, available via global cross-region inference.
+
+It also supports reasoning for both **Claude 3.7 Sonnet** and **DeepSeek R1**. Check [How to Use](./docs/Usage.md#reasoning) for more details. You need to first run the Models API to refresh the model list.
 
 ## Overview
 

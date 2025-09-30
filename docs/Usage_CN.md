@@ -49,6 +49,42 @@ curl -s $OPENAI_BASE_URL/models -H "Authorization: Bearer $OPENAI_API_KEY" | jq 
 ]
 ```
 
+## Chat Completions API
+
+### Claude Sonnet 4.5 基础示例
+
+Claude Sonnet 4.5 是 Anthropic 最智能的模型，在编码、复杂推理和基于代理的任务方面表现出色。它通过全球跨区域推理配置文件提供。
+
+**Request 示例**
+
+```bash
+curl $OPENAI_BASE_URL/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "model": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "messages": [
+      {
+        "role": "user",
+        "content": "编写一个使用动态规划计算斐波那契数列的Python函数。"
+      }
+    ]
+  }'
+```
+
+**SDK 使用示例**
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+completion = client.chat.completions.create(
+    model="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    messages=[{"role": "user", "content": "编写一个使用动态规划计算斐波那契数列的Python函数。"}],
+)
+
+print(completion.choices[0].message.content)
+```
 
 ## Embedding API
 
@@ -452,10 +488,31 @@ Claude 4 模型支持借助工具使用的扩展思维功能（Extended Thinking
 
 在交错思考模式下，budget_tokens 可以超过 max_tokens 参数，因为它代表一次助手回合中所有思考块的总 Token 预算。
 
+**支持的模型**: Claude Sonnet 4, Claude Sonnet 4.5
 
 **Request 示例**
 
-- Non-Streaming
+- Non-Streaming (Claude Sonnet 4.5)
+
+```bash
+curl http://127.0.0.1:8000/api/v1/chat/completions \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer bedrock" \
+-d '{
+"model": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+"max_tokens": 2048,
+"messages": [{
+"role": "user",
+"content": "解释如何实现一个具有自平衡功能的二叉搜索树。"
+}],
+"extra_body": {
+"anthropic_beta": ["interleaved-thinking-2025-05-14"],
+"thinking": {"type": "enabled", "budget_tokens": 4096}
+}
+}'
+```
+
+- Non-Streaming (Claude Sonnet 4)
 
 ```bash
 curl http://127.0.0.1:8000/api/v1/chat/completions \
@@ -475,7 +532,28 @@ curl http://127.0.0.1:8000/api/v1/chat/completions \
 }'
 ```
 
-- Streaming
+- Streaming (Claude Sonnet 4.5)
+
+```bash
+curl http://127.0.0.1:8000/api/v1/chat/completions \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer bedrock" \
+-d '{
+"model": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+"max_tokens": 2048,
+"messages": [{
+"role": "user",
+"content": "解释如何实现一个具有自平衡功能的二叉搜索树。"
+}],
+"stream": true,
+"extra_body": {
+"anthropic_beta": ["interleaved-thinking-2025-05-14"],
+"thinking": {"type": "enabled", "budget_tokens": 4096}
+}
+}'
+```
+
+- Streaming (Claude Sonnet 4)
 
 ```bash
 curl http://127.0.0.1:8000/api/v1/chat/completions \
