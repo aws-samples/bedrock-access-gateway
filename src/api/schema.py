@@ -100,7 +100,7 @@ class ChatRequest(BaseModel):
     temperature: float | None = Field(default=1.0, le=2.0, ge=0.0)
     top_p: float | None = Field(default=1.0, le=1.0, ge=0.0)
     user: str | None = None
-    session_id: str | None = "unique-session-id" # Feed user name for unique session ID
+    session_id: str | None = None # Feed user name for unique session ID
     max_tokens: int | None = 2048
     max_completion_tokens: int | None = None
     reasoning_effort: Literal["low", "medium", "high"] | None = None

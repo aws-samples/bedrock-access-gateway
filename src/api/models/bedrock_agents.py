@@ -302,7 +302,7 @@ class BedrockAgents(BedrockModel):
             md = MetaData(query)
             md_args = {}
             session_state = {}
-            session_id = args["session_id"]
+            session_id = args["session_id"].replace(" ", "_") # [0-9a-zA-Z._:-]+
             
             if md.has_metadata:
                 md_args = md.get_metadata_args()
