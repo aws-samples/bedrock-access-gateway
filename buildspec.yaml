@@ -67,7 +67,7 @@ phases:
     - cd src
     # - docker buildx create --use --name multiarch
     # - docker buildx build --push --platform linux/amd64,linux/arm64 -t $REPOSITORY_URI:$IMAGE_TAG -t $REPOSITORY_URI:latest .
-    - docker build  -f ./Dockerfile_ecs -t $REPOSITORY_URI:$IMAGE_TAG -t $REPOSITORY_URI:latest .
+    - docker build  --sbom=true -f ./Dockerfile_ecs -t $REPOSITORY_URI:$IMAGE_TAG -t $REPOSITORY_URI:latest .
   post_build:
     commands:
     - docker push $REPOSITORY_URI:$IMAGE_TAG

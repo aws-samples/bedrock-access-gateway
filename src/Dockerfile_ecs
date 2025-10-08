@@ -1,13 +1,42 @@
 FROM public.ecr.aws/docker/library/python:3.12-slim
 
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 WORKDIR /app
 
-COPY ./requirements.txt /app/requirements.txt
+# Install security updates and clean up
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
+# Copy requirements first for better layer caching
+COPY --chown=appuser:appuser ./requirements.txt /app/requirements.txt
 
-COPY ./api /app/api
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r /app/requirements.txt
 
-ENV PORT=8080
+# Copy application code and entrypoint
+COPY --chown=appuser:appuser ./api /app/api
+COPY --chown=appuser:appuser ./entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
-CMD ["sh", "-c", "uvicorn api.app:app --host 0.0.0.0 --port ${PORT}"]
+# Switch to non-root user
+USER appuser
+
+# Environment variables
+ENV PORT=8080 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:${PORT}/health', timeout=5)" || exit 1
+
+# Expose port
+EXPOSE ${PORT}
+
+# Use entrypoint script (recommended)
+ENTRYPOINT ["/app/entrypoint.sh"]
