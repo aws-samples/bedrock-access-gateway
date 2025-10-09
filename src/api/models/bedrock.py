@@ -42,23 +42,24 @@ from api.schema import (
 )
 from api.setting import (
     AWS_REGION,
-    DEBUG,
     DEFAULT_MODEL,
     ENABLE_CROSS_REGION_INFERENCE,
     ENABLE_APPLICATION_INFERENCE_PROFILES,
+    INFERENCE_PROFILE_REGEX_FILTER
 )
 
 logger = logging.getLogger(__name__)
 
 config = Config(
-            connect_timeout=60,      # Connection timeout: 60 seconds
-            read_timeout=900,        # Read timeout: 15 minutes (suitable for long streaming responses)
-            retries={
-                'max_attempts': 8,   # Maximum retry attempts
-                'mode': 'adaptive'   # Adaptive retry mode
-            },
-            max_pool_connections=50  # Maximum connection pool size
-        )
+    connect_timeout=60,      # Connection timeout: 60 seconds
+    # Read timeout: 15 minutes (suitable for long streaming responses)
+    read_timeout=900,
+    retries={
+        'max_attempts': 8,   # Maximum retry attempts
+        'mode': 'adaptive'   # Adaptive retry mode
+    },
+    max_pool_connections=50  # Maximum connection pool size
+)
 
 bedrock_runtime = boto3.client(
     service_name="bedrock-runtime",
@@ -103,41 +104,51 @@ def list_bedrock_models() -> dict:
     """
     model_list = {}
     try:
-        profile_list = []
-        # Map foundation model_id -> set of application inference profile ARNs
-        app_profiles_by_model = defaultdict(set)
-        
+        profile_dict = {}
+        # Map foundation model_id -> list of application inference profiles ARN and Name
+        app_profiles_by_model = defaultdict(list)
+
         if ENABLE_CROSS_REGION_INFERENCE:
             # List system defined inference profile IDs
             paginator = bedrock_client.get_paginator('list_inference_profiles')
             for page in paginator.paginate(maxResults=1000, typeEquals="SYSTEM_DEFINED"):
-                profile_list.extend([p["inferenceProfileId"] for p in page["inferenceProfileSummaries"]])
+                for p in page["inferenceProfileSummaries"]:
+                    profile_dict[p["inferenceProfileId"]] = {
+                        "id": p["inferenceProfileId"], "name": p["inferenceProfileName"]}
 
         if ENABLE_APPLICATION_INFERENCE_PROFILES:
             # List application defined inference profile IDs and create mapping
             paginator = bedrock_client.get_paginator('list_inference_profiles')
             for page in paginator.paginate(maxResults=1000, typeEquals="APPLICATION"):
+                logger.info("Application Inference Profile: %s", json.dumps(page, default=str))
                 for profile in page["inferenceProfileSummaries"]:
                     try:
                         profile_arn = profile.get("inferenceProfileArn")
+                        profile_name = profile.get("inferenceProfileName")
                         if not profile_arn:
                             continue
-                        
+
                         # Process all models in the profile
                         models = profile.get("models", [])
                         for model in models:
                             model_arn = model.get("modelArn", "")
                             if model_arn:
-                                model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
-                                if model_id:
-                                    app_profiles_by_model[model_id].add(profile_arn)
+                                model_id = model_arn.split(
+                                    '/')[-1] if '/' in model_arn else model_arn
+                                if model_id and model_id not in app_profiles_by_model:
+                                    app_profiles_by_model[model_id].append({
+                                        "arn": profile_arn,
+                                        "name": profile_name
+                                    })
                     except Exception as e:
-                        logger.warning(f"Error processing application profile: {e}")
+                        logger.warning("App profiles created now %s", json.dumps(app_profiles_by_model, default=str))
+                        logger.warning(
+                            f"Error processing application profile: {e}")
                         continue
-                    
-        # List foundation models, only cares about text outputs here.
-        response = bedrock_client.list_foundation_models(byOutputModality="TEXT")
 
+        # List foundation models, only cares about text outputs here.
+        response = bedrock_client.list_foundation_models(
+            byOutputModality="TEXT")
         for model in response["modelSummaries"]:
             model_id = model.get("modelId", "N/A")
             stream_supported = model.get("responseStreamingSupported", True)
@@ -155,13 +166,21 @@ def list_bedrock_models() -> dict:
 
             # Add cross-region inference model list.
             profile_id = cr_inference_prefix + "." + model_id
-            if profile_id in profile_list:
-                model_list[profile_id] = {"modalities": input_modalities}
+            if profile_id in profile_dict:
+                model_list[profile_id] = {
+                    "modalities": input_modalities,
+                    "name": profile_dict[profile_id]["name"]
+                }
 
             # Add application inference profiles (emit all profiles for this model)
             if model_id in app_profiles_by_model:
-                for profile_arn in app_profiles_by_model[model_id]:
-                    model_list[profile_arn] = {"modalities": input_modalities}
+                for app_profile in app_profiles_by_model[model_id]:
+                    profile_arn = app_profile["arn"]
+                    profile_name = app_profile.get("name", None)
+                    model_list[profile_arn] = {
+                        "modalities": input_modalities,
+                        "name": profile_name
+                    }
 
     except Exception as e:
         logger.error(f"Unable to list models: {str(e)}")
@@ -170,6 +189,16 @@ def list_bedrock_models() -> dict:
         # In case stack not updated.
         model_list[DEFAULT_MODEL] = {"modalities": ["TEXT", "IMAGE"]}
 
+    # if INFERENCE_PROFILE_REGEX_FILTER != "":
+    #     # filter list keeping only models that pass the regex test with INFERENCE_PROFILE_REGEX_FILTER
+    #     regex = re.compile(INFERENCE_PROFILE_REGEX_FILTER)
+    #     tmp_list = {}
+    #     for model in model_list:
+    #         if model.
+    #     model_list = {model: model_list[model] for model in tmp_list}
+
+    # Print all the models objects in the list
+    logger.info("Supported models: %s", json.dumps(model_list))
     return model_list
 
 
@@ -178,11 +207,12 @@ bedrock_model_list = list_bedrock_models()
 
 
 class BedrockModel(BaseChatModel):
-    def list_models(self) -> list[str]:
+    def list_models(self) -> dict:
         """Always refresh the latest model list"""
         global bedrock_model_list
         bedrock_model_list = list_bedrock_models()
-        return list(bedrock_model_list.keys())
+        logger.info("Model list refreshed")
+        return bedrock_model_list
 
     def validate(self, chat_request: ChatRequest):
         """Perform basic validation on requests"""
@@ -200,13 +230,11 @@ class BedrockModel(BaseChatModel):
 
     async def _invoke_bedrock(self, chat_request: ChatRequest, stream=False):
         """Common logic for invoke bedrock models"""
-        if DEBUG:
-            logger.info("Raw request: " + chat_request.model_dump_json())
+        logger.info("Raw request: " + chat_request.model_dump_json())
 
         # convert OpenAI chat request to Bedrock SDK request
         args = self._parse_request(chat_request)
-        if DEBUG:
-            logger.info("Bedrock request: " + json.dumps(str(args)))
+        logger.debug("Bedrock request: " + json.dumps(str(args)))
 
         try:
             if stream:
@@ -218,13 +246,16 @@ class BedrockModel(BaseChatModel):
                 # Run the blocking boto3 call in a thread pool
                 response = await run_in_threadpool(bedrock_runtime.converse, **args)
         except bedrock_runtime.exceptions.ValidationException as e:
-            logger.error("Bedrock validation error for model %s: %s", chat_request.model, str(e))
+            logger.error("Bedrock validation error for model %s: %s",
+                         chat_request.model, str(e))
             raise HTTPException(status_code=400, detail=str(e))
         except bedrock_runtime.exceptions.ThrottlingException as e:
-            logger.warning("Bedrock throttling for model %s: %s", chat_request.model, str(e))
+            logger.warning("Bedrock throttling for model %s: %s",
+                           chat_request.model, str(e))
             raise HTTPException(status_code=429, detail=str(e))
         except Exception as e:
-            logger.error("Bedrock invocation failed for model %s: %s", chat_request.model, str(e))
+            logger.error("Bedrock invocation failed for model %s: %s",
+                         chat_request.model, str(e))
             raise HTTPException(status_code=500, detail=str(e))
         return response
 
@@ -247,8 +278,7 @@ class BedrockModel(BaseChatModel):
             input_tokens=input_tokens,
             output_tokens=output_tokens,
         )
-        if DEBUG:
-            logger.info("Proxy response :" + chat_response.model_dump_json())
+        logger.debug("Proxy response :" + chat_response.model_dump_json())
         return chat_response
 
     async def _async_iterate(self, stream):
@@ -264,12 +294,14 @@ class BedrockModel(BaseChatModel):
             message_id = self.generate_message_id()
             stream = response.get("stream")
             async for chunk in self._async_iterate(stream):
-                args = {"model_id": chat_request.model, "message_id": message_id, "chunk": chunk}
+                args = {"model_id": chat_request.model,
+                        "message_id": message_id, "chunk": chunk}
                 stream_response = self._create_response_stream(**args)
                 if not stream_response:
                     continue
-                if DEBUG:
-                    logger.info("Proxy response :" + stream_response.model_dump_json())
+
+                logger.debug("Proxy response :" +
+                             stream_response.model_dump_json())
                 if stream_response.choices:
                     yield self.stream_response_to_bytes(stream_response)
                 elif chat_request.stream_options and chat_request.stream_options.include_usage:
@@ -284,7 +316,8 @@ class BedrockModel(BaseChatModel):
             # return an [DONE] message at the end.
             yield self.stream_response_to_bytes()
         except Exception as e:
-            logger.error("Stream error for model %s: %s", chat_request.model, str(e))
+            logger.error("Stream error for model %s: %s",
+                         chat_request.model, str(e))
             error_event = Error(error=ErrorMessage(message=str(e)))
             yield self.stream_response_to_bytes(error_event)
 
@@ -340,7 +373,7 @@ class BedrockModel(BaseChatModel):
                     has_content = len(message.content) > 0
                 elif message.content is not None:
                     has_content = True
-                
+
                 if has_content:
                     # Text message
                     messages.append(
@@ -373,10 +406,10 @@ class BedrockModel(BaseChatModel):
                 # Bedrock does not support tool role,
                 # Add toolResult to content
                 # https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ToolResultBlock.html
-                
+
                 # Handle different content formats from OpenAI SDK
                 tool_content = self._extract_tool_content(message.content)
-                
+
                 messages.append(
                     {
                         "role": "user",
@@ -398,7 +431,7 @@ class BedrockModel(BaseChatModel):
 
     def _extract_tool_content(self, content) -> str:
         """Extract text content from various OpenAI SDK tool message formats.
-        
+
         Handles:
         - String content (legacy format)
         - List of content objects (OpenAI SDK 1.91.0+)
@@ -407,7 +440,7 @@ class BedrockModel(BaseChatModel):
         try:
             if isinstance(content, str):
                 return content
-            
+
             if isinstance(content, list):
                 text_parts = []
                 for i, item in enumerate(content):
@@ -421,7 +454,8 @@ class BedrockModel(BaseChatModel):
                                     try:
                                         parsed_json = json.loads(item_text)
                                         # Convert JSON object to readable text
-                                        text_parts.append(json.dumps(parsed_json, indent=2))
+                                        text_parts.append(
+                                            json.dumps(parsed_json, indent=2))
                                     except json.JSONDecodeError:
                                         # Silently fallback to original text
                                         text_parts.append(item_text)
@@ -439,7 +473,7 @@ class BedrockModel(BaseChatModel):
                         # Convert any other type to string
                         text_parts.append(str(item))
                 return "\n".join(text_parts)
-            
+
             # Fallback for any other type
             return str(content)
         except Exception as e:
@@ -554,7 +588,8 @@ class BedrockModel(BaseChatModel):
             }
         # add tool config
         if chat_request.tools:
-            tool_config = {"tools": [self._convert_tool_spec(t.function) for t in chat_request.tools]}
+            tool_config = {"tools": [self._convert_tool_spec(
+                t.function) for t in chat_request.tools]}
 
             if chat_request.tool_choice and not chat_request.model.startswith(
                 "meta.llama3-1-"
@@ -569,11 +604,12 @@ class BedrockModel(BaseChatModel):
                 else:
                     # Specific tool to use
                     assert "function" in chat_request.tool_choice
-                    tool_config["toolChoice"] = {"tool": {"name": chat_request.tool_choice["function"].get("name", "")}}
+                    tool_config["toolChoice"] = {
+                        "tool": {"name": chat_request.tool_choice["function"].get("name", "")}}
             args["toolConfig"] = tool_config
         # add Additional fields to enable extend thinking
         if chat_request.extra_body:
-            # reasoning_config will not be used 
+            # reasoning_config will not be used
             args["additionalModelRequestFields"] = chat_request.extra_body
         return args
 
@@ -650,8 +686,7 @@ class BedrockModel(BaseChatModel):
 
         Ref: https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html#message-inference-examples
         """
-        if DEBUG:
-            logger.info("Bedrock response chunk: " + str(chunk))
+        logger.debug("Bedrock response chunk: " + str(chunk))
 
         finish_reason = None
         message = None
@@ -734,7 +769,8 @@ class BedrockModel(BaseChatModel):
                         index=0,
                         delta=message,
                         logprobs=None,
-                        finish_reason=self._convert_finish_reason(finish_reason),
+                        finish_reason=self._convert_finish_reason(
+                            finish_reason),
                     )
                 ],
                 usage=usage,
@@ -796,7 +832,8 @@ class BedrockModel(BaseChatModel):
                         status_code=400,
                         detail=f"Multimodal message is currently not supported by {model_id}",
                     )
-                image_data, content_type = self._parse_image(part.image_url.url)
+                image_data, content_type = self._parse_image(
+                    part.image_url.url)
                 content_parts.append(
                     {
                         "image": {
@@ -874,9 +911,10 @@ class BedrockEmbeddingsModel(BaseEmbeddingsModel, ABC):
 
     def _invoke_model(self, args: dict, model_id: str):
         body = json.dumps(args)
-        if DEBUG:
-            logger.info("Invoke Bedrock Model: " + model_id)
-            logger.info("Bedrock request body: " + body)
+
+        # TODO put back into debug
+        logger.info("Invoke Bedrock Model: " + model_id)
+        logger.debug("Bedrock request body: " + body)
         try:
             return bedrock_runtime.invoke_model(
                 body=body,
@@ -919,8 +957,8 @@ class BedrockEmbeddingsModel(BaseEmbeddingsModel, ABC):
                 total_tokens=input_tokens + output_tokens,
             ),
         )
-        if DEBUG:
-            logger.info("Proxy response :" + response.model_dump_json())
+
+        logger.debug("Proxy response :" + response.model_dump_json())
         return response
 
 
@@ -959,8 +997,8 @@ class CohereEmbeddingsModel(BedrockEmbeddingsModel):
             args=self._parse_args(embeddings_request), model_id=embeddings_request.model
         )
         response_body = json.loads(response.get("body").read())
-        if DEBUG:
-            logger.info("Bedrock response body: " + str(response_body))
+
+        logger.debug("Bedrock response body: " + str(response_body))
 
         return self._create_response(
             embeddings=response_body["embeddings"],
@@ -999,8 +1037,8 @@ class TitanEmbeddingsModel(BedrockEmbeddingsModel):
             args=self._parse_args(embeddings_request), model_id=embeddings_request.model
         )
         response_body = json.loads(response.get("body").read())
-        if DEBUG:
-            logger.info("Bedrock response body: " + str(response_body))
+
+        logger.debug("Bedrock response body: " + str(response_body))
 
         return self._create_response(
             embeddings=[response_body["embedding"]],
@@ -1011,8 +1049,8 @@ class TitanEmbeddingsModel(BedrockEmbeddingsModel):
 
 def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
     model_name = SUPPORTED_BEDROCK_EMBEDDING_MODELS.get(model_id, "")
-    if DEBUG:
-        logger.info("model name is " + model_name)
+
+    logger.debug("model name is " + model_name)
     match model_name:
         case "Cohere Embed Multilingual" | "Cohere Embed English":
             return CohereEmbeddingsModel()

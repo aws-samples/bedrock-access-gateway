@@ -8,6 +8,7 @@ from api.setting import DEFAULT_MODEL
 
 class Model(BaseModel):
     id: str
+    name: str | None = None
     created: int = Field(default_factory=lambda: int(time.time()))
     object: str | None = "model"
     owned_by: str | None = "bedrock"

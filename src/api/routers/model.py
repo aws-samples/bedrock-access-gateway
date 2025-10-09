@@ -22,7 +22,16 @@ async def validate_model_id(model_id: str):
 
 @router.get("", response_model=Models)
 async def list_models():
-    model_list = [Model(id=model_id) for model_id in chat_model.list_models()]
+    model_list = []
+    chat_models = chat_model.list_models() 
+    for model in chat_models:
+        model_list.append(Model(
+            id=model,
+            name=chat_models[model].get("name", model),
+            # created=chat_models[model].get("created"),
+            # object=chat_models[model].get("object"),
+            # owned_by=chat_models[model].get("owned_by"),
+            ))
     return Models(data=model_list)
 
 

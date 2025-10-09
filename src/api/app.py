@@ -1,6 +1,6 @@
 import logging
 
-import uvicorn
+import uvicorn, os
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,7 +8,7 @@ from fastapi.responses import PlainTextResponse
 from mangum import Mangum
 
 from api.routers import chat, embeddings, model
-from api.setting import API_ROUTE_PREFIX, DESCRIPTION, SUMMARY, TITLE, VERSION
+from api.setting import API_ROUTE_PREFIX, DESCRIPTION, SUMMARY, TITLE, VERSION, LOG_LEVEL
 
 config = {
     "title": TITLE,
@@ -17,8 +17,10 @@ config = {
     "version": VERSION,
 }
 
+# Set logging level base on LOG_LEVEL var
 logging.basicConfig(
-    level=logging.INFO,
+    # level=logging.INFO,
+    level = LOG_LEVEL,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 app = FastAPI(**config)
@@ -61,4 +63,5 @@ async def validation_exception_handler(request, exc):
 handler = Mangum(app)
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    port: int = int(os.getenv("PORT", "8080"))
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)

@@ -1,0 +1,40 @@
+services:
+  bedrock-access-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile_ecs
+    ports:
+      - "8080:8080"
+    volumes:
+      - ${USERPROFILE}\.aws:/home/appuser/.aws:ro
+    environment:
+      - AWS_PROFILE=${AWS_PROFILE:-default}
+      - AWS_REGION=${AWS_REGION:-eu-west-1}
+      - ENABLE_APPLICATION_INFERENCE_PROFILES=true
+      # - LOG_LEVEL=debug
+      - PORT=8080
+    container_name: bedrock-access-gateway
+    restart: unless-stopped
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    ports:
+      - "8081:8080"
+    # volumes:
+    #   - open-webui:/app/backend/data
+    environment:
+      - OPENAI_API_BASE_URL=http://bedrock-access-gateway:8080/api/v1
+      - OPENAI_API_KEY=bedrock
+      - WEBUI_AUTH=False
+      - OFFLINE_MODE=True
+      - DATABASE_POOL_SIZE="20"
+      - DATABASE_POOL_MAX_OVERFLOW="30"
+      - DATABASE_POOL_TIMEOUT="30"
+      - DATABASE_POOL_RECYCLE="3600"
+    container_name: open-webui
+    restart: unless-stopped
+    depends_on:
+      - bedrock-access-gateway
+
+# volumes:
+#   open-webui:
