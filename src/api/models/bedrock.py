@@ -310,7 +310,8 @@ class BedrockModel(BaseChatModel):
             if message.role != "system":
                 # ignore system messages here
                 continue
-            assert isinstance(message.content, str)
+            if not isinstance(message.content, str):
+                raise TypeError(f"System message content must be a string, got {type(message.content).__name__}")
             system_prompts.append({"text": message.content})
 
         return system_prompts
@@ -580,7 +581,8 @@ class BedrockModel(BaseChatModel):
                         tool_config["toolChoice"] = {"auto": {}}
                 else:
                     # Specific tool to use
-                    assert "function" in chat_request.tool_choice
+                    if "function" not in chat_request.tool_choice:
+                        raise ValueError("tool_choice must contain 'function' key when specifying a specific tool")
                     tool_config["toolChoice"] = {"tool": {"name": chat_request.tool_choice["function"].get("name", "")}}
             args["toolConfig"] = tool_config
         # add Additional fields to enable extend thinking
@@ -784,7 +786,7 @@ class BedrockModel(BaseChatModel):
             return base64.b64decode(image_data), content_type.group(1)
 
         # Send a request to the image URL
-        response = requests.get(image_url)
+        response = requests.get(image_url, timeout=30)
         # Check if the request was successful
         if response.status_code == 200:
             content_type = response.headers.get("Content-Type")
