@@ -1,0 +1,353 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/awslabs/automated-security-helper/refs/heads/main/automated_security_helper/schemas/AshConfig.json
+project_name: bedrock-access-gateway
+global_settings:
+  severity_threshold: MEDIUM
+  ignore_paths: 
+    - path: '.ash'
+      reason: 'Path for ash config and scan results'
+    - path: '.github'
+      reason: 'Path for github workflow'
+  suppressions:
+    # Lambda Docker images - AWS manages runtime user and health checks
+    - rule_id: 'CKV_DOCKER_3'
+      path: 'src/Dockerfile'
+      reason: 'AWS Lambda runtime manages user permissions, custom user not required'
+    - rule_id: 'CKV_DOCKER_2'
+      path: 'src/Dockerfile'
+      reason: 'AWS Lambda uses its own health check mechanism, Docker HEALTHCHECK not used'
+    - rule_id: 'dockerfile.security.missing-user.missing-user'
+      path: 'src/Dockerfile'
+      reason: 'AWS Lambda base image handles user configuration internally'
+    # CORS configuration - intentionally configurable via environment variable
+    - rule_id: 'python.fastapi.security.wildcard-cors.wildcard-cors'
+      path: 'src/api/app.py'
+      line_start: 27
+      line_end: 40
+      reason: 'CORS origins configurable via ALLOWED_ORIGINS env var, warning logged when using wildcard'
+    # Production container binding - required for containerized deployments
+    - rule_id: 'B104'
+      path: 'src/api/app.py'
+      line_start: 71
+      line_end: 74
+      reason: 'Binding to 0.0.0.0 required for production container environments, secured by network policies'
+
+    # Lambda function configuration - BedrockProxy.template
+    - rule_id: 'CKV_AWS_115'
+      path: 'deployment/BedrockProxy.template'
+      line_start: 165
+      line_end: 199
+      reason: 'Concurrency controlled at AWS account level, function-level limits not required for this use case'
+    - rule_id: 'CKV_AWS_173'
+      path: 'deployment/BedrockProxy.template'
+      line_start: 165
+      line_end: 199
+      reason: 'Sensitive credentials stored in AWS Secrets Manager with encryption, environment variables contain non-sensitive configuration only'
+    - rule_id: 'CKV_AWS_116'
+      path: 'deployment/BedrockProxy.template'
+      line_start: 165
+      line_end: 199
+      reason: 'Lambda invoked synchronously via ALB, errors returned directly to caller, DLQ not applicable for this pattern'
+    - rule_id: 'CKV_AWS_117'
+      path: 'deployment/BedrockProxy.template'
+      line_start: 165
+      line_end: 199
+      reason: 'Lambda accesses AWS Bedrock API via public endpoints, VPC configuration not required and would add unnecessary complexity'
+
+    # Lambda permission - BedrockProxy.template
+    - rule_id: 'CKV_AWS_364'
+      path: 'deployment/BedrockProxy.template'
+      line_start: 200
+      line_end: 208
+      reason: 'ALB ARN is dynamically generated, runtime API key validation provides access control at application layer'
+
+    # ALB configuration - BedrockProxy.template
+    - rule_id: 'CKV_AWS_91'
+      path: 'deployment/BedrockProxy.template'
+      line_start: 209
+      line_end: 228
+      reason: 'Access logging disabled for development/test deployments to reduce costs, should be enabled in production environments'
+    - rule_id: 'CKV_AWS_131'
+      path: 'deployment/BedrockProxy.template'
+      line_start: 209
+      line_end: 228
+      reason: 'Default ALB header handling sufficient, application layer performs request validation and sanitization'
+
+    # Security group - BedrockProxy.template
+    - rule_id: 'CKV_AWS_260'
+      path: 'deployment/BedrockProxy.template'
+      line_start: 229
+      line_end: 246
+      reason: 'Port 80 open for HTTP health checks and optional HTTP to HTTPS redirect, actual access control enforced via API key authentication'
+
+    # ALB listener - BedrockProxy.template
+    - rule_id: 'CKV_AWS_2'
+      path: 'deployment/BedrockProxy.template'
+      line_start: 247
+      line_end: 257
+      reason: 'HTTP endpoint simplifies deployment without certificate requirements, HTTPS can be configured with ACM certificate for production use'
+    - rule_id: 'CKV_AWS_103'
+      path: 'deployment/BedrockProxy.template'
+      line_start: 247
+      line_end: 257
+      reason: 'HTTP listener for simplified deployment, TLS 1.2+ enforced when HTTPS configured with SSL certificate'
+
+    # IAM policy - BedrockProxyFargate.template
+    - rule_id: 'CKV_AWS_111'
+      path: 'deployment/BedrockProxyFargate.template'
+      line_start: 131
+      line_end: 168
+      reason: 'CloudWatch Logs permissions require wildcard for CreateLogStream/PutLogEvents, ECR and Secrets Manager access properly scoped to specific resources'
+
+    # ECS cluster - BedrockProxyFargate.template
+    - rule_id: 'CKV_AWS_65'
+      path: 'deployment/BedrockProxyFargate.template'
+      line_start: 201
+      line_end: 202
+      reason: 'Container Insights disabled to reduce costs in development/test environments, can be enabled for production monitoring'
+
+    # ALB configuration - BedrockProxyFargate.template
+    - rule_id: 'CKV_AWS_91'
+      path: 'deployment/BedrockProxyFargate.template'
+      line_start: 337
+      line_end: 358
+      reason: 'Access logging disabled for development/test deployments to reduce costs, should be enabled in production environments'
+    - rule_id: 'CKV_AWS_131'
+      path: 'deployment/BedrockProxyFargate.template'
+      line_start: 337
+      line_end: 358
+      reason: 'Default ALB header handling sufficient, application layer performs request validation and sanitization'
+
+    # Security group - BedrockProxyFargate.template
+    - rule_id: 'CKV_AWS_260'
+      path: 'deployment/BedrockProxyFargate.template'
+      line_start: 359
+      line_end: 370
+      reason: 'Port 80 open for HTTP health checks and optional HTTP to HTTPS redirect, actual access control enforced via API key authentication'
+
+    # ALB listener - BedrockProxyFargate.template
+    - rule_id: 'CKV_AWS_2'
+      path: 'deployment/BedrockProxyFargate.template'
+      line_start: 386
+      line_end: 396
+      reason: 'HTTP endpoint simplifies deployment without certificate requirements, HTTPS can be configured with ACM certificate for production use'
+    - rule_id: 'CKV_AWS_103'
+      path: 'deployment/BedrockProxyFargate.template'
+      line_start: 386
+      line_end: 396
+      reason: 'HTTP listener for simplified deployment, TLS 1.2+ enforced when HTTPS configured with SSL certificate'
+fail_on_findings: true
+ash_plugin_modules: []
+external_reports_to_include: []
+build: null
+converters:
+  archive:
+    name: archive
+    enabled: true
+    options: {}
+  jupyter:
+    name: jupyter
+    enabled: true
+    options:
+      tool_version: '>=7.16.0,<8.0.0'
+      install_timeout: 300
+scanners:
+  bandit:
+    name: bandit
+    enabled: true
+    options:
+      severity_threshold: null
+      config_file: null
+      confidence_level: all
+      ignore_nosec: false
+      excluded_paths: []
+      additional_formats: []
+      tool_version: '>=1.7.0,<2.0.0'
+      install_timeout: 300
+  cdk-nag:
+    name: cdk-nag
+    enabled: true
+    options:
+      severity_threshold: null
+      nag_packs:
+        AwsSolutionsChecks: true
+        HIPAASecurityChecks: false
+        NIST80053R4Checks: false
+        NIST80053R5Checks: false
+        PCIDSS321Checks: false
+  cfn-nag:
+    name: cfn-nag
+    enabled: true
+    options:
+      severity_threshold: null
+  checkov:
+    name: checkov
+    enabled: true
+    options:
+      severity_threshold: null
+      config_file: null
+      skip_path: []
+      additional_formats:
+      - cyclonedx_json
+      offline: false
+      frameworks:
+      - all
+      skip_frameworks: []
+      tool_version: null
+      install_timeout: 300
+  detect-secrets:
+    name: detect-secrets
+    enabled: true
+    options:
+      severity_threshold: null
+      baseline_file: null
+      scan_settings:
+        version: null
+        generated_at: null
+        plugins_used: []
+        filters_used: []
+        results: {}
+  grype:
+    name: grype
+    enabled: true
+    options:
+      severity_threshold: null
+      config_file: null
+      offline: false
+  npm-audit:
+    name: npm-audit
+    enabled: true
+    options:
+      severity_threshold: null
+      offline: false
+  opengrep:
+    name: opengrep
+    enabled: false
+    options:
+      severity_threshold: null
+      config: auto
+      exclude:
+      - '*-converted.py'
+      - '*_report_result.txt'
+      exclude_rule: []
+      severity: []
+      metrics: auto
+      offline: false
+      patterns: []
+      version: v1.1.5
+  semgrep:
+    name: semgrep
+    enabled: true
+    options:
+      severity_threshold: null
+      config: auto
+      exclude:
+      - '*-converted.py'
+      - '*_report_result.txt'
+      exclude_rule: []
+      severity: []
+      metrics: auto
+      offline: false
+      tool_version: null
+      install_timeout: 300
+  syft:
+    name: syft
+    enabled: true
+    options:
+      severity_threshold: null
+      config_file: null
+      exclude: []
+      additional_outputs:
+      - syft-table
+reporters:
+  csv:
+    name: csv
+    enabled: true
+    options: {}
+    extension: csv
+  cyclonedx:
+    name: cyclonedx
+    enabled: true
+    options: {}
+    extension: cdx.json
+  html:
+    name: html
+    enabled: true
+    options: {}
+    extension: html
+  flat-json:
+    name: flat-json
+    enabled: true
+    options:
+      include_scanner_metrics: true
+      include_summary_metrics: true
+      include_metadata: true
+    extension: flat.json
+  gitlab-sast:
+    name: gitlab-sast
+    enabled: true
+    options: {}
+    extension: gl-sast-report.json
+  junitxml:
+    name: junitxml
+    enabled: true
+    options:
+      respect_severity_threshold: true
+    extension: junit.xml
+  markdown:
+    name: markdown
+    enabled: true
+    options:
+      include_summary: true
+      include_findings_table: false
+      include_detailed_findings: true
+      max_detailed_findings: 20
+      top_hotspots_limit: 10
+      use_collapsible_details: true
+    extension: summary.md
+  ocsf:
+    name: ocsf
+    enabled: true
+    options: {}
+    extension: ocsf.json
+  sarif:
+    name: sarif
+    enabled: true
+    options: {}
+    extension: sarif
+  spdx:
+    name: spdx
+    enabled: false
+    options: {}
+    extension: spdx.json
+  text:
+    name: text
+    enabled: true
+    options:
+      include_summary: true
+      include_findings_table: false
+      include_detailed_findings: false
+      max_detailed_findings: 20
+      top_hotspots_limit: 20
+    extension: summary.txt
+  yaml:
+    name: yaml
+    enabled: false
+    options: {}
+    extension: yaml
+mcp-resource-management:
+  max_concurrent_scans: 3
+  max_concurrent_tasks: 20
+  thread_pool_max_workers: 4
+  scan_timeout_seconds: 1800
+  operation_timeout_seconds: 180
+  shutdown_timeout_seconds: 30
+  memory_warning_threshold_mb: 1024
+  memory_critical_threshold_mb: 2048
+  task_count_warning_threshold: 15
+  max_message_size_bytes: 10485760
+  max_path_length: 4096
+  max_directory_size_mb: 1000
+  enable_health_checks: true
+  health_check_interval_seconds: 60
+  enable_resource_logging: true
+  log_resource_operations: false
