@@ -256,8 +256,8 @@ Resources:
             Ref: ContainerImageUri
           Name: proxy-api
           PortMappings:
-            - ContainerPort: 80
-              HostPort: 80
+            - ContainerPort: 8080
+              HostPort: 8080
               Protocol: tcp
           Secrets:
             - Name: API_KEY
@@ -303,7 +303,7 @@ Resources:
       HealthCheckGracePeriodSeconds: 60
       LoadBalancers:
         - ContainerName: proxy-api
-          ContainerPort: 80
+          ContainerPort: 8080
           TargetGroupArn:
             Ref: ProxyALBListenerTargetsGroup187739FA
       NetworkConfiguration:
@@ -340,7 +340,7 @@ Resources:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       Description: Load balancer to target
-      FromPort: 80
+      FromPort: 8080
       GroupId:
         Fn::GetAtt:
           - ProxyApiServiceSecurityGroup51EBD9B8
@@ -350,7 +350,7 @@ Resources:
         Fn::GetAtt:
           - ProxyALBSecurityGroup0D6CA3DA
           - GroupId
-      ToPort: 80
+      ToPort: 8080
     DependsOn:
       - ProxyTaskRoleDefaultPolicy933321B8
       - ProxyTaskRole5DB6A540
@@ -396,13 +396,13 @@ Resources:
         Fn::GetAtt:
           - ProxyApiServiceSecurityGroup51EBD9B8
           - GroupId
-      FromPort: 80
+      FromPort: 8080
       GroupId:
         Fn::GetAtt:
           - ProxyALBSecurityGroup0D6CA3DA
           - GroupId
       IpProtocol: tcp
-      ToPort: 80
+      ToPort: 8080
   ProxyALBListener933E9515:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
@@ -421,7 +421,7 @@ Resources:
       HealthCheckIntervalSeconds: 60
       HealthCheckPath: /health
       HealthCheckTimeoutSeconds: 30
-      Port: 80
+      Port: 8080
       Protocol: HTTP
       TargetGroupAttributes:
         - Key: stickiness.enabled
