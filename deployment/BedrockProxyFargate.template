@@ -4,6 +4,9 @@ Parameters:
     Type: String
     AllowedPattern: ^arn:aws:secretsmanager:.*$
     Description: The secret ARN in Secrets Manager used to store the API Key
+  ContainerImageUri:
+    Type: String
+    Description: The ECR image URI for the ECS/Fargate task (e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/bedrock-proxy-api-ecs:latest)
   DefaultModelId:
     Type: String
     Default: anthropic.claude-3-sonnet-20240229-v1:0
@@ -134,10 +137,6 @@ Resources:
       PolicyDocument:
         Statement:
           - Action:
-              - ecr:GetAuthorizationToken
-              - ecr:BatchCheckLayerAvailability
-              - ecr:GetDownloadUrlForLayer
-              - ecr:BatchGetImage
               - logs:CreateLogStream
               - logs:PutLogEvents
             Effect: Allow
@@ -157,8 +156,35 @@ Resources:
               Fn::Join:
                 - ""
                 - - "arn:aws:ecr:"
-                  - Ref: AWS::Region
-                  - :366590864501:repository/bedrock-proxy-api-ecs
+                  - Fn::Select:
+                      - 3
+                      - Fn::Split:
+                          - "."
+                          - Fn::Select:
+                              - 0
+                              - Fn::Split:
+                                  - "/"
+                                  - Ref: ContainerImageUri
+                  - ":"
+                  - Fn::Select:
+                      - 0
+                      - Fn::Split:
+                          - "."
+                          - Fn::Select:
+                              - 0
+                              - Fn::Split:
+                                  - "/"
+                                  - Ref: ContainerImageUri
+                  - ":repository/"
+                  - Fn::Select:
+                      - 0
+                      - Fn::Split:
+                          - ":"
+                          - Fn::Select:
+                              - 1
+                              - Fn::Split:
+                                  - "/"
+                                  - Ref: ContainerImageUri
           - Action: ecr:GetAuthorizationToken
             Effect: Allow
             Resource: "*"
@@ -227,13 +253,7 @@ Resources:
               Value: "true"
           Essential: true
           Image:
-            Fn::Join:
-              - ""
-              - - 366590864501.dkr.ecr.
-                - Ref: AWS::Region
-                - "."
-                - Ref: AWS::URLSuffix
-                - /bedrock-proxy-api-ecs:latest
+            Ref: ContainerImageUri
           Name: proxy-api
           PortMappings:
             - ContainerPort: 80
