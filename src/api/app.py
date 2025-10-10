@@ -27,7 +27,7 @@ app = FastAPI(**config)
 allowed_origins = os.environ.get("ALLOWED_ORIGINS", "*")
 origins_list = [origin.strip() for origin in allowed_origins.split(",")] if allowed_origins != "*" else ["*"]
 
-# Warn if CORS allows all origins in production
+# Warn if CORS allows all origins
 if origins_list == ["*"]:
     logging.warning("CORS is configured to allow all origins (*). Set ALLOWED_ORIGINS environment variable to restrict access.")
 
@@ -69,6 +69,5 @@ async def validation_exception_handler(request, exc):
 handler = Mangum(app)
 
 if __name__ == "__main__":
-    # Bind to 0.0.0.0 for production container environments
-    # Security is handled by network policies and load balancers
+    # Bind to 0.0.0.0 for container environments, network is handled by network policies and load balancers
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)  # nosec B104

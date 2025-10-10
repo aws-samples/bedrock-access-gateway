@@ -1,7 +1,5 @@
 import os
 
-DEFAULT_API_KEYS = os.environ.get("DEFAULT_API_KEYS", "bedrock")
-
 API_ROUTE_PREFIX = os.environ.get("API_ROUTE_PREFIX", "/api/v1")
 
 TITLE = "Amazon Bedrock Proxy APIs"
