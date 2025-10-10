@@ -7,71 +7,118 @@ set -o errexit  # exit on first error
 set -o nounset  # exit on using unset variables
 set -o pipefail # exit on any error in a pipeline
 
-# Define variables
-TAG="latest"
-ARCHS=("arm64" "amd64")
-AWS_REGIONS=("us-east-1") # List of AWS region, use below liest if you don't enable ECR repository replication
-# AWS_REGIONS=("us-east-1" "us-west-2" "eu-central-1" "ap-southeast-1" "ap-southeast-2" "ap-northeast-1" "eu-central-1" "eu-west-3") # List of supported AWS regions
+# Prompt user for inputs
+echo "================================================"
+echo "Bedrock Access Gateway - Build and Push to ECR"
+echo "================================================"
+echo ""
 
-build_and_push_images() {
+# Get repository name for Lambda version
+read -p "Enter ECR repository name for Lambda (default: bedrock-proxy-api): " LAMBDA_REPO
+LAMBDA_REPO=${LAMBDA_REPO:-bedrock-proxy-api}
+
+# Get repository name for ECS/Fargate version
+read -p "Enter ECR repository name for ECS/Fargate (default: bedrock-proxy-api-ecs): " ECS_REPO
+ECS_REPO=${ECS_REPO:-bedrock-proxy-api-ecs}
+
+# Get image tag
+read -p "Enter image tag (default: latest): " TAG
+TAG=${TAG:-latest}
+
+# Get AWS region
+read -p "Enter AWS region (default: us-east-1): " AWS_REGION
+AWS_REGION=${AWS_REGION:-us-east-1}
+
+echo ""
+echo "Configuration:"
+echo "  Lambda Repository: $LAMBDA_REPO"
+echo "  ECS/Fargate Repository: $ECS_REPO"
+echo "  Image Tag: $TAG"
+echo "  AWS Region: $AWS_REGION"
+echo ""
+read -p "Continue with these settings? (y/n): " CONFIRM
+if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+    echo "Aborted."
+    exit 1
+fi
+echo ""
+
+# Acknowledgment about ECR repository creation
+echo "ℹ️  NOTICE: This script will automatically create ECR repositories if they don't exist."
+echo "   The repositories will be created with the following default settings:"
+echo "   - Image tag mutability: MUTABLE (allows overwriting tags)"
+echo "   - Image scanning: Disabled"
+echo "   - Encryption: AES256 (AWS managed encryption)"
+echo ""
+echo "   You can modify these settings later in the AWS ECR Console if needed."
+echo "   Required IAM permissions: ecr:CreateRepository, ecr:GetAuthorizationToken,"
+echo "   ecr:BatchCheckLayerAvailability, ecr:InitiateLayerUpload, ecr:UploadLayerPart,"
+echo "   ecr:CompleteLayerUpload, ecr:PutImage"
+echo ""
+read -p "Do you acknowledge and want to proceed? (y/n): " ACK_CONFIRM
+if [[ ! "$ACK_CONFIRM" =~ ^[Yy]$ ]]; then
+    echo "Aborted."
+    exit 1
+fi
+echo ""
+
+# Define variables
+ARCHS=("arm64")  # Single architecture for simplicity
+
+build_and_push_image() {
     local IMAGE_NAME=$1
     local TAG=$2
-    local ENABLE_MULTI_ARCH=${3:-true}  # Parameter for enabling multi-arch build, default is true
-    local DOCKERFILE_PATH=${4:-"../src/Dockerfile_ecs"}  # Parameter for Dockerfile path, default is "../src/Dockerfile_ecs"
+    local DOCKERFILE_PATH=$3
+    local REGION=$AWS_REGION
+    local ARCH=${ARCHS[0]}
 
-    # Build Docker image for each architecture
-    if [ "$ENABLE_MULTI_ARCH" == "true" ]; then
-        for ARCH in "${ARCHS[@]}"
-        do
-            # Build multi-architecture Docker image
-            docker buildx build --platform linux/$ARCH -t $IMAGE_NAME:$TAG-$ARCH -f $DOCKERFILE_PATH --load ../src/
-        done
-    else
-        # Build single architecture Docker image
-        docker buildx build --platform linux/${ARCHS[0]} -t $IMAGE_NAME:$TAG -f $DOCKERFILE_PATH --load ../src/
-    fi
+    echo "Building $IMAGE_NAME:$TAG..."
 
-    # Push Docker image to ECR for each architecture in each AWS region
-    for REGION in "${AWS_REGIONS[@]}"
-    do
-        # Get the account ID for the current region
-        ACCOUNT_ID=$(aws sts get-caller-identity --region $REGION --query Account --output text)
+    # Build Docker image
+    docker buildx build --platform linux/$ARCH -t $IMAGE_NAME:$TAG -f $DOCKERFILE_PATH --load ../src/
 
-        # Create repository URI
-        REPOSITORY_URI="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE_NAME}"
+    # Get the account ID
+    ACCOUNT_ID=$(aws sts get-caller-identity --region $REGION --query Account --output text)
 
-        # Create ECR repository if it doesn't exist
-        aws ecr create-repository --repository-name "${IMAGE_NAME}" --region $REGION || true
+    # Create repository URI
+    REPOSITORY_URI="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE_NAME}"
 
-        # Log in to ECR
-        aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
+    echo "Creating ECR repository if it doesn't exist..."
+    # Create ECR repository if it doesn't exist
+    aws ecr create-repository --repository-name "${IMAGE_NAME}" --region $REGION || true
 
-        # Push the image to ECR for each architecture
-        if [ "$ENABLE_MULTI_ARCH" == "true" ]; then
-            for ARCH in "${ARCHS[@]}"
-            do
-                # Tag the image for the current region
-                docker tag $IMAGE_NAME:$TAG-$ARCH $REPOSITORY_URI:$TAG-$ARCH
-                # Push the image to ECR
-                docker push $REPOSITORY_URI:$TAG-$ARCH
-                # Create a manifest for the image
-                docker manifest create $REPOSITORY_URI:$TAG $REPOSITORY_URI:$TAG-$ARCH --amend
-                # Annotate the manifest with architecture information
-                docker manifest annotate $REPOSITORY_URI:$TAG "$REPOSITORY_URI:$TAG-$ARCH" --os linux --arch $ARCH
-            done
+    echo "Logging in to ECR..."
+    # Log in to ECR
+    aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
 
-            # Push the manifest to ECR
-            docker manifest push $REPOSITORY_URI:$TAG
-        else
-            # Tag the image for the current region
-            docker tag $IMAGE_NAME:$TAG $REPOSITORY_URI:$TAG
-            # Push the image to ECR
-            docker push $REPOSITORY_URI:$TAG
-        fi
+    echo "Pushing image to ECR..."
+    # Tag the image for ECR
+    docker tag $IMAGE_NAME:$TAG $REPOSITORY_URI:$TAG
 
-        echo "Pushed $IMAGE_NAME:$TAG to $REPOSITORY_URI"
-    done
+    # Push the image to ECR
+    docker push $REPOSITORY_URI:$TAG
+
+    echo "✅ Successfully pushed $IMAGE_NAME:$TAG to $REPOSITORY_URI"
+    echo ""
 }
 
-build_and_push_images "bedrock-proxy-api" "$TAG" "false" "../src/Dockerfile"
-build_and_push_images "bedrock-proxy-api-ecs" "$TAG"
+echo "Building and pushing Lambda image..."
+build_and_push_image "$LAMBDA_REPO" "$TAG" "../src/Dockerfile"
+
+echo "Building and pushing ECS/Fargate image..."
+build_and_push_image "$ECS_REPO" "$TAG" "../src/Dockerfile_ecs"
+
+echo "================================================"
+echo "✅ All images successfully pushed!"
+echo "================================================"
+echo ""
+echo "Your container image URIs:"
+ACCOUNT_ID=$(aws sts get-caller-identity --region $AWS_REGION --query Account --output text)
+echo "  Lambda: ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${LAMBDA_REPO}:${TAG}"
+echo "  ECS/Fargate: ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECS_REPO}:${TAG}"
+echo ""
+echo "Next steps:"
+echo "  1. Download the CloudFormation templates from deployment/ folder"
+echo "  2. Update the ContainerImageUri parameter with your image URI above"
+echo "  3. Deploy the stack via AWS CloudFormation Console"
+echo ""

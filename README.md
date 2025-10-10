@@ -1,12 +1,12 @@
-[中文](./README_CN.md)
-
 # Bedrock Access Gateway
 
 OpenAI-compatible RESTful APIs for Amazon Bedrock
 
 ## What's New 🔥
 
-This project supports reasoning for both **Claude 3.7 Sonnet** and **DeepSeek R1**, check [How to Use](./docs/Usage.md#reasoning) for more details. You need to first run the Models API to refresh the model list.
+This project now supports **Claude Sonnet 4.5**, Anthropic's most intelligent model with enhanced coding capabilities and complex agent support, available via global cross-region inference.
+
+It also supports reasoning for both **Claude 3.7 Sonnet** and **DeepSeek R1**. Check [How to Use](./docs/Usage.md#reasoning) for more details. You need to first run the Models API to refresh the model list.
 
 ## Overview
 
@@ -55,47 +55,75 @@ Alternatively, you can use Lambda Function URL to replace ALB, see [example](htt
 
 ### Deployment
 
-Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS account. Only supports regions where Amazon Bedrock is available (such as `us-west-2`). The deployment will take approximately **3-5 minutes** 🕒.
+Please follow the steps below to deploy the Bedrock Proxy APIs into your AWS account. Only supports regions where Amazon Bedrock is available (such as `us-west-2`). The deployment will take approximately **10-15 minutes** 🕒.
 
 **Step 1: Create your own API key in Secrets Manager (MUST)**
-
 
 > **Note:** This step is to use any string (without spaces) you like to create a custom API Key (credential) that will be used to access the proxy API later. This key does not have to match your actual OpenAI key, and you don't need to have an OpenAI API key. please keep the key safe and private.
 
 1. Open the AWS Management Console and navigate to the AWS Secrets Manager service.
-2. Click on "Store a new secret" button. 
+2. Click on "Store a new secret" button.
 3. In the "Choose secret type" page, select:
 
    Secret type: Other type of secret
    Key/value pairs:
    - Key: api_key
    - Value: Enter your API key value
-   
+
    Click "Next"
 4. In the "Configure secret" page:
    Secret name: Enter a name (e.g., "BedrockProxyAPIKey")
    Description: (Optional) Add a description of your secret
 5. Click "Next" and review all your settings and click "Store"
 
-After creation, you'll see your secret in the Secrets Manager console.  Make note of the secret ARN.
+After creation, you'll see your secret in the Secrets Manager console. Make note of the secret ARN.
 
+**Step 2: Build and push container images to ECR**
 
-**Step 2: Deploy the CloudFormation stack**
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/aws-samples/bedrock-access-gateway.git
+   cd bedrock-access-gateway
+   ```
 
-1. Sign in to AWS Management Console, switch to the region to deploy the CloudFormation Stack to.
-2. Click the following button to launch the CloudFormation Stack in that region. Choose one of the following:
+2. Run the build and push script:
+   ```bash
+   cd scripts
+   bash ./push-to-ecr.sh
+   ```
 
-      [<kbd> <br> ALB + Lambda 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxy.template&stackName=BedrockProxyAPI)
+3. Follow the prompts to configure:
+   - ECR repository names (or use defaults)
+   - Image tag (or use default: `latest`)
+   - AWS region (or use default: `us-east-1`)
 
-      [<kbd> <br> ALB + Fargate 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://aws-gcr-solutions.s3.amazonaws.com/bedrock-access-gateway/latest/BedrockProxyFargate.template&stackName=BedrockProxyAPI)
-3. Click "Next".
-4. On the "Specify stack details" page, provide the following information:
-    - Stack name: Change the stack name if needed.
-    - ApiKeySecretArn: Enter the secret ARN you used for storing the API key. 
-   
+4. The script will build and push both Lambda and ECS/Fargate images to your ECR repositories.
+
+5. **Important**: Copy the image URIs displayed at the end of the script output. You'll need these in the next step.
+
+**Step 3: Deploy the CloudFormation stack**
+
+1. Download the CloudFormation template you want to use:
+   - For Lambda: [`deployment/BedrockProxy.template`](deployment/BedrockProxy.template)
+   - For Fargate: [`deployment/BedrockProxyFargate.template`](deployment/BedrockProxyFargate.template)
+
+2. Sign in to AWS Management Console and navigate to the CloudFormation service in your target region.
+
+3. Click "Create stack" → "With new resources (standard)".
+
+4. Upload the template file you downloaded.
+
+5. On the "Specify stack details" page, provide the following information:
+   - **Stack name**: Enter a stack name (e.g., "BedrockProxyAPI")
+   - **ApiKeySecretArn**: Enter the secret ARN from Step 1
+   - **ContainerImageUri**: Enter the ECR image URI from Step 2 output
+   - **DefaultModelId**: (Optional) Change the default model if needed
+
    Click "Next".
-5. On the "Configure stack options" page, you can leave the default settings or customize them according to your needs. Click "Next".
-6. On the "Review" page, review the details of the stack you're about to create. Check the "I acknowledge that AWS CloudFormation might create IAM resources" checkbox at the bottom. Click "Create stack".
+
+6. On the "Configure stack options" page, you can leave the default settings or customize them according to your needs. Click "Next".
+
+7. On the "Review" page, review all details. Check the "I acknowledge that AWS CloudFormation might create IAM resources" checkbox at the bottom. Click "Submit".
 
 That is it! 🎉 Once deployed, click the CloudFormation stack and go to **Outputs** tab, you can find the API Base URL from `APIBaseUrl`, the value should look like `http://xxxx.xxx.elb.amazonaws.com/api/v1`.
 
@@ -247,12 +275,6 @@ Note that not all models are available in those regions.
 
 You can use the [Models API](./docs/Usage.md#models-api) to get/refresh a list of supported models in the current region.
 
-### Can I build and use my own ECR image
-
-Yes, you can clone the repo and build the container image by yourself (`src/Dockerfile`) and then push to your ECR repo. You can use `scripts/push-to-ecr.sh`
-
-Replace the repo url in the CloudFormation template before you deploy.
-
 ### Can I run this locally
 
 Yes, you can run this locally, e.g. run below command under `src` folder:
@@ -279,13 +301,7 @@ Fine-tuned models and models with Provisioned Throughput are currently not suppo
 
 ### How to upgrade?
 
-To use the latest features, you don't need to redeploy the CloudFormation stack. You simply need to pull the latest image.
-
-To do so, depends on which version you deployed:
-
-- **Lambda version**: Go to AWS Lambda console, find the Lambda function, then find and click the `Deploy new image` button and click save.
-- **Fargate version**: Go to ECS console, click the ECS cluster, go the `Tasks` tab, select the only task that is running and simply click `Stop selected` menu. A new task with latest image will start automatically.
-
+To use the latest features, you need follow the deployment guide to redeploy the application. You can upgrade the existing CloudFormation stack to get the latest changes.
 
 ## Security
 
