@@ -29,8 +29,9 @@ elif api_key_secret_arn:
 elif api_key_env:
     api_key = api_key_env
 else:
-    # For local use only.
-    api_key = "bedrock"
+    raise RuntimeError(
+        "API Key is not configured. Please set up your API Key."
+    )
 
 security = HTTPBearer()
 
