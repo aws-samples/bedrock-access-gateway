@@ -8,6 +8,15 @@ RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
 
 COPY ./api /app/api
 
-ENV PORT=80
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+ENV PORT=8080
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/v1/models').read()"
 
 CMD ["sh", "-c", "uvicorn api.app:app --host 0.0.0.0 --port ${PORT}"]
