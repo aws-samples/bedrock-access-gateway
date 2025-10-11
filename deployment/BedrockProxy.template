@@ -11,6 +11,13 @@ Parameters:
     Type: String
     Default: anthropic.claude-3-sonnet-20240229-v1:0
     Description: The default model ID, please make sure the model ID is supported in the current region
+  EnablePromptCaching:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Enable prompt caching for supported models (Claude, Nova). When enabled, adds cachePoint to system prompts and messages for cost savings.
 Resources:
   VPCB9E5F0B4:
     Type: AWS::EC2::VPC
@@ -184,6 +191,8 @@ Resources:
           DEFAULT_EMBEDDING_MODEL: cohere.embed-multilingual-v3
           ENABLE_CROSS_REGION_INFERENCE: "true"
           ENABLE_APPLICATION_INFERENCE_PROFILES: "true"
+          ENABLE_PROMPT_CACHING:
+            Ref: EnablePromptCaching
       MemorySize: 1024
       PackageType: Image
       Role:

@@ -110,10 +110,24 @@ class ChatRequest(BaseModel):
     extra_body: dict | None = None
 
 
+class PromptTokensDetails(BaseModel):
+    """Details about prompt tokens usage, following OpenAI API format."""
+    cached_tokens: int = 0
+    audio_tokens: int = 0
+
+
+class CompletionTokensDetails(BaseModel):
+    """Details about completion tokens usage, following OpenAI API format."""
+    reasoning_tokens: int = 0
+    audio_tokens: int = 0
+
+
 class Usage(BaseModel):
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
+    prompt_tokens_details: PromptTokensDetails | None = None
+    completion_tokens_details: CompletionTokensDetails | None = None
 
 
 class ChatResponseMessage(BaseModel):

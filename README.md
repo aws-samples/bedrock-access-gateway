@@ -29,6 +29,7 @@ If you find this GitHub repository useful, please consider giving it a free star
 - [x] Support Application Inference Profiles (**new**)
 - [x] Support Reasoning (**new**)
 - [x] Support Interleaved thinking (**new**)
+- [x] Support Prompt Caching (**new**)
 
 Please check [Usage Guide](./docs/Usage.md) for more details about how to use the new APIs.
 
@@ -220,6 +221,78 @@ print(completion.choices[0].message.content)
 - **Tag-based Cost Allocation**: Use AWS cost allocation tags for detailed billing analysis
 
 For more information about creating and managing application inference profiles, see the [Amazon Bedrock User Guide](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-create.html).
+
+### Prompt Caching
+
+This proxy now supports **Prompt Caching** for Claude and Nova models, which can reduce costs by up to 90% and latency by up to 85% for workloads with repeated prompts.
+
+**Supported Models:**
+- Claude 3+ models (Claude 3.5 Haiku, Claude 3.7 Sonnet, Claude 4, Claude 4.5, etc.)
+- Nova models (Nova Micro, Nova Lite, Nova Pro, Nova Premier)
+
+**Enabling Prompt Caching:**
+
+You can enable prompt caching in two ways:
+
+1. **Globally via Environment Variable** (set in ECS Task Definition or Lambda):
+```bash
+ENABLE_PROMPT_CACHING=true
+```
+
+2. **Per-request via `extra_body`** :
+
+**Python SDK:**
+```python
+from openai import OpenAI
+
+client = OpenAI()
+
+# Cache system prompts
+response = client.chat.completions.create(
+    model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    messages=[
+        {"role": "system", "content": "You are an expert assistant with knowledge of..."},
+        {"role": "user", "content": "Help me with this task"}
+    ],
+    extra_body={
+        "prompt_caching": {"system": True}
+    }
+)
+
+# Check cache hit
+if response.usage.prompt_tokens_details:
+    cached_tokens = response.usage.prompt_tokens_details.cached_tokens
+    print(f"Cached tokens: {cached_tokens}")
+```
+
+**cURL:**
+```bash
+curl $OPENAI_BASE_URL/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    "messages": [
+      {"role": "system", "content": "Long system prompt..."},
+      {"role": "user", "content": "Question"}
+    ],
+    "extra_body": {
+      "prompt_caching": {"system": true}
+    }
+  }'
+```
+
+**Cache Options:**
+- `"prompt_caching": {"system": true}` - Cache system prompts
+- `"prompt_caching": {"messages": true}` - Cache user messages
+- `"prompt_caching": {"system": true, "messages": true}` - Cache both
+
+**Requirements:**
+- Prompt must be ≥1,024 tokens to enable caching
+- Cache TTL is 5 minutes (resets on each cache hit)
+- Nova models have a 20,000 token caching limit
+
+For more information, see the [Amazon Bedrock Prompt Caching Guide](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-caching.html).
 
 ## Other Examples
 
