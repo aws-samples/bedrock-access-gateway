@@ -1,4 +1,5 @@
 import logging
+import os
 
 import uvicorn
 from fastapi import FastAPI
@@ -23,9 +24,16 @@ logging.basicConfig(
 )
 app = FastAPI(**config)
 
+allowed_origins = os.environ.get("ALLOWED_ORIGINS", "*")
+origins_list = [origin.strip() for origin in allowed_origins.split(",")] if allowed_origins != "*" else ["*"]
+
+# Warn if CORS allows all origins
+if origins_list == ["*"]:
+    logging.warning("CORS is configured to allow all origins (*). Set ALLOWED_ORIGINS environment variable to restrict access.")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins_list,  # nosec - configurable via ALLOWED_ORIGINS env var
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,4 +69,5 @@ async def validation_exception_handler(request, exc):
 handler = Mangum(app)
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    # Bind to 0.0.0.0 for container environments, network is handled by network policies and load balancers
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)  # nosec B104

@@ -35,6 +35,7 @@ from api.schema import (
     ResponseFunction,
     TextContent,
     ToolCall,
+    ToolContent,
     ToolMessage,
     Usage,
     UserMessage,
@@ -49,7 +50,15 @@ from api.setting import (
 
 logger = logging.getLogger(__name__)
 
-config = Config(connect_timeout=60, read_timeout=120, retries={"max_attempts": 1})
+config = Config(
+            connect_timeout=60,      # Connection timeout: 60 seconds
+            read_timeout=900,        # Read timeout: 15 minutes (suitable for long streaming responses)
+            retries={
+                'max_attempts': 8,   # Maximum retry attempts
+                'mode': 'adaptive'   # Adaptive retry mode
+            },
+            max_pool_connections=50  # Maximum connection pool size
+        )
 
 bedrock_runtime = boto3.client(
     service_name="bedrock-runtime",
@@ -92,10 +101,7 @@ def list_bedrock_models() -> dict:
         - Cross-Region Inference Profiles (if enabled via Env)
         - Application Inference Profiles (if enabled via Env)
     """
-    global claude_sonnet_4_5_app_profiles
     model_list = {}
-    # Clear and store application profiles for claude-sonnet-4-5 as an exception
-    claude_sonnet_4_5_app_profiles.clear()
     try:
         profile_list = []
         # Map foundation model_id -> set of application inference profile ARNs
@@ -125,9 +131,6 @@ def list_bedrock_models() -> dict:
                                 model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
                                 if model_id:
                                     app_profiles_by_model[model_id].add(profile_arn)
-                                    # Store application profiles for claude-sonnet-4-5 as exception
-                                    if model_id == "anthropic.claude-sonnet-4-5-20250929-v1:0":
-                                        claude_sonnet_4_5_app_profiles.add(profile_arn)
                     except Exception as e:
                         logger.warning(f"Error processing application profile: {e}")
                         continue
@@ -175,9 +178,6 @@ def list_bedrock_models() -> dict:
     return model_list
 
 
-# Global variable to store claude-sonnet-4-5 application profiles
-claude_sonnet_4_5_app_profiles = set()
-
 # Initialize the model list.
 bedrock_model_list = list_bedrock_models()
 
@@ -192,15 +192,10 @@ class BedrockModel(BaseChatModel):
     def validate(self, chat_request: ChatRequest):
         """Perform basic validation on requests"""
         error = ""
-        # Regex check for model_id ARN pattern
-        arn_pattern = r"^.*application-inference-profile.*"
-        arn_match = re.match(arn_pattern, chat_request.model)
-        
-        if not arn_match:
-            error = f"model_id must match pattern: {arn_pattern}"
         # check if model is supported
-        elif chat_request.model not in bedrock_model_list.keys():
+        if chat_request.model not in bedrock_model_list.keys():
             error = f"Unsupported model {chat_request.model}, please use models API to get a list of supported models"
+            logger.error("Unsupported model: %s", chat_request.model)
 
         if error:
             raise HTTPException(
@@ -228,13 +223,13 @@ class BedrockModel(BaseChatModel):
                 # Run the blocking boto3 call in a thread pool
                 response = await run_in_threadpool(bedrock_runtime.converse, **args)
         except bedrock_runtime.exceptions.ValidationException as e:
-            logger.error("Validation Error: " + str(e))
+            logger.error("Bedrock validation error for model %s: %s", chat_request.model, str(e))
             raise HTTPException(status_code=400, detail=str(e))
         except bedrock_runtime.exceptions.ThrottlingException as e:
-            logger.error("Throttling Error: " + str(e))
+            logger.warning("Bedrock throttling for model %s: %s", chat_request.model, str(e))
             raise HTTPException(status_code=429, detail=str(e))
         except Exception as e:
-            logger.error(e)
+            logger.error("Bedrock invocation failed for model %s: %s", chat_request.model, str(e))
             raise HTTPException(status_code=500, detail=str(e))
         return response
 
@@ -296,6 +291,7 @@ class BedrockModel(BaseChatModel):
             yield self.stream_response_to_bytes()
             self.think_emitted = False  # Cleanup
         except Exception as e:
+            logger.error("Stream error for model %s: %s", chat_request.model, str(e))
             error_event = Error(error=ErrorMessage(message=str(e)))
             yield self.stream_response_to_bytes(error_event)
 
@@ -314,7 +310,8 @@ class BedrockModel(BaseChatModel):
             if message.role != "system":
                 # ignore system messages here
                 continue
-            assert isinstance(message.content, str)
+            if not isinstance(message.content, str):
+                raise TypeError(f"System message content must be a string, got {type(message.content).__name__}")
             system_prompts.append({"text": message.content})
 
         return system_prompts
@@ -343,7 +340,16 @@ class BedrockModel(BaseChatModel):
                     }
                 )
             elif isinstance(message, AssistantMessage):
-                if message.content is not None and isinstance(message.content, str) and message.content.strip():
+                # Check if message has content that's not empty
+                has_content = False
+                if isinstance(message.content, str):
+                    has_content = message.content.strip() != ""
+                elif isinstance(message.content, list):
+                    has_content = len(message.content) > 0
+                elif message.content is not None:
+                    has_content = True
+                
+                if has_content:
                     # Text message
                     messages.append(
                         {
@@ -375,6 +381,10 @@ class BedrockModel(BaseChatModel):
                 # Bedrock does not support tool role,
                 # Add toolResult to content
                 # https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ToolResultBlock.html
+                
+                # Handle different content formats from OpenAI SDK
+                tool_content = self._extract_tool_content(message.content)
+                
                 messages.append(
                     {
                         "role": "user",
@@ -382,7 +392,7 @@ class BedrockModel(BaseChatModel):
                             {
                                 "toolResult": {
                                     "toolUseId": message.tool_call_id,
-                                    "content": [{"text": message.content}],
+                                    "content": [{"text": tool_content}],
                                 }
                             }
                         ],
@@ -393,6 +403,57 @@ class BedrockModel(BaseChatModel):
                 # ignore others, such as system messages
                 continue
         return self._reframe_multi_payloard(messages)
+
+    def _extract_tool_content(self, content) -> str:
+        """Extract text content from various OpenAI SDK tool message formats.
+        
+        Handles:
+        - String content (legacy format)
+        - List of content objects (OpenAI SDK 1.91.0+)
+        - Nested JSON structures within text content
+        """
+        try:
+            if isinstance(content, str):
+                return content
+            
+            if isinstance(content, list):
+                text_parts = []
+                for i, item in enumerate(content):
+                    if isinstance(item, dict):
+                        # Handle dict with 'text' field
+                        if "text" in item:
+                            item_text = item["text"]
+                            if isinstance(item_text, str):
+                                # Try to parse as JSON if it looks like JSON
+                                if item_text.strip().startswith('{') and item_text.strip().endswith('}'):
+                                    try:
+                                        parsed_json = json.loads(item_text)
+                                        # Convert JSON object to readable text
+                                        text_parts.append(json.dumps(parsed_json, indent=2))
+                                    except json.JSONDecodeError:
+                                        # Silently fallback to original text
+                                        text_parts.append(item_text)
+                                else:
+                                    text_parts.append(item_text)
+                            else:
+                                text_parts.append(str(item_text))
+                        else:
+                            # Handle other dict formats - convert to JSON string
+                            text_parts.append(json.dumps(item, indent=2))
+                    elif hasattr(item, 'text'):
+                        # Handle ToolContent objects
+                        text_parts.append(item.text)
+                    else:
+                        # Convert any other type to string
+                        text_parts.append(str(item))
+                return "\n".join(text_parts)
+            
+            # Fallback for any other type
+            return str(content)
+        except Exception as e:
+            logger.warning("Tool content extraction failed: %s", str(e))
+            # Return a safe fallback
+            return str(content) if content is not None else ""
 
     def _reframe_multi_payloard(self, messages: list) -> list:
         """Receive messages and reformat them to comply with the Claude format
@@ -472,12 +533,6 @@ class BedrockModel(BaseChatModel):
         # Remove topP for this model
         if "claude-sonnet-4-5" in chat_request.model.lower():
             inference_config.pop("topP", None)
-        
-        # Check if the model is a claude-sonnet-4-5 application profile
-        global claude_sonnet_4_5_app_profiles
-        if chat_request.model in claude_sonnet_4_5_app_profiles:
-            print(f"CLAUDE SONNET 4.5 APP PROFILE DETECTED: {chat_request.model}")
-            inference_config.pop("topP", None)
 
         if chat_request.stop is not None:
             stop = chat_request.stop
@@ -526,7 +581,8 @@ class BedrockModel(BaseChatModel):
                         tool_config["toolChoice"] = {"auto": {}}
                 else:
                     # Specific tool to use
-                    assert "function" in chat_request.tool_choice
+                    if "function" not in chat_request.tool_choice:
+                        raise ValueError("tool_choice must contain 'function' key when specifying a specific tool")
                     tool_config["toolChoice"] = {"tool": {"name": chat_request.tool_choice["function"].get("name", "")}}
             args["toolConfig"] = tool_config
         # add Additional fields to enable extend thinking
@@ -730,7 +786,7 @@ class BedrockModel(BaseChatModel):
             return base64.b64decode(image_data), content_type.group(1)
 
         # Send a request to the image URL
-        response = requests.get(image_url)
+        response = requests.get(image_url, timeout=30)
         # Check if the request was successful
         if response.status_code == 200:
             content_type = response.headers.get("Content-Type")

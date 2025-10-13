@@ -133,7 +133,7 @@ If you encounter any issues, please check the [Troubleshooting Guide](./docs/Tro
 
 ### SDK/API Usage
 
-All you need is the API Key and the API Base URL. If you didn't set up your own key, then the default API Key (`bedrock`) will be used.
+All you need is the API Key and the API Base URL. If you didn't set up your own key following Step 1, the application will fail to start with an error message indicating that the API Key is not configured.
 
 Now, you can try out the proxy APIs. Let's say you want to test Claude 3 Sonnet model (model ID: `anthropic.claude-3-sonnet-20240229-v1:0`)...
 

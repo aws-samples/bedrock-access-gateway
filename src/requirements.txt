@@ -7,5 +7,3 @@ requests==2.32.4
 numpy==2.2.5
 boto3==1.40.4
 botocore==1.40.4
-azure-ai-contentsafety==1.0.0
-python-dotenv==1.1.1
