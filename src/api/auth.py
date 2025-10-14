@@ -7,8 +7,6 @@ from botocore.exceptions import ClientError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from api.setting import DEFAULT_API_KEYS
-
 api_key_param = os.environ.get("API_KEY_PARAM_NAME")
 api_key_secret_arn = os.environ.get("API_KEY_SECRET_ARN")
 api_key_env = os.environ.get("API_KEY")
@@ -31,8 +29,9 @@ elif api_key_secret_arn:
 elif api_key_env:
     api_key = api_key_env
 else:
-    # For local use only.
-    api_key = DEFAULT_API_KEYS
+    raise RuntimeError(
+        "API Key is not configured. Please set up your API Key."
+    )
 
 security = HTTPBearer()
 

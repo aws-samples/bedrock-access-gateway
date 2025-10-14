@@ -4,6 +4,7 @@ import logging
 import re
 import time
 from abc import ABC
+from collections import defaultdict
 from typing import AsyncIterable, Iterable, Literal
 
 import boto3
@@ -105,7 +106,8 @@ def list_bedrock_models() -> dict:
     model_list = {}
     try:
         profile_list = []
-        app_profile_dict = {}
+        # Map foundation model_id -> set of application inference profile ARNs
+        app_profiles_by_model = defaultdict(set)
         
         if ENABLE_CROSS_REGION_INFERENCE:
             # List system defined inference profile IDs
@@ -130,7 +132,7 @@ def list_bedrock_models() -> dict:
                             if model_arn:
                                 model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
                                 if model_id:
-                                    app_profile_dict[model_id] = profile_arn
+                                    app_profiles_by_model[model_id].add(profile_arn)
                     except Exception as e:
                         logger.warning(f"Error processing application profile: {e}")
                         continue
@@ -158,9 +160,15 @@ def list_bedrock_models() -> dict:
             if profile_id in profile_list:
                 model_list[profile_id] = {"modalities": input_modalities}
 
-            # Add application inference profiles
-            if model_id in app_profile_dict:
-                model_list[app_profile_dict[model_id]] = {"modalities": input_modalities}
+            # Add global cross-region inference profiles
+            global_profile_id = "global." + model_id
+            if global_profile_id in profile_list:
+                model_list[global_profile_id] = {"modalities": input_modalities}
+
+            # Add application inference profiles (emit all profiles for this model)
+            if model_id in app_profiles_by_model:
+                for profile_arn in app_profiles_by_model[model_id]:
+                    model_list[profile_arn] = {"modalities": input_modalities}
 
     except Exception as e:
         logger.error(f"Unable to list models: {str(e)}")
@@ -287,6 +295,7 @@ class BedrockModel(BaseChatModel):
             response = await self._invoke_bedrock(chat_request, stream=True)
             message_id = self.generate_message_id()
             stream = response.get("stream")
+            self.think_emitted = False
             async for chunk in self._async_iterate(stream):
                 args = {"model_id": chat_request.model, "message_id": message_id, "chunk": chunk}
                 stream_response = self._create_response_stream(**args)
@@ -307,6 +316,7 @@ class BedrockModel(BaseChatModel):
 
             # return an [DONE] message at the end.
             yield self.stream_response_to_bytes()
+            self.think_emitted = False  # Cleanup
         except Exception as e:
             logger.error("Stream error for model %s: %s", chat_request.model, str(e))
             error_event = Error(error=ErrorMessage(message=str(e)))
@@ -327,7 +337,8 @@ class BedrockModel(BaseChatModel):
             if message.role != "system":
                 # ignore system messages here
                 continue
-            assert isinstance(message.content, str)
+            if not isinstance(message.content, str):
+                raise TypeError(f"System message content must be a string, got {type(message.content).__name__}")
             system_prompts.append({"text": message.content})
 
         return system_prompts
@@ -545,6 +556,11 @@ class BedrockModel(BaseChatModel):
             "topP": chat_request.top_p,
         }
 
+        # Claude Sonnet 4.5 doesn't support both temperature and topP
+        # Remove topP for this model
+        if "claude-sonnet-4-5" in chat_request.model.lower():
+            inference_config.pop("topP", None)
+
         if chat_request.stop is not None:
             stop = chat_request.stop
             if isinstance(stop, str):
@@ -571,7 +587,7 @@ class BedrockModel(BaseChatModel):
             )
             inference_config["maxTokens"] = max_tokens
             # unset topP - Not supported
-            inference_config.pop("topP")
+            inference_config.pop("topP", None)
 
             args["additionalModelRequestFields"] = {
                 "reasoning_config": {"type": "enabled", "budget_tokens": budget_tokens}
@@ -592,13 +608,18 @@ class BedrockModel(BaseChatModel):
                         tool_config["toolChoice"] = {"auto": {}}
                 else:
                     # Specific tool to use
-                    assert "function" in chat_request.tool_choice
+                    if "function" not in chat_request.tool_choice:
+                        raise ValueError("tool_choice must contain 'function' key when specifying a specific tool")
                     tool_config["toolChoice"] = {"tool": {"name": chat_request.tool_choice["function"].get("name", "")}}
             args["toolConfig"] = tool_config
         # add Additional fields to enable extend thinking
         if chat_request.extra_body:
-            # reasoning_config will not be used 
+            # reasoning_config will not be used
             args["additionalModelRequestFields"] = chat_request.extra_body
+            # Extended thinking doesn't support both temperature and topP
+            # Remove topP to avoid validation error
+            if "thinking" in chat_request.extra_body:
+                inference_config.pop("topP", None)
         return args
 
     def _create_response(
@@ -644,6 +665,9 @@ class BedrockModel(BaseChatModel):
                     logger.warning(
                         "Unknown tag in message content " + ",".join(c.keys())
                     )
+            if message.reasoning_content:
+                message.content = f"<think>{message.reasoning_content}</think>{message.content}"
+                message.reasoning_content = None
 
         response = ChatResponse(
             id=message_id,
@@ -712,11 +736,19 @@ class BedrockModel(BaseChatModel):
                     content=delta["text"],
                 )
             elif "reasoningContent" in delta:
-                # ignore "signature" in the delta.
                 if "text" in delta["reasoningContent"]:
-                    message = ChatResponseMessage(
-                        reasoning_content=delta["reasoningContent"]["text"],
-                    )
+                    content = delta["reasoningContent"]["text"]
+                    if not self.think_emitted:
+                        # Port of "content_block_start" with "thinking"
+                        content = "<think>" + content
+                        self.think_emitted = True
+                    message = ChatResponseMessage(content=content)
+                elif "signature" in delta["reasoningContent"]:
+                    # Port of "signature_delta"
+                    if self.think_emitted:
+                        message = ChatResponseMessage(content="\n </think> \n\n")
+                    else:
+                        return None  # Ignore signature if no <think> started
             else:
                 # tool use
                 index = chunk["contentBlockDelta"]["contentBlockIndex"] - 1
@@ -781,7 +813,7 @@ class BedrockModel(BaseChatModel):
             return base64.b64decode(image_data), content_type.group(1)
 
         # Send a request to the image URL
-        response = requests.get(image_url)
+        response = requests.get(image_url, timeout=30)
         # Check if the request was successful
         if response.status_code == 200:
             content_type = response.headers.get("Content-Type")
