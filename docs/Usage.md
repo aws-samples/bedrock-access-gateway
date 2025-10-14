@@ -51,6 +51,43 @@ curl -s $OPENAI_BASE_URL/models -H "Authorization: Bearer $OPENAI_API_KEY" | jq 
 ]
 ```
 
+## Chat Completions API
+
+### Basic Example with Claude Sonnet 4.5
+
+Claude Sonnet 4.5 is Anthropic's most intelligent model, excelling at coding, complex reasoning, and agent-based tasks. It's available via global cross-region inference profiles.
+
+**Example Request**
+
+```bash
+curl $OPENAI_BASE_URL/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "model": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Write a Python function to calculate the Fibonacci sequence using dynamic programming."
+      }
+    ]
+  }'
+```
+
+**Example SDK Usage**
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+completion = client.chat.completions.create(
+    model="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    messages=[{"role": "user", "content": "Write a Python function to calculate the Fibonacci sequence using dynamic programming."}],
+)
+
+print(completion.choices[0].message.content)
+```
+
 ## Embedding API
 
 **Important Notice**: Please carefully review the following points before using this proxy API for embedding.
@@ -451,10 +488,31 @@ for chunk in response:
 Extended thinking with tool use in Claude 4 models supports [interleaved thinking](https://docs.aws.amazon.com/bedrock/latest/userguide/claude-messages-extended-thinking.html#claude-messages-extended-thinking-tool-use-interleaved) enables Claude 4 models to think between tool calls and run more sophisticated reasoning after receiving tool results. which is helpful for more complex agentic interactions.
 With interleaved thinking, the `budget_tokens` can exceed the `max_tokens` parameter because it represents the total budget across all thinking blocks within one assistant turn.
 
+**Supported Models**: Claude Sonnet 4, Claude Sonnet 4.5
 
 **Example Request**
 
-- Non-Streaming
+- Non-Streaming (Claude Sonnet 4.5)
+
+```bash
+curl http://127.0.0.1:8000/api/v1/chat/completions \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer bedrock" \
+-d '{
+"model": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+"max_tokens": 2048,
+"messages": [{
+"role": "user",
+"content": "Explain how to implement a binary search tree with self-balancing capabilities."
+}],
+"extra_body": {
+"anthropic_beta": ["interleaved-thinking-2025-05-14"],
+"thinking": {"type": "enabled", "budget_tokens": 4096}
+}
+}'
+```
+
+- Non-Streaming (Claude Sonnet 4)
 
 ```bash
 curl http://127.0.0.1:8000/api/v1/chat/completions \
@@ -474,7 +532,28 @@ curl http://127.0.0.1:8000/api/v1/chat/completions \
 }'
 ```
 
-- Streaming
+- Streaming (Claude Sonnet 4.5)
+
+```bash
+curl http://127.0.0.1:8000/api/v1/chat/completions \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer bedrock" \
+-d '{
+"model": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+"max_tokens": 2048,
+"messages": [{
+"role": "user",
+"content": "Explain how to implement a binary search tree with self-balancing capabilities."
+}],
+"stream": true,
+"extra_body": {
+"anthropic_beta": ["interleaved-thinking-2025-05-14"],
+"thinking": {"type": "enabled", "budget_tokens": 4096}
+}
+}'
+```
+
+- Streaming (Claude Sonnet 4)
 
 ```bash
 curl http://127.0.0.1:8000/api/v1/chat/completions \

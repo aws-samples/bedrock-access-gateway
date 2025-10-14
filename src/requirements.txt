@@ -1,9 +1,9 @@
-fastapi==0.115.8
-pydantic==2.7.1
+fastapi==0.116.1
+pydantic==2.11.4
 uvicorn==0.29.0
 mangum==0.17.0
-tiktoken==0.6.0
+tiktoken==0.9.0
 requests==2.32.4
-numpy==1.26.4
-boto3==1.37.0
-botocore==1.37.0
+numpy==2.2.5
+boto3==1.40.4
+botocore==1.40.4
