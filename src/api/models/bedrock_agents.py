@@ -9,6 +9,7 @@ from abc import ABC
 from typing import AsyncIterable
 
 import boto3
+from botocore.exceptions import EventStreamError
 from botocore.config import Config
 import numpy as np
 import requests
@@ -50,11 +51,14 @@ bedrock_agent = boto3.client(
             config=config,
         )
 
-bedrock_agent_runtime = boto3.client(
-    service_name="bedrock-agent-runtime",
-    region_name=AWS_REGION,
-    config=config,
-)
+def get_agent_runtime():
+    return boto3.client(
+        service_name="bedrock-agent-runtime",
+        region_name=AWS_REGION,
+        config=config,
+    )
+
+bedrock_agent_runtime = get_agent_runtime()
 
 
 class BedrockAgents(BedrockModel):
@@ -278,7 +282,7 @@ class BedrockAgents(BedrockModel):
         # return an [DONE] message at the end.
         yield self.stream_response_to_bytes()
     
-    def _invoke_agent(self, chat_request: ChatRequest, stream=False):
+    def _invoke_agent(self, chat_request: ChatRequest, stream=False, retry=False):
         """Common logic for invoke agent """
         if DEBUG:
             logger.info("BedrockAgents._invoke_agent: Raw request: " + chat_request.model_dump_json())
@@ -293,6 +297,7 @@ class BedrockAgents(BedrockModel):
         model = self._model_manager.get_all_models()[chat_request.model]
         
         ################
+        global bedrock_agent_runtime
 
         try:
             query = args['messages'][0]['content'][0]['text']
@@ -309,10 +314,10 @@ class BedrockAgents(BedrockModel):
                 session_id = str(uuid.uuid4())
                 logger.info(md_args)
                 query = md.get_clean_query()
-                kb_id = "D3Q2K57HXU"
+                kb_id = "D3Q2K57HXU" # TODO: Don't hard-wire
 
                 session_state['knowledgeBaseConfigurations'] = [{
-                    'knowledgeBaseId': kb_id, # TODO: Don't hard-wire!
+                    'knowledgeBaseId': kb_id,
                     'retrievalConfiguration': {
                         'vectorSearchConfiguration': {
                             'filter': md_args
@@ -337,9 +342,14 @@ class BedrockAgents(BedrockModel):
             # Invoke the agent
             response = bedrock_agent_runtime.invoke_agent(**request_params)
             return response
-            
+        except EventStreamError as ese:
+            if retry:
+                # Reinstantiate client to hopefully refresh credentials
+                logger.info("Refreshing client to get current credentials")
+                bedrock_agent_runtime = get_agent_runtime()
+                return self._invoke_agent(chat_request, stream, True)
+            else:
+                raise ese
         except Exception as e:
             logger.error(e)
             raise HTTPException(status_code=500, detail=str(e))
-
-    
