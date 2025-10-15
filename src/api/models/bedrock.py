@@ -101,10 +101,10 @@ def list_bedrock_models() -> dict:
         - Cross-Region Inference Profiles (if enabled via Env)
         - Application Inference Profiles (if enabled via Env)
     """
-    global claude_sonnet_4_5_app_profiles
+    global unsupport_top_p_models_in_app_profiles
     model_list = {}
     # Clear and store application profiles for claude-sonnet-4-5 as an exception
-    claude_sonnet_4_5_app_profiles.clear()
+    unsupport_top_p_models_in_app_profiles.clear()
     try:
         profile_list = []
         # Map foundation model_id -> set of application inference profile ARNs
@@ -134,9 +134,9 @@ def list_bedrock_models() -> dict:
                                 model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
                                 if model_id:
                                     app_profiles_by_model[model_id].add(profile_arn)
-                                    # Store application profiles for claude-sonnet-4-5 as exception
-                                    if model_id == "anthropic.claude-sonnet-4-5-20250929-v1:0":
-                                        claude_sonnet_4_5_app_profiles.add(profile_arn)
+                                    # Store application profiles for models that don't support top_p
+                                    if model_id in MODELS_WITHOUT_TOP_P_SUPPORT:
+                                        unsupport_top_p_models_in_app_profiles.add(profile_arn)
                     except Exception as e:
                         logger.warning(f"Error processing application profile: {e}")
                         continue
@@ -183,8 +183,14 @@ def list_bedrock_models() -> dict:
 
     return model_list
 
-# Global variable to store claude-sonnet-4-5 application profiles
-claude_sonnet_4_5_app_profiles = set()
+# List of model IDs and patterns that don't support top_p parameter
+# Can be full model IDs or substrings for pattern matching
+MODELS_WITHOUT_TOP_P_SUPPORT = [
+    "anthropic.claude-sonnet-4-5-20250929-v1:0"
+]
+
+# Global variable to store application profiles for models that don't support top_p
+unsupport_top_p_models_in_app_profiles = set()
 
 # Initialize the model list.
 bedrock_model_list = list_bedrock_models()
@@ -537,14 +543,13 @@ class BedrockModel(BaseChatModel):
             "topP": chat_request.top_p,
         }
 
-        # Claude Sonnet 4.5 doesn't support both temperature and topP
-        # Remove topP for this model
-        if "claude-sonnet-4-5" in chat_request.model.lower():
-            inference_config.pop("topP", None)
-
-        # Check if the model is a claude-sonnet-4-5 application profile
-        global claude_sonnet_4_5_app_profiles
-        if chat_request.model in claude_sonnet_4_5_app_profiles:
+        # Remove topP for models that don't support it (patterns or application profiles)
+        global unsupport_top_p_models_in_app_profiles
+        should_remove_top_p = (
+            any(model_id in chat_request.model for model_id in MODELS_WITHOUT_TOP_P_SUPPORT) or
+            chat_request.model in unsupport_top_p_models_in_app_profiles
+        )
+        if should_remove_top_p:
             inference_config.pop("topP", None)
 
         if chat_request.stop is not None:
