@@ -186,7 +186,8 @@ def list_bedrock_models() -> dict:
 # List of model IDs and patterns that don't support top_p parameter
 # Can be full model IDs or substrings for pattern matching
 MODELS_WITHOUT_TOP_P_SUPPORT = [
-    "anthropic.claude-sonnet-4-5-20250929-v1:0"
+    "anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "claude-sonnet-4-5",  # Short pattern to match any variant containing this name
 ]
 
 # Global variable to store application profiles for models that don't support top_p
@@ -546,7 +547,7 @@ class BedrockModel(BaseChatModel):
         # Remove topP for models that don't support it (patterns or application profiles)
         global unsupport_top_p_models_in_app_profiles
         should_remove_top_p = (
-            any(model_id in chat_request.model for model_id in MODELS_WITHOUT_TOP_P_SUPPORT) or
+            any(model_id in chat_request.model.lower() for model_id in MODELS_WITHOUT_TOP_P_SUPPORT) or
             chat_request.model in unsupport_top_p_models_in_app_profiles
         )
         if should_remove_top_p:
