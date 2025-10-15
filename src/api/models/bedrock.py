@@ -672,9 +672,10 @@ class BedrockModel(BaseChatModel):
             "topP": chat_request.top_p,
         }
 
-        # Claude Sonnet 4.5 doesn't support both temperature and topP
-        # Remove topP for this model
-        if "claude-sonnet-4-5" in chat_request.model.lower():
+        # Claude Sonnet 4.5 and Haiku 4.5 don't support both temperature and topP
+        # Remove topP for these models
+        models_without_topp = ["claude-sonnet-4-5", "claude-haiku-4-5"]
+        if any(model_name in chat_request.model.lower() for model_name in models_without_topp):
             inference_config.pop("topP", None)
 
         if chat_request.stop is not None:

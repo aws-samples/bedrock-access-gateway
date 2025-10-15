@@ -4,7 +4,7 @@ OpenAI-compatible RESTful APIs for Amazon Bedrock
 
 ## What's New 🔥
 
-This project now supports **Claude Sonnet 4.5**, Anthropic's most intelligent model with enhanced coding capabilities and complex agent support, available via global cross-region inference.
+This project now supports **Claude Sonnet 4.5** and **Claude Haiku 4.5**, Anthropic's latest models with enhanced capabilities, available via global cross-region inference. Sonnet 4.5 offers the most intelligence with superior coding and complex agent support, while Haiku 4.5 provides fast, efficient performance for everyday tasks.
 
 It also supports reasoning for both **Claude 3.7 Sonnet** and **DeepSeek R1**. Check [How to Use](./docs/Usage.md#reasoning) for more details. You need to first run the Models API to refresh the model list.
 
