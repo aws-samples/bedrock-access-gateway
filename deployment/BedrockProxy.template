@@ -168,6 +168,11 @@ Resources:
             Effect: Allow
             Resource:
               Ref: ApiKeySecretArn
+          - Action:
+              - aws-marketplace:ViewSubscriptions
+              - aws-marketplace:Subscribe
+            Effect: Allow
+            Resource: "*"
         Version: "2012-10-17"
       PolicyName: ProxyApiHandlerServiceRoleDefaultPolicy86681202
       Roles:
