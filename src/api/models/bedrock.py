@@ -187,7 +187,9 @@ def list_bedrock_models() -> dict:
 # Can be full model IDs or substrings for pattern matching
 MODELS_WITHOUT_TOP_P_SUPPORT = [
     "anthropic.claude-sonnet-4-5-20250929-v1:0",
-    "claude-sonnet-4-5",  # Short pattern to match any variant containing this name
+    "claude-sonnet-4-5", # Short pattern to match any variant containing this name
+    "anthropic.claude-haiku-4-5-20251001-v1:0",
+    "claude-haiku-4-5", # Short pattern to match any variant containing this name
 ]
 
 # Global variable to store application profiles for models that don't support top_p
