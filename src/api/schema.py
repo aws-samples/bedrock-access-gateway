@@ -97,8 +97,8 @@ class ChatRequest(BaseModel):
     presence_penalty: float | None = Field(default=0.0, le=2.0, ge=-2.0)  # Not used
     stream: bool | None = False
     stream_options: StreamOptions | None = None
-    temperature: float | None = Field(default=1.0, le=2.0, ge=0.0)
-    top_p: float | None = Field(default=1.0, le=1.0, ge=0.0)
+    temperature: float | None = Field(default=None, le=2.0, ge=0.0)
+    top_p: float | None = Field(default=None, le=1.0, ge=0.0)
     user: str | None = None  # Not used
     max_tokens: int | None = 2048
     max_completion_tokens: int | None = None
