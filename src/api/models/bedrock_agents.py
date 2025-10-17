@@ -304,6 +304,9 @@ class BedrockAgents(BedrockModel):
             messages = args['messages']
             query = messages[len(messages)-1]['content'][0]['text']
 
+            # Sanitize variants of double quotes
+            query = query.translate(str.maketrans({'“':'"', '”':'"', '„':'"', '‟':'"'}))
+            
             md = MetaData(query)
             md_args = {}
             session_state = {}
