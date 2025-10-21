@@ -340,6 +340,13 @@ class BedrockAgents(BedrockModel):
             # Append KB config if present
             if session_state:
                 request_params['sessionState'] = session_state
+
+            # Apply streaming if desired
+            if stream:
+                request_params['streamingConfigurations'] = {
+                    'streamFinalResponse': True,
+                    'applyGuardrailInterval': 123
+                }
                 
             # Make the retrieve request
             # Invoke the agent
