@@ -375,7 +375,7 @@ class BedrockModel(BaseChatModel):
 
         # Extract prompt caching metrics if available
         cache_read_tokens = usage.get("cacheReadInputTokens", 0)
-        cache_creation_tokens = usage.get("cacheCreationInputTokens", 0)
+        cache_creation_tokens = usage.get("cacheWriteInputTokens", 0)
 
         # Calculate actual prompt tokens
         # Bedrock's totalTokens includes all: inputTokens + cacheRead + cacheWrite + outputTokens
@@ -1035,7 +1035,7 @@ class BedrockModel(BaseChatModel):
 
                 # Extract prompt caching metrics if available
                 cache_read_tokens = usage_data.get("cacheReadInputTokens", 0)
-                cache_creation_tokens = usage_data.get("cacheCreationInputTokens", 0)
+                cache_creation_tokens = usage_data.get("cacheWriteInputTokens", 0)
 
                 # Create prompt_tokens_details if cache metrics are available
                 prompt_tokens_details = None
