@@ -964,11 +964,13 @@ class BedrockModel(BaseChatModel):
         finish_reason = None
         message = None
         usage = None
+
         if "messageStart" in chunk:
             message = ChatResponseMessage(
                 role=chunk["messageStart"]["role"],
                 content="",
             )
+
         if "contentBlockStart" in chunk:
             # tool call start
             delta = chunk["contentBlockStart"]["start"]
@@ -988,25 +990,30 @@ class BedrockModel(BaseChatModel):
                         )
                     ]
                 )
+
         if "contentBlockDelta" in chunk:
             delta = chunk["contentBlockDelta"]["delta"]
             if "text" in delta:
-                # stream content
-                message = ChatResponseMessage(
-                    content=delta["text"],
-                )
+                # Regular text content - close thinking tag if open
+                content = delta["text"]
+                if self.think_emitted:
+                    # Transition from reasoning to regular text
+                    content = "</think>" + content
+                    self.think_emitted = False
+                message = ChatResponseMessage(content=content)
             elif "reasoningContent" in delta:
                 if "text" in delta["reasoningContent"]:
                     content = delta["reasoningContent"]["text"]
                     if not self.think_emitted:
-                        # Port of "content_block_start" with "thinking"
+                        # Start of reasoning content
                         content = "<think>" + content
                         self.think_emitted = True
                     message = ChatResponseMessage(content=content)
                 elif "signature" in delta["reasoningContent"]:
-                    # Port of "signature_delta"
+                    # Port of "signature_delta" (for models that send it)
                     if self.think_emitted:
-                        message = ChatResponseMessage(content="\n </think> \n\n")
+                        message = ChatResponseMessage(content="</think>")
+                        self.think_emitted = False
                     else:
                         return None  # Ignore signature if no <think> started
             else:
@@ -1022,7 +1029,23 @@ class BedrockModel(BaseChatModel):
                         )
                     ]
                 )
+
         if "messageStop" in chunk:
+            # Safety check: Close any open thinking tags before message stops
+            if self.think_emitted:
+                self.think_emitted = False
+                return ChatStreamResponse(
+                    id=message_id,
+                    model=model_id,
+                    choices=[
+                        ChoiceDelta(
+                            index=0,
+                            delta=ChatResponseMessage(content="</think>"),
+                            logprobs=None,
+                            finish_reason=None,
+                        )
+                    ],
+                )
             message = ChatResponseMessage()
             finish_reason = chunk["messageStop"]["stopReason"]
 
@@ -1063,6 +1086,7 @@ class BedrockModel(BaseChatModel):
                         prompt_tokens_details=prompt_tokens_details,
                     ),
                 )
+
         if message:
             return ChatStreamResponse(
                 id=message_id,
