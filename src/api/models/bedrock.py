@@ -899,6 +899,7 @@ class BedrockModel(BaseChatModel):
                     # Port of "signature_delta"
                     if self.think_emitted:
                         message = ChatResponseMessage(content="\n </think> \n\n")
+                        self.think_emitted = False  # Reset flag after closing </think>
                     else:
                         return None  # Ignore signature if no <think> started
             else:
