@@ -462,6 +462,9 @@ class BedrockModel(BaseChatModel):
             # return an [DONE] message at the end.
             yield self.stream_response_to_bytes()
             self.think_emitted = False  # Cleanup
+        except HTTPException:
+            # HTTPException already has Langfuse updated in _invoke_bedrock, re-raise it
+            raise
         except Exception as e:
             logger.error("Stream error for model %s: %s", chat_request.model, str(e))
             # Update Langfuse with error
