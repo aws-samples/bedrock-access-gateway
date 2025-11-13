@@ -263,6 +263,8 @@ class BedrockModel(BaseChatModel):
                 'stream': stream
             }
         )
+        if DEBUG:
+            logger.info(f"Langfuse: Updated observation with input - model={model_id}, stream={stream}, messages_count={len(messages)}")
 
         try:
             if stream:
@@ -309,20 +311,32 @@ class BedrockModel(BaseChatModel):
                         },
                         metadata=metadata
                     )
+                    if DEBUG:
+                        logger.info(f"Langfuse: Updated observation with output - "
+                                  f"input_tokens={usage.get('inputTokens', 0)}, "
+                                  f"output_tokens={usage.get('outputTokens', 0)}, "
+                                  f"has_reasoning={has_reasoning}, "
+                                  f"stop_reason={response.get('stopReason')}")
         except bedrock_runtime.exceptions.ValidationException as e:
             error_message = f"Bedrock validation error for model {chat_request.model}: {str(e)}"
             logger.error(error_message)
             langfuse_context.update_current_observation(level="ERROR", status_message=error_message)
+            if DEBUG:
+                logger.info(f"Langfuse: Updated observation with ValidationException error")
             raise HTTPException(status_code=400, detail=str(e))
         except bedrock_runtime.exceptions.ThrottlingException as e:
             error_message = f"Bedrock throttling for model {chat_request.model}: {str(e)}"
             logger.warning(error_message)
             langfuse_context.update_current_observation(level="WARNING", status_message=error_message)
+            if DEBUG:
+                logger.info(f"Langfuse: Updated observation with ThrottlingException warning")
             raise HTTPException(status_code=429, detail=str(e))
         except Exception as e:
             error_message = f"Bedrock invocation failed for model {chat_request.model}: {str(e)}"
             logger.error(error_message)
             langfuse_context.update_current_observation(level="ERROR", status_message=error_message)
+            if DEBUG:
+                logger.info(f"Langfuse: Updated observation with generic Exception error")
             raise HTTPException(status_code=500, detail=str(e))
         return response
 
@@ -358,6 +372,8 @@ class BedrockModel(BaseChatModel):
     async def chat_stream(self, chat_request: ChatRequest) -> AsyncIterable[bytes]:
         """Default implementation for Chat Stream API"""
         try:
+            if DEBUG:
+                logger.info(f"Langfuse: Starting streaming request for model={chat_request.model}")
             response = await self._invoke_bedrock(chat_request, stream=True)
             message_id = self.generate_message_id()
             stream = response.get("stream")
@@ -432,6 +448,16 @@ class BedrockModel(BaseChatModel):
                     update_params["metadata"] = metadata
                 
                 langfuse_context.update_current_observation(**update_params)
+                
+                if DEBUG:
+                    output_length = len(accumulated_output)
+                    logger.info(f"Langfuse: Updated observation with streaming output - "
+                              f"chunks_count={output_length}, "
+                              f"output_chars={len(final_output) if accumulated_output else 0}, "
+                              f"input_tokens={final_usage.prompt_tokens if final_usage else 'N/A'}, "
+                              f"output_tokens={final_usage.completion_tokens if final_usage else 'N/A'}, "
+                              f"has_reasoning={has_reasoning}, "
+                              f"finish_reason={finish_reason}")
 
             # return an [DONE] message at the end.
             yield self.stream_response_to_bytes()
@@ -443,6 +469,8 @@ class BedrockModel(BaseChatModel):
                 level="ERROR",
                 status_message=f"Stream error: {str(e)}"
             )
+            if DEBUG:
+                logger.info(f"Langfuse: Updated observation with streaming error - error={str(e)[:100]}")
             error_event = Error(error=ErrorMessage(message=str(e)))
             yield self.stream_response_to_bytes(error_event)
 
