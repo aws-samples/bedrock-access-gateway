@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import os
 import re
 import time
 from abc import ABC
@@ -13,6 +14,7 @@ import requests
 import tiktoken
 from botocore.config import Config
 from fastapi import HTTPException
+from langfuse import observe, langfuse_context
 from starlette.concurrency import run_in_threadpool
 
 from api.models.base import BaseChatModel, BaseEmbeddingsModel
@@ -230,6 +232,7 @@ class BedrockModel(BaseChatModel):
                 detail=error,
             )
 
+    @observe(as_type="generation", name="Bedrock Converse")
     async def _invoke_bedrock(self, chat_request: ChatRequest, stream=False):
         """Common logic for invoke bedrock models"""
         if DEBUG:
@@ -240,6 +243,29 @@ class BedrockModel(BaseChatModel):
         if DEBUG:
             logger.info("Bedrock request: " + json.dumps(str(args)))
 
+        # Extract model metadata for Langfuse
+        args_clone = args.copy()
+        messages = args_clone.get('messages', [])
+        model_id = args_clone.get('modelId', 'unknown')
+        model_parameters = {
+            **args_clone.get('inferenceConfig', {}),
+            **args_clone.get('additionalModelRequestFields', {})
+        }
+        
+        # Update Langfuse generation with input metadata
+        langfuse_context.update_current_observation(
+            input=messages,
+            model=model_id,
+            model_parameters=model_parameters,
+            metadata={
+                'system': args_clone.get('system', []),
+                'toolConfig': args_clone.get('toolConfig', {}),
+                'stream': stream
+            }
+        )
+        if DEBUG:
+            logger.info(f"Langfuse: Updated observation with input - model={model_id}, stream={stream}, messages_count={len(messages)}")
+
         try:
             if stream:
                 # Run the blocking boto3 call in a thread pool
@@ -249,14 +275,68 @@ class BedrockModel(BaseChatModel):
             else:
                 # Run the blocking boto3 call in a thread pool
                 response = await run_in_threadpool(bedrock_runtime.converse, **args)
+                
+                # For non-streaming, extract response metadata immediately
+                if response and not stream:
+                    output_message = response.get("output", {}).get("message", {})
+                    usage = response.get("usage", {})
+                    
+                    # Build metadata
+                    metadata = {
+                        "stopReason": response.get("stopReason"),
+                        "ResponseMetadata": response.get("ResponseMetadata", {})
+                    }
+                    
+                    # Check for reasoning content in response
+                    has_reasoning = False
+                    reasoning_text = ""
+                    if output_message and "content" in output_message:
+                        for content_block in output_message.get("content", []):
+                            if "reasoningContent" in content_block:
+                                has_reasoning = True
+                                reasoning_text = content_block.get("reasoningContent", {}).get("reasoningText", {}).get("text", "")
+                                break
+                    
+                    if has_reasoning and reasoning_text:
+                        metadata["has_extended_thinking"] = True
+                        metadata["reasoning_content"] = reasoning_text
+                        metadata["reasoning_tokens_estimate"] = len(reasoning_text) // 4
+                    
+                    langfuse_context.update_current_observation(
+                        output=output_message,
+                        usage={
+                            "input": usage.get("inputTokens", 0),
+                            "output": usage.get("outputTokens", 0),
+                            "total": usage.get("totalTokens", 0)
+                        },
+                        metadata=metadata
+                    )
+                    if DEBUG:
+                        logger.info(f"Langfuse: Updated observation with output - "
+                                  f"input_tokens={usage.get('inputTokens', 0)}, "
+                                  f"output_tokens={usage.get('outputTokens', 0)}, "
+                                  f"has_reasoning={has_reasoning}, "
+                                  f"stop_reason={response.get('stopReason')}")
         except bedrock_runtime.exceptions.ValidationException as e:
-            logger.error("Bedrock validation error for model %s: %s", chat_request.model, str(e))
+            error_message = f"Bedrock validation error for model {chat_request.model}: {str(e)}"
+            logger.error(error_message)
+            langfuse_context.update_current_observation(level="ERROR", status_message=error_message)
+            if DEBUG:
+                logger.info(f"Langfuse: Updated observation with ValidationException error")
             raise HTTPException(status_code=400, detail=str(e))
         except bedrock_runtime.exceptions.ThrottlingException as e:
-            logger.warning("Bedrock throttling for model %s: %s", chat_request.model, str(e))
+            error_message = f"Bedrock throttling for model {chat_request.model}: {str(e)}"
+            logger.warning(error_message)
+            langfuse_context.update_current_observation(level="WARNING", status_message=error_message)
+            if DEBUG:
+                logger.info(f"Langfuse: Updated observation with ThrottlingException warning")
             raise HTTPException(status_code=429, detail=str(e))
         except Exception as e:
-            logger.error("Bedrock invocation failed for model %s: %s", chat_request.model, str(e))
+            error_message = f"Bedrock invocation failed for model {chat_request.model}: {str(e)}"
+            logger.error(error_message)
+            langfuse_context.update_current_observation(level="ERROR", status_message=error_message)
+            if DEBUG:
+                logger.info(f"Langfuse: Updated observation with generic Exception error")
             raise HTTPException(status_code=500, detail=str(e))
         return response
 
@@ -292,15 +372,43 @@ class BedrockModel(BaseChatModel):
     async def chat_stream(self, chat_request: ChatRequest) -> AsyncIterable[bytes]:
         """Default implementation for Chat Stream API"""
         try:
+            if DEBUG:
+                logger.info(f"Langfuse: Starting streaming request for model={chat_request.model}")
             response = await self._invoke_bedrock(chat_request, stream=True)
             message_id = self.generate_message_id()
             stream = response.get("stream")
             self.think_emitted = False
+            
+            # Track streaming output and usage for Langfuse
+            accumulated_output = []
+            accumulated_reasoning = []
+            final_usage = None
+            finish_reason = None
+            has_reasoning = False
+            
             async for chunk in self._async_iterate(stream):
                 args = {"model_id": chat_request.model, "message_id": message_id, "chunk": chunk}
                 stream_response = self._create_response_stream(**args)
                 if not stream_response:
                     continue
+                
+                # Accumulate output content for Langfuse tracking
+                if stream_response.choices:
+                    for choice in stream_response.choices:
+                        if choice.delta and choice.delta.content:
+                            content = choice.delta.content
+                            # Check if this is reasoning content (wrapped in <think> tags)
+                            if "<think>" in content or self.think_emitted:
+                                accumulated_reasoning.append(content)
+                                has_reasoning = True
+                            accumulated_output.append(content)
+                        if choice.finish_reason:
+                            finish_reason = choice.finish_reason
+                
+                # Capture final usage metrics for Langfuse tracking
+                if stream_response.usage:
+                    final_usage = stream_response.usage
+                
                 if DEBUG:
                     logger.info("Proxy response :" + stream_response.model_dump_json())
                 if stream_response.choices:
@@ -314,11 +422,58 @@ class BedrockModel(BaseChatModel):
                     # All other chunks will also include a usage field, but with a null value.
                     yield self.stream_response_to_bytes(stream_response)
 
+            # Update Langfuse with final streaming metadata
+            if final_usage or accumulated_output:
+                update_params = {}
+                if accumulated_output:
+                    final_output = "".join(accumulated_output)
+                    update_params["output"] = final_output
+                if final_usage:
+                    update_params["usage"] = {
+                        "input": final_usage.prompt_tokens,
+                        "output": final_usage.completion_tokens,
+                        "total": final_usage.total_tokens
+                    }
+                # Build metadata
+                metadata = {}
+                if finish_reason:
+                    metadata["finish_reason"] = finish_reason
+                if has_reasoning and accumulated_reasoning:
+                    reasoning_text = "".join(accumulated_reasoning)
+                    metadata["has_extended_thinking"] = True
+                    metadata["reasoning_content"] = reasoning_text
+                    # Estimate reasoning tokens (rough approximation: ~4 chars per token)
+                    metadata["reasoning_tokens_estimate"] = len(reasoning_text) // 4
+                if metadata:
+                    update_params["metadata"] = metadata
+                
+                langfuse_context.update_current_observation(**update_params)
+                
+                if DEBUG:
+                    output_length = len(accumulated_output)
+                    logger.info(f"Langfuse: Updated observation with streaming output - "
+                              f"chunks_count={output_length}, "
+                              f"output_chars={len(final_output) if accumulated_output else 0}, "
+                              f"input_tokens={final_usage.prompt_tokens if final_usage else 'N/A'}, "
+                              f"output_tokens={final_usage.completion_tokens if final_usage else 'N/A'}, "
+                              f"has_reasoning={has_reasoning}, "
+                              f"finish_reason={finish_reason}")
+
             # return an [DONE] message at the end.
             yield self.stream_response_to_bytes()
             self.think_emitted = False  # Cleanup
+        except HTTPException:
+            # HTTPException already has Langfuse updated in _invoke_bedrock, re-raise it
+            raise
         except Exception as e:
             logger.error("Stream error for model %s: %s", chat_request.model, str(e))
+            # Update Langfuse with error
+            langfuse_context.update_current_observation(
+                level="ERROR",
+                status_message=f"Stream error: {str(e)}"
+            )
+            if DEBUG:
+                logger.info(f"Langfuse: Updated observation with streaming error - error={str(e)[:100]}")
             error_event = Error(error=ErrorMessage(message=str(e)))
             yield self.stream_response_to_bytes(error_event)
 
@@ -747,6 +902,7 @@ class BedrockModel(BaseChatModel):
                     # Port of "signature_delta"
                     if self.think_emitted:
                         message = ChatResponseMessage(content="\n </think> \n\n")
+                        self.think_emitted = False  # Reset flag after closing </think>
                     else:
                         return None  # Ignore signature if no <think> started
             else:
