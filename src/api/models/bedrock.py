@@ -14,7 +14,7 @@ import requests
 import tiktoken
 from botocore.config import Config
 from fastapi import HTTPException
-from langfuse import observe, get_client
+from langfuse.decorators import langfuse_context, observe
 from starlette.concurrency import run_in_threadpool
 
 from api.models.base import BaseChatModel, BaseEmbeddingsModel
@@ -53,20 +53,6 @@ from api.setting import (
 )
 
 logger = logging.getLogger(__name__)
-
-# Initialize Langfuse client
-_langfuse_client = None
-
-def _get_langfuse_client():
-    """Get or create the Langfuse client singleton."""
-    global _langfuse_client
-    if _langfuse_client is None:
-        try:
-            _langfuse_client = get_client()
-        except Exception as e:
-            logger.warning(f"Failed to initialize Langfuse client: {e}")
-            _langfuse_client = None
-    return _langfuse_client
 
 config = Config(
             connect_timeout=60,      # Connection timeout: 60 seconds
@@ -267,23 +253,18 @@ class BedrockModel(BaseChatModel):
         }
         
         # Update Langfuse generation with input metadata
-        langfuse_client = _get_langfuse_client()
-        if langfuse_client:
-            try:
-                langfuse_client.update_current_generation(
-                    input=messages,
-                    model=model_id,
-                    model_parameters=model_parameters,
-                    metadata={
-                        'system': args_clone.get('system', []),
-                        'toolConfig': args_clone.get('toolConfig', {}),
-                        'stream': stream
-                    }
-                )
-                if DEBUG:
-                    logger.info(f"Langfuse: Updated observation with input - model={model_id}, stream={stream}, messages_count={len(messages)}")
-            except Exception as e:
-                logger.warning(f"Failed to update Langfuse: {e}")
+        langfuse_context.update_current_observation(
+            input=messages,
+            model=model_id,
+            model_parameters=model_parameters,
+            metadata={
+                'system': args_clone.get('system', []),
+                'toolConfig': args_clone.get('toolConfig', {}),
+                'stream': stream
+            }
+        )
+        if DEBUG:
+            logger.info(f"Langfuse: Updated observation with input - model={model_id}, stream={stream}, messages_count={len(messages)}")
 
         try:
             if stream:
@@ -321,61 +302,41 @@ class BedrockModel(BaseChatModel):
                         metadata["reasoning_content"] = reasoning_text
                         metadata["reasoning_tokens_estimate"] = len(reasoning_text) // 4
                     
-                    langfuse_client = _get_langfuse_client()
-                    if langfuse_client:
-                        try:
-                            langfuse_client.update_current_generation(
-                                output=output_message,
-                                usage={
-                                    "input": usage.get("inputTokens", 0),
-                                    "output": usage.get("outputTokens", 0),
-                                    "total": usage.get("totalTokens", 0)
-                                },
-                                metadata=metadata
-                            )
-                            if DEBUG:
-                                logger.info(f"Langfuse: Updated observation with output - "
-                                          f"input_tokens={usage.get('inputTokens', 0)}, "
-                                          f"output_tokens={usage.get('outputTokens', 0)}, "
-                                          f"has_reasoning={has_reasoning}, "
-                                          f"stop_reason={response.get('stopReason')}")
-                        except Exception as e:
-                            logger.warning(f"Failed to update Langfuse: {e}")
+                    langfuse_context.update_current_observation(
+                        output=output_message,
+                        usage={
+                            "input": usage.get("inputTokens", 0),
+                            "output": usage.get("outputTokens", 0),
+                            "total": usage.get("totalTokens", 0)
+                        },
+                        metadata=metadata
+                    )
+                    if DEBUG:
+                        logger.info(f"Langfuse: Updated observation with output - "
+                                  f"input_tokens={usage.get('inputTokens', 0)}, "
+                                  f"output_tokens={usage.get('outputTokens', 0)}, "
+                                  f"has_reasoning={has_reasoning}, "
+                                  f"stop_reason={response.get('stopReason')}")
         except bedrock_runtime.exceptions.ValidationException as e:
             error_message = f"Bedrock validation error for model {chat_request.model}: {str(e)}"
             logger.error(error_message)
-            langfuse_client = _get_langfuse_client()
-            if langfuse_client:
-                try:
-                    langfuse_client.update_current_generation(level="ERROR", status_message=error_message)
-                    if DEBUG:
-                        logger.info(f"Langfuse: Updated observation with ValidationException error")
-                except Exception:
-                    pass
+            langfuse_context.update_current_observation(level="ERROR", status_message=error_message)
+            if DEBUG:
+                logger.info("Langfuse: Updated observation with ValidationException error")
             raise HTTPException(status_code=400, detail=str(e))
         except bedrock_runtime.exceptions.ThrottlingException as e:
             error_message = f"Bedrock throttling for model {chat_request.model}: {str(e)}"
             logger.warning(error_message)
-            langfuse_client = _get_langfuse_client()
-            if langfuse_client:
-                try:
-                    langfuse_client.update_current_generation(level="WARNING", status_message=error_message)
-                    if DEBUG:
-                        logger.info(f"Langfuse: Updated observation with ThrottlingException warning")
-                except Exception:
-                    pass
+            langfuse_context.update_current_observation(level="WARNING", status_message=error_message)
+            if DEBUG:
+                logger.info("Langfuse: Updated observation with ThrottlingException warning")
             raise HTTPException(status_code=429, detail=str(e))
         except Exception as e:
             error_message = f"Bedrock invocation failed for model {chat_request.model}: {str(e)}"
             logger.error(error_message)
-            langfuse_client = _get_langfuse_client()
-            if langfuse_client:
-                try:
-                    langfuse_client.update_current_generation(level="ERROR", status_message=error_message)
-                    if DEBUG:
-                        logger.info(f"Langfuse: Updated observation with generic Exception error")
-                except Exception:
-                    pass
+            langfuse_context.update_current_observation(level="ERROR", status_message=error_message)
+            if DEBUG:
+                logger.info("Langfuse: Updated observation with generic Exception error")
             raise HTTPException(status_code=500, detail=str(e))
         return response
 
@@ -486,21 +447,16 @@ class BedrockModel(BaseChatModel):
                 if metadata:
                     update_params["metadata"] = metadata
                 
-                langfuse_client = _get_langfuse_client()
-                if langfuse_client:
-                    try:
-                        langfuse_client.update_current_generation(**update_params)
-                        if DEBUG:
-                            output_length = len(accumulated_output)
-                            logger.info(f"Langfuse: Updated observation with streaming output - "
-                                      f"chunks_count={output_length}, "
-                                      f"output_chars={len(final_output) if accumulated_output else 0}, "
-                                      f"input_tokens={final_usage.prompt_tokens if final_usage else 'N/A'}, "
-                                      f"output_tokens={final_usage.completion_tokens if final_usage else 'N/A'}, "
-                                      f"has_reasoning={has_reasoning}, "
-                                      f"finish_reason={finish_reason}")
-                    except Exception as e:
-                        logger.warning(f"Failed to update Langfuse: {e}")
+                langfuse_context.update_current_observation(**update_params)
+                if DEBUG:
+                    output_length = len(accumulated_output)
+                    logger.info(f"Langfuse: Updated observation with streaming output - "
+                              f"chunks_count={output_length}, "
+                              f"output_chars={len(final_output) if accumulated_output else 0}, "
+                              f"input_tokens={final_usage.prompt_tokens if final_usage else 'N/A'}, "
+                              f"output_tokens={final_usage.completion_tokens if final_usage else 'N/A'}, "
+                              f"has_reasoning={has_reasoning}, "
+                              f"finish_reason={finish_reason}")
 
             # return an [DONE] message at the end.
             yield self.stream_response_to_bytes()
@@ -511,17 +467,12 @@ class BedrockModel(BaseChatModel):
         except Exception as e:
             logger.error("Stream error for model %s: %s", chat_request.model, str(e))
             # Update Langfuse with error
-            langfuse_client = _get_langfuse_client()
-            if langfuse_client:
-                try:
-                    langfuse_client.update_current_generation(
-                        level="ERROR",
-                        status_message=f"Stream error: {str(e)}"
-                    )
-                    if DEBUG:
-                        logger.info(f"Langfuse: Updated observation with streaming error - error={str(e)[:100]}")
-                except Exception:
-                    pass
+            langfuse_context.update_current_observation(
+                level="ERROR",
+                status_message=f"Stream error: {str(e)}"
+            )
+            if DEBUG:
+                logger.info(f"Langfuse: Updated observation with streaming error - error={str(e)[:100]}")
             error_event = Error(error=ErrorMessage(message=str(e)))
             yield self.stream_response_to_bytes(error_event)
 
