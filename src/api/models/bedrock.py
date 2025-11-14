@@ -59,6 +59,9 @@ logger = logging.getLogger(__name__)
 # This ensures the consumer and auth check happen at module load time
 try:
     _langfuse = Langfuse(
+        public_key=os.environ.get("LANGFUSE_PUBLIC_KEY"),
+        secret_key=os.environ.get("LANGFUSE_SECRET_KEY"),
+        host=os.environ.get("LANGFUSE_HOST"),
         debug=DEBUG
     )
     if DEBUG:
