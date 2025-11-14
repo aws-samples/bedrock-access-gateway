@@ -14,7 +14,7 @@ import requests
 import tiktoken
 from botocore.config import Config
 from fastapi import HTTPException
-from langfuse import observe, langfuse_context
+from langfuse.decorators import observe, langfuse_context
 from starlette.concurrency import run_in_threadpool
 
 from api.models.base import BaseChatModel, BaseEmbeddingsModel
