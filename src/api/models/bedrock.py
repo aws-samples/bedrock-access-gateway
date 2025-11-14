@@ -14,6 +14,7 @@ import requests
 import tiktoken
 from botocore.config import Config
 from fastapi import HTTPException
+from langfuse import Langfuse
 from langfuse.decorators import langfuse_context, observe
 from starlette.concurrency import run_in_threadpool
 
@@ -53,6 +54,18 @@ from api.setting import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Explicitly initialize Langfuse client for @observe decorator
+# This ensures the consumer and auth check happen at module load time
+try:
+    _langfuse = Langfuse(
+        debug=DEBUG
+    )
+    if DEBUG:
+        logger.info("Langfuse client initialized successfully")
+except Exception as e:
+    logger.warning(f"Failed to initialize Langfuse client: {e}")
+    _langfuse = None
 
 config = Config(
             connect_timeout=60,      # Connection timeout: 60 seconds
