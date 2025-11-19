@@ -99,7 +99,7 @@ class ChatRequest(BaseModel):
     stream_options: StreamOptions | None = None
     temperature: float | None = Field(default=1.0, le=2.0, ge=0.0)
     top_p: float | None = Field(default=1.0, le=1.0, ge=0.0)
-    user: str | None = None  # Not used
+    user: str | None = None
     max_tokens: int | None = 2048
     max_completion_tokens: int | None = None
     reasoning_effort: Literal["low", "medium", "high"] | None = None

@@ -438,7 +438,7 @@ class BedrockModel(BaseChatModel):
                     # All other chunks will also include a usage field, but with a null value.
                     yield self.stream_response_to_bytes(stream_response)
 
-            # Update Langfuse with final streaming metadata
+            # Update Langfuse with final streaming metadata (both observation and trace)
             if final_usage or accumulated_output:
                 update_params = {}
                 if accumulated_output:
@@ -463,10 +463,22 @@ class BedrockModel(BaseChatModel):
                 if metadata:
                     update_params["metadata"] = metadata
                 
+                # Update the child observation (Bedrock Converse)
                 langfuse_context.update_current_observation(**update_params)
+                
+                # Also update the parent trace (chat_completion) with final output
+                trace_output = {
+                    "message": {
+                        "role": "assistant",
+                        "content": final_output if accumulated_output else None,
+                    },
+                    "finish_reason": finish_reason,
+                }
+                langfuse_context.update_current_trace(output=trace_output)
+                
                 if DEBUG:
                     output_length = len(accumulated_output)
-                    logger.info(f"Langfuse: Updated observation with streaming output - "
+                    logger.info(f"Langfuse: Updated observation and trace with streaming output - "
                               f"chunks_count={output_length}, "
                               f"output_chars={len(final_output) if accumulated_output else 0}, "
                               f"input_tokens={final_usage.prompt_tokens if final_usage else 'N/A'}, "
@@ -482,10 +494,14 @@ class BedrockModel(BaseChatModel):
             raise
         except Exception as e:
             logger.error("Stream error for model %s: %s", chat_request.model, str(e))
-            # Update Langfuse with error
+            # Update Langfuse with error (both observation and trace)
             langfuse_context.update_current_observation(
                 level="ERROR",
                 status_message=f"Stream error: {str(e)}"
+            )
+            langfuse_context.update_current_trace(
+                output={"error": str(e)},
+                metadata={"error": True}
             )
             if DEBUG:
                 logger.info(f"Langfuse: Updated observation with streaming error - error={str(e)[:100]}")
