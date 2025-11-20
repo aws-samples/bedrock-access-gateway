@@ -21,10 +21,13 @@ def extract_langfuse_metadata(chat_request: ChatRequest, headers: dict) -> dict:
     
     Metadata can be provided via:
     1. extra_body.langfuse_metadata dict in the request
-    2. HTTP headers: X-Chat-Id, X-User-Id, X-Session-Id, X-Message-Id
-    3. user field in the request (for user_id)
+    2. user field in the request (PRIORITIZED for user_id - ensures consistent email usage)
+    3. HTTP headers: X-Chat-Id, X-User-Id, X-Session-Id, X-Message-Id
     
     Returns a dict with: user_id, session_id, chat_id, message_id, and any custom metadata
+    
+    Note: The 'user' field is prioritized for user_id to ensure email addresses
+    are consistently used across all messages instead of generated IDs from headers.
     """
     metadata = {}
     
@@ -33,6 +36,11 @@ def extract_langfuse_metadata(chat_request: ChatRequest, headers: dict) -> dict:
         langfuse_meta = chat_request.extra_body.get("langfuse_metadata", {})
         if isinstance(langfuse_meta, dict):
             metadata.update(langfuse_meta)
+    
+    # PRIORITY: Set user_id from the 'user' field FIRST
+    # This ensures we always use the email address when available
+    if chat_request.user:
+        metadata["user_id"] = chat_request.user
     
     # Extract from headers
     headers_lower = {k.lower(): v for k, v in headers.items()}
@@ -51,13 +59,10 @@ def extract_langfuse_metadata(chat_request: ChatRequest, headers: dict) -> dict:
     
     for header_key, meta_key in header_mapping.items():
         if header_key in headers_lower and headers_lower[header_key]:
-            # Don't override if already set (standard headers take precedence)
+            # Don't override if already set
+            # (chat_request.user takes precedence for user_id)
             if meta_key not in metadata:
                 metadata[meta_key] = headers_lower[header_key]
-    
-    # Use the 'user' field from request as user_id if not already set
-    if "user_id" not in metadata and chat_request.user:
-        metadata["user_id"] = chat_request.user
     
     return metadata
 
