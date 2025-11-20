@@ -7,6 +7,9 @@ set -o errexit  # exit on first error
 set -o nounset  # exit on using unset variables
 set -o pipefail # exit on any error in a pipeline
 
+# Change to the directory where the script is located
+cd "$(dirname "$0")"
+
 # Prompt user for inputs
 echo "================================================"
 echo "Bedrock Access Gateway - Build and Push to ECR"
