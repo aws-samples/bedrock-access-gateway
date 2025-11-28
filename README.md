@@ -106,6 +106,7 @@ After creation, you'll see your secret in the Secrets Manager console. Make note
 
 1. Download the CloudFormation template you want to use:
    - For Lambda: [`deployment/BedrockProxy.template`](deployment/BedrockProxy.template)
+   - For Lambda using existing IAM Role and Policy: [`deployment/BedrockProxy-ExistingRole.template`](deployment/BedrockProxy-ExistingRole.template)
    - For Fargate: [`deployment/BedrockProxyFargate.template`](deployment/BedrockProxyFargate.template)
 
 2. Sign in to AWS Management Console and navigate to the CloudFormation service in your target region.
