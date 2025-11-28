@@ -4,9 +4,16 @@ OpenAI-compatible RESTful APIs for Amazon Bedrock
 
 ## What's New 🔥
 
-This project now supports **Claude Sonnet 4.5**, Anthropic's most intelligent model with enhanced coding capabilities and complex agent support, available via global cross-region inference.
+**API Gateway Response Streaming Support** - You can now deploy with Amazon API Gateway REST API instead of ALB, enabling true response streaming for better latency and cost optimization. See [Deployment Options](#deployment-options) for details.
 
-It also supports reasoning for both **Claude 3.7 Sonnet** and **DeepSeek R1**. Check [How to Use](./docs/Usage.md#reasoning) for more details. You need to first run the Models API to refresh the model list.
+**Latest Models Supported:**
+- **Claude 4.5 Family**: Opus 4.5, Sonnet 4.5, Haiku 4.5 - Anthropic's most intelligent models with enhanced coding and agent capabilities
+- **Amazon Nova**: Nova Micro, Nova Lite, Nova Pro, Nova Premier - Amazon's native foundation models with multimodal support
+- **DeepSeek**: DeepSeek-R1 (reasoning), DeepSeek-V3.1 - Advanced reasoning and general-purpose models
+- **Qwen 3**: Qwen3-32B, Qwen3-235B, Qwen3-Coder-30B, Qwen3-Coder-480B - Alibaba's latest language and coding models
+- **OpenAI OSS**: gpt-oss-20b, gpt-oss-120b - Open-source GPT models available via Bedrock
+
+It also supports reasoning for **Claude 4/4.5** (extended thinking and interleaved thinking) and **DeepSeek R1**. Check [How to Use](./docs/Usage.md#reasoning) for more details. You need to first run the Models API to refresh the model list.
 
 ## Overview
 
@@ -46,13 +53,18 @@ Please make sure you have met below prerequisites:
 
 ### Architecture
 
-The following diagram illustrates the reference architecture. Note that it also includes a new **VPC** with two public subnets only for the Application Load Balancer (ALB).
+The following diagram illustrates the reference architecture. It uses [Amazon API Gateway response streaming](https://aws.amazon.com/blogs/compute/building-responsive-apis-with-amazon-api-gateway-response-streaming/) with Lambda for SSE support.
 
 ![Architecture](assets/arch.png)
 
-You can also choose to use [AWS Fargate](https://aws.amazon.com/fargate/) behind the ALB instead of [AWS Lambda](https://aws.amazon.com/lambda/), the main difference is the latency of the first byte for streaming response (Fargate is lower).
+### Deployment Options
 
-Alternatively, you can use Lambda Function URL to replace ALB, see [example](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming)
+| Option | Pros | Cons | Best For |
+|--------|------|------|----------|
+| **API Gateway + Lambda** | No VPC required, pay-per-request, native streaming support, lower operational overhead | Potential cold starts | Most use cases, cost-sensitive deployments |
+| **ALB + Fargate** | Lowest streaming latency, no cold starts | Higher cost, requires VPC | High-throughput, latency-sensitive workloads |
+
+You can also use Lambda Function URL as an alternative, see [example](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming)
 
 ### Deployment
 
@@ -105,8 +117,8 @@ After creation, you'll see your secret in the Secrets Manager console. Make note
 **Step 3: Deploy the CloudFormation stack**
 
 1. Download the CloudFormation template you want to use:
-   - For Lambda: [`deployment/BedrockProxy.template`](deployment/BedrockProxy.template)
-   - For Fargate: [`deployment/BedrockProxyFargate.template`](deployment/BedrockProxyFargate.template)
+   - For API Gateway + Lambda: [`deployment/BedrockProxy.template`](deployment/BedrockProxy.template)
+   - For ALB + Fargate: [`deployment/BedrockProxyFargate.template`](deployment/BedrockProxyFargate.template)
 
 2. Sign in to AWS Management Console and navigate to the CloudFormation service in your target region.
 
@@ -227,7 +239,7 @@ For more information about creating and managing application inference profiles,
 This proxy now supports **Prompt Caching** for Claude and Nova models, which can reduce costs by up to 90% and latency by up to 85% for workloads with repeated prompts.
 
 **Supported Models:**
-- Claude 3+ models (Claude 3.5 Haiku, Claude 3.7 Sonnet, Claude 4, Claude 4.5, etc.)
+- Claude models (Claude 3.5 Haiku, Claude 4, Claude 4.5, etc.)
 - Nova models (Nova Micro, Nova Lite, Nova Pro, Nova Premier)
 
 **Enabling Prompt Caching:**
@@ -249,7 +261,7 @@ client = OpenAI()
 
 # Cache system prompts
 response = client.chat.completions.create(
-    model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    model="global.anthropic.claude-haiku-4-5-20251001-v1:0",
     messages=[
         {"role": "system", "content": "You are an expert assistant with knowledge of..."},
         {"role": "user", "content": "Help me with this task"}
@@ -271,7 +283,7 @@ curl $OPENAI_BASE_URL/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
   -d '{
-    "model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    "model": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
     "messages": [
       {"role": "system", "content": "Long system prompt..."},
       {"role": "user", "content": "Question"}
@@ -334,9 +346,11 @@ print(response)
 
 This application does not collect any of your data. Furthermore, it does not log any requests or responses by default.
 
-### Why not used API Gateway instead of Application Load Balancer?
+### Why choose API Gateway vs ALB?
 
-Short answer is that API Gateway does not support server-sent events (SSE) for streaming response.
+**API Gateway + Lambda** uses [API Gateway response streaming](https://aws.amazon.com/blogs/compute/building-responsive-apis-with-amazon-api-gateway-response-streaming/) with [Lambda Web Adapter](https://github.com/awslabs/aws-lambda-web-adapter) to support SSE streaming without requiring a VPC. This is a cost-effective, serverless option with up to 10 minutes timeout.
+
+**ALB + Fargate** provides the lowest streaming latency with no cold starts, ideal for high-throughput workloads.
 
 ### Which regions are supported?
 
@@ -360,9 +374,9 @@ The API base url should look like `http://localhost:8000/api/v1`.
 
 ### Any performance sacrifice or latency increase by using the proxy APIs
 
-Comparing with the AWS SDK call, the referenced architecture will bring additional latency on response, you can try and test that on you own.
+Compared with direct AWS SDK calls, the proxy architecture will add some latency. The default API Gateway + Lambda deployment provides good streaming performance with Lambda response streaming.
 
-Also, you can use Lambda Web Adapter + Function URL (see [example](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming)) to replace ALB or AWS Fargate to replace Lambda to get better performance on streaming response.
+For lowest latency on streaming responses, consider the ALB + Fargate deployment option which eliminates cold starts and provides consistent performance.
 
 ### Any plan to support SageMaker models?
 
