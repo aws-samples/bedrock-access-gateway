@@ -75,6 +75,12 @@ class ToolMessage(BaseModel):
     tool_call_id: str
 
 
+class DeveloperMessage(BaseModel):
+    name: str | None = None
+    role: Literal["developer"] = "developer"
+    content: str
+
+
 class Function(BaseModel):
     name: str
     description: str | None = None
@@ -91,7 +97,7 @@ class StreamOptions(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    messages: list[SystemMessage | UserMessage | AssistantMessage | ToolMessage]
+    messages: list[SystemMessage | UserMessage | AssistantMessage | ToolMessage | DeveloperMessage]
     model: str = DEFAULT_MODEL
     frequency_penalty: float | None = Field(default=0.0, le=2.0, ge=-2.0)  # Not used
     presence_penalty: float | None = Field(default=0.0, le=2.0, ge=-2.0)  # Not used

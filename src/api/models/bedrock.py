@@ -24,6 +24,7 @@ from api.schema import (
     Choice,
     ChoiceDelta,
     CompletionTokensDetails,
+    DeveloperMessage,
     Embedding,
     EmbeddingsRequest,
     EmbeddingsResponse,
@@ -522,6 +523,14 @@ class BedrockModel(BaseChatModel):
                         "content": self._parse_content_parts(
                             message, chat_request.model
                         ),
+                    }
+                )
+            elif isinstance(message, DeveloperMessage):
+                # Treat developer messages as user messages
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": [{"text": message.content}],
                     }
                 )
             elif isinstance(message, AssistantMessage):
