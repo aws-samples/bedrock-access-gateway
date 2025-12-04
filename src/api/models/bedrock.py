@@ -94,6 +94,7 @@ profile_metadata = {}
 TEMPERATURE_TOPP_CONFLICT_MODELS = {
     "claude-sonnet-4-5",
     "claude-haiku-4-5",
+    "claude-opus-4-5",
 }
 
 
@@ -162,7 +163,7 @@ def list_bedrock_models() -> dict:
                     except Exception as e:
                         logger.warning(f"Error processing application profile: {e}")
                         continue
-                    
+
         # List foundation models, only cares about text outputs here.
         response = bedrock_client.list_foundation_models(byOutputModality="TEXT")
 
@@ -533,7 +534,7 @@ class BedrockModel(BaseChatModel):
                     has_content = len(message.content) > 0
                 elif message.content is not None:
                     has_content = True
-                
+
                 if has_content:
                     # Text message
                     messages.append(
@@ -566,10 +567,10 @@ class BedrockModel(BaseChatModel):
                 # Bedrock does not support tool role,
                 # Add toolResult to content
                 # https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ToolResultBlock.html
-                
+
                 # Handle different content formats from OpenAI SDK
                 tool_content = self._extract_tool_content(message.content)
-                
+
                 messages.append(
                     {
                         "role": "user",
@@ -591,7 +592,7 @@ class BedrockModel(BaseChatModel):
 
     def _extract_tool_content(self, content) -> str:
         """Extract text content from various OpenAI SDK tool message formats.
-        
+
         Handles:
         - String content (legacy format)
         - List of content objects (OpenAI SDK 1.91.0+)
@@ -600,7 +601,7 @@ class BedrockModel(BaseChatModel):
         try:
             if isinstance(content, str):
                 return content
-            
+
             if isinstance(content, list):
                 text_parts = []
                 for i, item in enumerate(content):
@@ -632,7 +633,7 @@ class BedrockModel(BaseChatModel):
                         # Convert any other type to string
                         text_parts.append(str(item))
                 return "\n".join(text_parts)
-            
+
             # Fallback for any other type
             return str(content)
         except Exception as e:
