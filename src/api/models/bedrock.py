@@ -455,7 +455,7 @@ class BedrockModel(BaseChatModel):
         """
         system_prompts = []
         for message in chat_request.messages:
-            if message.role != "system":
+            if message.role not in ("system", "developer"):
                 continue
             if not isinstance(message.content, str):
                 raise TypeError(f"System message content must be a string, got {type(message.content).__name__}")
@@ -523,14 +523,6 @@ class BedrockModel(BaseChatModel):
                         "content": self._parse_content_parts(
                             message, chat_request.model
                         ),
-                    }
-                )
-            elif isinstance(message, DeveloperMessage):
-                # Treat developer messages as user messages
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": [{"text": message.content}],
                     }
                 )
             elif isinstance(message, AssistantMessage):
