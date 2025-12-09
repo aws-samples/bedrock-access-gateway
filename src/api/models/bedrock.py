@@ -24,6 +24,7 @@ from api.schema import (
     Choice,
     ChoiceDelta,
     CompletionTokensDetails,
+    DeveloperMessage,
     Embedding,
     EmbeddingsRequest,
     EmbeddingsResponse,
@@ -455,7 +456,7 @@ class BedrockModel(BaseChatModel):
         """
         system_prompts = []
         for message in chat_request.messages:
-            if message.role != "system":
+            if message.role not in ("system", "developer"):
                 continue
             if not isinstance(message.content, str):
                 raise TypeError(f"System message content must be a string, got {type(message.content).__name__}")
