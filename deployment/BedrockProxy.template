@@ -1,4 +1,4 @@
-Description: Bedrock Access Gateway - OpenAI-compatible RESTful APIs for Amazon Bedrock
+Description: Bedrock Access Gateway - OpenAI-compatible RESTful APIs for Amazon Bedrock (API Gateway + Lambda with Streaming)
 Parameters:
   ApiKeySecretArn:
     Type: String
@@ -11,117 +11,16 @@ Parameters:
     Type: String
     Default: anthropic.claude-3-sonnet-20240229-v1:0
     Description: The default model ID, please make sure the model ID is supported in the current region
+  EnablePromptCaching:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Enable prompt caching for supported models (Claude, Nova). When enabled, adds cachePoint to system prompts and messages for cost savings.
 Resources:
-  VPCB9E5F0B4:
-    Type: AWS::EC2::VPC
-    Properties:
-      CidrBlock: 10.250.0.0/16
-      EnableDnsHostnames: true
-      EnableDnsSupport: true
-      InstanceTenancy: default
-      Tags:
-        - Key: Name
-          Value: BedrockProxy/VPC
-  VPCPublicSubnet1SubnetB4246D30:
-    Type: AWS::EC2::Subnet
-    Properties:
-      AvailabilityZone:
-        Fn::Select:
-          - 0
-          - Fn::GetAZs: ""
-      CidrBlock: 10.250.0.0/24
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: aws-cdk:subnet-name
-          Value: Public
-        - Key: aws-cdk:subnet-type
-          Value: Public
-        - Key: Name
-          Value: BedrockProxy/VPC/PublicSubnet1
-      VpcId:
-        Ref: VPCB9E5F0B4
-  VPCPublicSubnet1RouteTableFEE4B781:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      Tags:
-        - Key: Name
-          Value: BedrockProxy/VPC/PublicSubnet1
-      VpcId:
-        Ref: VPCB9E5F0B4
-  VPCPublicSubnet1RouteTableAssociation0B0896DC:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId:
-        Ref: VPCPublicSubnet1RouteTableFEE4B781
-      SubnetId:
-        Ref: VPCPublicSubnet1SubnetB4246D30
-  VPCPublicSubnet1DefaultRoute91CEF279:
-    Type: AWS::EC2::Route
-    Properties:
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId:
-        Ref: VPCIGWB7E252D3
-      RouteTableId:
-        Ref: VPCPublicSubnet1RouteTableFEE4B781
-    DependsOn:
-      - VPCVPCGW99B986DC
-  VPCPublicSubnet2Subnet74179F39:
-    Type: AWS::EC2::Subnet
-    Properties:
-      AvailabilityZone:
-        Fn::Select:
-          - 1
-          - Fn::GetAZs: ""
-      CidrBlock: 10.250.1.0/24
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: aws-cdk:subnet-name
-          Value: Public
-        - Key: aws-cdk:subnet-type
-          Value: Public
-        - Key: Name
-          Value: BedrockProxy/VPC/PublicSubnet2
-      VpcId:
-        Ref: VPCB9E5F0B4
-  VPCPublicSubnet2RouteTable6F1A15F1:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      Tags:
-        - Key: Name
-          Value: BedrockProxy/VPC/PublicSubnet2
-      VpcId:
-        Ref: VPCB9E5F0B4
-  VPCPublicSubnet2RouteTableAssociation5A808732:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId:
-        Ref: VPCPublicSubnet2RouteTable6F1A15F1
-      SubnetId:
-        Ref: VPCPublicSubnet2Subnet74179F39
-  VPCPublicSubnet2DefaultRouteB7481BBA:
-    Type: AWS::EC2::Route
-    Properties:
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId:
-        Ref: VPCIGWB7E252D3
-      RouteTableId:
-        Ref: VPCPublicSubnet2RouteTable6F1A15F1
-    DependsOn:
-      - VPCVPCGW99B986DC
-  VPCIGWB7E252D3:
-    Type: AWS::EC2::InternetGateway
-    Properties:
-      Tags:
-        - Key: Name
-          Value: BedrockProxy/VPC
-  VPCVPCGW99B986DC:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      InternetGatewayId:
-        Ref: VPCIGWB7E252D3
-      VpcId:
-        Ref: VPCB9E5F0B4
-  ProxyApiHandlerServiceRoleBE71BFB1:
+  # IAM Role for Lambda
+  ProxyApiHandlerServiceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -132,12 +31,9 @@ Resources:
               Service: lambda.amazonaws.com
         Version: "2012-10-17"
       ManagedPolicyArns:
-        - Fn::Join:
-            - ""
-            - - "arn:"
-              - Ref: AWS::Partition
-              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-  ProxyApiHandlerServiceRoleDefaultPolicy86681202:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+
+  ProxyApiHandlerServiceRoleDefaultPolicy:
     Type: AWS::IAM::Policy
     Properties:
       PolicyDocument:
@@ -159,120 +55,124 @@ Resources:
               - secretsmanager:GetSecretValue
               - secretsmanager:DescribeSecret
             Effect: Allow
-            Resource:
-              Ref: ApiKeySecretArn
+            Resource: !Ref ApiKeySecretArn
         Version: "2012-10-17"
-      PolicyName: ProxyApiHandlerServiceRoleDefaultPolicy86681202
+      PolicyName: ProxyApiHandlerServiceRoleDefaultPolicy
       Roles:
-        - Ref: ProxyApiHandlerServiceRoleBE71BFB1
-  ProxyApiHandlerEC15A492:
+        - !Ref ProxyApiHandlerServiceRole
+
+  # Lambda Function with Lambda Web Adapter for streaming
+  ProxyApiHandler:
     Type: AWS::Lambda::Function
     Properties:
       Architectures:
         - arm64
       Code:
-        ImageUri:
-          Ref: ContainerImageUri
-      Description: Bedrock Proxy API Handler
+        ImageUri: !Ref ContainerImageUri
+      Description: Bedrock Proxy API Handler with Response Streaming
       Environment:
         Variables:
+          # Lambda Web Adapter settings
+          AWS_LWA_INVOKE_MODE: RESPONSE_STREAM
+          AWS_LWA_READINESS_CHECK_PATH: /health
+          AWS_LWA_ASYNC_INIT: "true"
+          PORT: "8080"
+          # Application settings
           DEBUG: "false"
-          API_KEY_SECRET_ARN:
-            Ref: ApiKeySecretArn
-          DEFAULT_MODEL:
-            Ref: DefaultModelId
+          API_KEY_SECRET_ARN: !Ref ApiKeySecretArn
+          DEFAULT_MODEL: !Ref DefaultModelId
           DEFAULT_EMBEDDING_MODEL: cohere.embed-multilingual-v3
           ENABLE_CROSS_REGION_INFERENCE: "true"
           ENABLE_APPLICATION_INFERENCE_PROFILES: "true"
+          ENABLE_PROMPT_CACHING: !Ref EnablePromptCaching
+          API_ROUTE_PREFIX: /v1
       MemorySize: 1024
       PackageType: Image
-      Role:
-        Fn::GetAtt:
-          - ProxyApiHandlerServiceRoleBE71BFB1
-          - Arn
+      Role: !GetAtt ProxyApiHandlerServiceRole.Arn
       Timeout: 600
     DependsOn:
-      - ProxyApiHandlerServiceRoleDefaultPolicy86681202
-      - ProxyApiHandlerServiceRoleBE71BFB1
-  ProxyApiHandlerInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYF6C33779:
+      - ProxyApiHandlerServiceRoleDefaultPolicy
+      - ProxyApiHandlerServiceRole
+
+  # API Gateway REST API (Regional)
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: BedrockProxyApi
+      Description: Bedrock Access Gateway - OpenAI-compatible API with streaming support
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Body:
+        openapi: "3.0.1"
+        info:
+          title: BedrockProxyApi
+          version: "1.0"
+        paths:
+          /{proxy+}:
+            x-amazon-apigateway-any-method:
+              parameters:
+                - name: proxy
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2021-11-15/functions/${ProxyApiHandler.Arn}/response-streaming-invocations"
+                passthroughBehavior: when_no_match
+                timeoutInMillis: 600000
+                responseTransferMode: STREAM
+              responses:
+                default:
+                  description: Default response
+          /:
+            x-amazon-apigateway-any-method:
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2021-11-15/functions/${ProxyApiHandler.Arn}/response-streaming-invocations"
+                passthroughBehavior: when_no_match
+                timeoutInMillis: 600000
+                responseTransferMode: STREAM
+              responses:
+                default:
+                  description: Default response
+
+  # Lambda Permission for API Gateway
+  LambdaPermission:
     Type: AWS::Lambda::Permission
     Properties:
+      FunctionName: !Ref ProxyApiHandler
       Action: lambda:InvokeFunction
-      FunctionName:
-        Fn::GetAtt:
-          - ProxyApiHandlerEC15A492
-          - Arn
-      Principal: elasticloadbalancing.amazonaws.com
-  ProxyALB87756780:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*"
+
+  # API Gateway Deployment
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
     Properties:
-      LoadBalancerAttributes:
-        - Key: deletion_protection.enabled
-          Value: "false"
-      Scheme: internet-facing
-      SecurityGroups:
-        - Fn::GetAtt:
-            - ProxyALBSecurityGroup0D6CA3DA
-            - GroupId
-      Subnets:
-        - Ref: VPCPublicSubnet1SubnetB4246D30
-        - Ref: VPCPublicSubnet2Subnet74179F39
-      Type: application
+      RestApiId: !Ref RestApi
     DependsOn:
-      - VPCPublicSubnet1DefaultRoute91CEF279
-      - VPCPublicSubnet1RouteTableAssociation0B0896DC
-      - VPCPublicSubnet2DefaultRouteB7481BBA
-      - VPCPublicSubnet2RouteTableAssociation5A808732
-  ProxyALBSecurityGroup0D6CA3DA:
-    Type: AWS::EC2::SecurityGroup
+      - RestApi
+
+  # API Gateway Stage
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
     Properties:
-      GroupDescription: Automatically created Security Group for ELB BedrockProxyALB1CE4CAD1
-      SecurityGroupEgress:
-        - CidrIp: 255.255.255.255/32
-          Description: Disallow all traffic
-          FromPort: 252
-          IpProtocol: icmp
-          ToPort: 86
-      SecurityGroupIngress:
-        - CidrIp: 0.0.0.0/0
-          Description: Allow from anyone on port 80
-          FromPort: 80
-          IpProtocol: tcp
-          ToPort: 80
-      VpcId:
-        Ref: VPCB9E5F0B4
-  ProxyALBListener933E9515:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-        - TargetGroupArn:
-            Ref: ProxyALBListenerTargetsGroup187739FA
-          Type: forward
-      LoadBalancerArn:
-        Ref: ProxyALB87756780
-      Port: 80
-      Protocol: HTTP
-  ProxyALBListenerTargetsGroup187739FA:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      HealthCheckEnabled: false
-      TargetType: lambda
-      Targets:
-        - Id:
-            Fn::GetAtt:
-              - ProxyApiHandlerEC15A492
-              - Arn
-    DependsOn:
-      - ProxyApiHandlerInvoke2UTWxhlfyqbT5FTn5jvgbLgjFfJwzswGk55DU1HYF6C33779
+      RestApiId: !Ref RestApi
+      DeploymentId: !Ref ApiDeployment
+      StageName: api
+      Description: API Stage with streaming support
+
 Outputs:
   APIBaseUrl:
     Description: Proxy API Base URL (OPENAI_API_BASE)
-    Value:
-      Fn::Join:
-        - ""
-        - - http://
-          - Fn::GetAtt:
-              - ProxyALB87756780
-              - DNSName
-          - /api/v1
-
+    Value: !Sub "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/api/v1"
+  RestApiId:
+    Description: API Gateway REST API ID
+    Value: !Ref RestApi
+  LambdaFunctionArn:
+    Description: Lambda Function ARN
+    Value: !GetAtt ProxyApiHandler.Arn

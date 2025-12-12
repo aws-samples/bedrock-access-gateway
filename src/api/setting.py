@@ -19,3 +19,4 @@ ENABLE_CROSS_REGION_INFERENCE = os.environ.get("ENABLE_CROSS_REGION_INFERENCE", 
 MAX_RETRIES_AWS = int(os.environ.get("MAX_RETRIES_AWS", "3"))
 ENABLE_APPLICATION_INFERENCE_PROFILES = os.environ.get("ENABLE_APPLICATION_INFERENCE_PROFILES", "true").lower() != "false"
 MODEL_CACHE_TTL = int(os.environ.get("MODEL_CACHE_TTL", "3600"))  # 1 hour default
+ENABLE_PROMPT_CACHING = os.environ.get("ENABLE_PROMPT_CACHING", "false").lower() != "false"

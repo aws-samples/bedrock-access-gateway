@@ -14,9 +14,13 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser && \
 
 USER appuser
 
+# Preload tiktoken encoding: https://github.com/aws-samples/bedrock-access-gateway/issues/118
+ENV TIKTOKEN_CACHE_DIR=/app/.cache/tiktoken
+RUN python3 -c 'import tiktoken_ext.openai_public as tke; tke.cl100k_base()'
+
 ENV PORT=8080
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health').read()"
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT}/health').read()"
 
 CMD ["sh", "-c", "uvicorn api.app:app --host 0.0.0.0 --port ${PORT} --workers ${WORKERS}"]
