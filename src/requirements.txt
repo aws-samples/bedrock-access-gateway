@@ -1,4 +1,5 @@
-fastapi==0.116.1
+fastapi==0.128.0
+starlette==0.49.1  # CVE-2025-62727: Fix ReDoS in Range header parsing
 pydantic==2.11.4
 uvicorn==0.29.0
 mangum==0.17.0
