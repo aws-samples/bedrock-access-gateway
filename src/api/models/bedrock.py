@@ -98,6 +98,13 @@ TEMPERATURE_TOPP_CONFLICT_MODELS = {
     "claude-opus-4-5",
 }
 
+# Models that don't support assistant message prefill
+# For these models, if conversation ends with assistant message (e.g., "continue response"),
+# a user message will be added to ask the model to continue
+NO_ASSISTANT_PREFILL_MODELS = {
+    "claude-opus-4-6",
+}
+
 
 def list_bedrock_models() -> dict:
     """Automatically getting a list of supported models.
@@ -696,6 +703,24 @@ class BedrockModel(BaseChatModel):
             reformatted_messages.append(
                 {"role": current_role, "content": current_content}
             )
+
+        # Bedrock Converse API requires conversations to end with a user message.
+        # Some models don't support "assistant message prefill".
+        # If the conversation ends with an assistant message (e.g., "continue response" scenario),
+        # add a user message asking to continue - but only for models in NO_ASSISTANT_PREFILL_MODELS.
+        if chat_request and reformatted_messages and reformatted_messages[-1]["role"] == "assistant":
+            # Resolve profile to underlying model for feature detection
+            resolved_model = self._resolve_to_foundation_model(chat_request.model)
+            model_lower = resolved_model.lower()
+
+            # Check if model is in the no-prefill list
+            if any(no_prefill_model in model_lower for no_prefill_model in NO_ASSISTANT_PREFILL_MODELS):
+                reformatted_messages.append({
+                    "role": "user",
+                    "content": [{"text": "Please continue your response from where you left off."}]
+                })
+                if DEBUG:
+                    logger.info(f"Added continuation prompt for {chat_request.model} - conversation ended with assistant message")
 
         # Add cachePoint to messages if enabled and supported
         if chat_request and reformatted_messages:
