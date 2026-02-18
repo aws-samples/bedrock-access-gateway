@@ -46,8 +46,8 @@ from api.setting import (
     AWS_REGION,
     DEBUG,
     DEFAULT_MODEL,
-    ENABLE_CROSS_REGION_INFERENCE,
     ENABLE_APPLICATION_INFERENCE_PROFILES,
+    ENABLE_CROSS_REGION_INFERENCE,
     ENABLE_PROMPT_CACHING,
 )
 
@@ -210,6 +210,8 @@ bedrock_model_list = list_bedrock_models()
 
 
 class BedrockModel(BaseChatModel):
+    _THINK_BLOCK_PATTERN = re.compile(r"<think>(.*?)</think>", re.DOTALL)
+
     def list_models(self) -> list[str]:
         """Always refresh the latest model list"""
         global bedrock_model_list
@@ -1166,19 +1168,16 @@ class BedrockModel(BaseChatModel):
         model_id: str,
     ) -> list[dict]:
         if isinstance(message.content, str):
-            return [
-                {
-                    "text": message.content,
-                }
-            ]
+            if isinstance(message, AssistantMessage):
+                return self._parse_assistant_text(message.content)
+            return [{"text": message.content}]
         content_parts = []
         for part in message.content:
             if isinstance(part, TextContent):
-                content_parts.append(
-                    {
-                        "text": part.text,
-                    }
-                )
+                if isinstance(message, AssistantMessage):
+                    content_parts.extend(self._parse_assistant_text(part.text))
+                else:
+                    content_parts.append({"text": part.text})
             elif isinstance(part, ImageContent):
                 if not self.is_supported_modality(model_id, modality="IMAGE"):
                     raise HTTPException(
@@ -1198,6 +1197,46 @@ class BedrockModel(BaseChatModel):
                 # Ignore..
                 continue
         return content_parts
+
+    def _parse_assistant_text(self, text: str) -> list[dict]:
+        """Convert assistant <think> tags back to Bedrock reasoning blocks.
+
+        OpenAI-compatible clients can send prior assistant responses back with
+        reasoning wrapped as "<think>...</think>" text. Bedrock expects this as
+        structured reasoningContent blocks, especially before tool-use turns.
+        """
+        if "<think>" not in text and "</think>" not in text:
+            return [{"text": text}]
+
+        blocks: list[dict] = []
+        cursor = 0
+        found = False
+
+        for match in self._THINK_BLOCK_PATTERN.finditer(text):
+            found = True
+            prefix = text[cursor:match.start()]
+            if prefix:
+                blocks.append({"text": prefix})
+
+            reasoning_text = match.group(1)
+            if reasoning_text:
+                blocks.append({"reasoningContent": {"text": reasoning_text}})
+
+            cursor = match.end()
+
+        if not found:
+            # Unbalanced/invalid think tags: preserve original content.
+            return [{"text": text}]
+
+        suffix = text[cursor:]
+        if suffix:
+            blocks.append({"text": suffix})
+
+        # Empty thinking block only (e.g. "<think></think>"): preserve text.
+        if not blocks:
+            return [{"text": text}]
+
+        return blocks
 
     @staticmethod
     def is_supported_modality(model_id: str, modality: str = "IMAGE") -> bool:
