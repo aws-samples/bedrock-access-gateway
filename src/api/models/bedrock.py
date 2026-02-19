@@ -885,6 +885,29 @@ class BedrockModel(BaseChatModel):
             return len(ENCODER.encode(reasoning_text))
         return 0
 
+    def _append_tool_use(
+        self,
+        message: ChatResponseMessage,
+        tool: dict,
+    ):
+        # https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html#tool-use-examples
+        tool_calls = []
+        tool_calls.append(
+            ToolCall(
+                id=tool["toolUseId"],
+                type="function",
+                function=ResponseFunction(
+                    name=tool["name"],
+                    arguments=json.dumps(tool["input"]),
+                ),
+            )
+        )
+        if message.tool_calls is None:
+            message.tool_calls = tool_calls
+        else:
+            message.tool_calls += tool_calls
+        message.content = None
+
     def _create_response(
         self,
         model: str,
@@ -901,23 +924,10 @@ class BedrockModel(BaseChatModel):
             role="assistant",
         )
         if finish_reason == "tool_use":
-            # https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html#tool-use-examples
-            tool_calls = []
             for part in content:
                 if "toolUse" in part:
                     tool = part["toolUse"]
-                    tool_calls.append(
-                        ToolCall(
-                            id=tool["toolUseId"],
-                            type="function",
-                            function=ResponseFunction(
-                                name=tool["name"],
-                                arguments=json.dumps(tool["input"]),
-                            ),
-                        )
-                    )
-            message.tool_calls = tool_calls
-            message.content = None
+                    self._append_tool_use(message, tool)
         else:
             message.content = ""
             for c in content:
@@ -927,9 +937,12 @@ class BedrockModel(BaseChatModel):
                     ].get("text", "")
                 elif "text" in c:
                     message.content = c["text"]
+                elif "toolUse" in c:
+                    tool = c["toolUse"]
+                    self._append_tool_use(message, tool)
                 else:
                     logger.warning(
-                        "Unknown tag in message content " + ",".join(c.keys())
+                        "Unknown tag in message content " + ",".join(c.keys()) + ". finish_reason is: " + finish_reason
                     )
             if message.reasoning_content:
                 message.content = f"<think>{message.reasoning_content}</think>{message.content}"
