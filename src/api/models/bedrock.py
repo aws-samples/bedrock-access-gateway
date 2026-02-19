@@ -81,6 +81,7 @@ SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
     "amazon.titan-embed-text-v2:0": "Titan Embeddings G2 - Text",
     # Disable Titan embedding.
     # "amazon.titan-embed-image-v1": "Titan Multimodal Embeddings G1"
+    "amazon.nova-2-multimodal-embeddings-v1:0": "Nova Multimodal Embeddings V2",
 }
 
 ENCODER = tiktoken.get_encoding("cl100k_base")
@@ -1398,6 +1399,71 @@ class TitanEmbeddingsModel(BedrockEmbeddingsModel):
         )
 
 
+class NovaEmbeddingsModel(BedrockEmbeddingsModel):
+    # Valid dimensions: 256, 512, 1024, 2048, 3072 (default)
+    DEFAULT_DIMENSION = 3072
+
+    def _parse_args(self, text: str, dimensions: int | None = None) -> dict:
+        return {
+            "taskType": "SINGLE_EMBEDDING",
+            "singleEmbeddingParams": {
+                "embeddingPurpose": "GENERIC_INDEX",
+                "embeddingDimension": dimensions or self.DEFAULT_DIMENSION,
+                "text": {
+                    "truncationMode": "END",
+                    "value": text,
+                },
+            },
+        }
+
+    def embed(self, embeddings_request: EmbeddingsRequest) -> EmbeddingsResponse:
+        if isinstance(embeddings_request.input, str):
+            texts = [embeddings_request.input]
+        elif isinstance(embeddings_request.input, list):
+            if len(embeddings_request.input) == 0:
+                raise HTTPException(status_code=400, detail="Input list cannot be empty")
+            # Decode token arrays if needed
+            texts = []
+            for item in embeddings_request.input:
+                if isinstance(item, str):
+                    texts.append(item)
+                elif isinstance(item, int):
+                    texts.append(ENCODER.decode([item]))
+                elif isinstance(item, Iterable):
+                    texts.append(ENCODER.decode(list(item)))
+                else:
+                    texts.append(str(item))
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported input type")
+
+        dimensions = getattr(embeddings_request, "dimensions", None)
+        all_embeddings = []
+        total_tokens = 0
+
+        for text in texts:
+            response = self._invoke_model(
+                args=self._parse_args(text, dimensions),
+                model_id=embeddings_request.model,
+            )
+            response_body = json.loads(response.get("body").read())
+            if DEBUG:
+                logger.info("Bedrock response body keys: " + str(list(response_body.keys())))
+
+            # Response: {"embeddings": [{"embeddingType": "TEXT", "embedding": [...]}]}
+            embeddings_list = response_body.get("embeddings", [])
+            if not embeddings_list:
+                raise HTTPException(status_code=500, detail="No embeddings returned from Nova model")
+            all_embeddings.append(embeddings_list[0]["embedding"])
+            total_tokens += len(ENCODER.encode(text))
+
+        return self._create_response(
+            embeddings=all_embeddings,
+            model=embeddings_request.model,
+            input_tokens=total_tokens,
+            encoding_format=embeddings_request.encoding_format,
+        )
+
+
 def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
     model_name = SUPPORTED_BEDROCK_EMBEDDING_MODELS.get(model_id, "")
     if DEBUG:
@@ -1407,6 +1473,8 @@ def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
             return CohereEmbeddingsModel()
         case "Titan Embeddings G2 - Text":
             return TitanEmbeddingsModel()
+        case "Nova Multimodal Embeddings V2":
+            return NovaEmbeddingsModel()
         case _:
             logger.error("Unsupported model id " + model_id)
             raise HTTPException(
