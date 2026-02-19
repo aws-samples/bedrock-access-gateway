@@ -1400,15 +1400,21 @@ class TitanEmbeddingsModel(BedrockEmbeddingsModel):
 
 
 class NovaEmbeddingsModel(BedrockEmbeddingsModel):
-    # Valid dimensions: 256, 512, 1024, 2048, 3072 (default)
+    VALID_DIMENSIONS = {256, 512, 1024, 2048, 3072}
     DEFAULT_DIMENSION = 3072
 
     def _parse_args(self, text: str, dimensions: int | None = None) -> dict:
+        dim = dimensions if dimensions is not None else self.DEFAULT_DIMENSION
+        if dim not in self.VALID_DIMENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid dimensions {dim}. Must be one of {sorted(self.VALID_DIMENSIONS)}",
+            )
         return {
             "taskType": "SINGLE_EMBEDDING",
             "singleEmbeddingParams": {
                 "embeddingPurpose": "GENERIC_INDEX",
-                "embeddingDimension": dimensions or self.DEFAULT_DIMENSION,
+                "embeddingDimension": dim,
                 "text": {
                     "truncationMode": "END",
                     "value": text,
@@ -1454,6 +1460,7 @@ class NovaEmbeddingsModel(BedrockEmbeddingsModel):
             if not embeddings_list:
                 raise HTTPException(status_code=500, detail="No embeddings returned from Nova model")
             all_embeddings.append(embeddings_list[0]["embedding"])
+            # Nova doesn't return token counts in the response; approximate with cl100k_base
             total_tokens += len(ENCODER.encode(text))
 
         return self._create_response(
