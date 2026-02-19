@@ -9,6 +9,10 @@ COPY requirements.txt .
 
 RUN pip3 install -r requirements.txt -U --no-cache-dir
 
+# Preload tiktoken encoding: https://github.com/aws-samples/bedrock-access-gateway/issues/118
+ENV TIKTOKEN_CACHE_DIR=/var/task/.cache/tiktoken
+RUN python3 -c 'import tiktoken_ext.openai_public as tke; tke.cl100k_base()'
+
 # Lambda Web Adapter requires overriding the Lambda base image entrypoint
 # to run the web app directly instead of the Lambda runtime handler
 ENTRYPOINT []
