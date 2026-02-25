@@ -1400,19 +1400,17 @@ class TitanEmbeddingsModel(BedrockEmbeddingsModel):
 
 
 class NovaEmbeddingsModel(BedrockEmbeddingsModel):
-    VALID_DIMENSIONS = {256, 512, 1024, 2048, 3072}
+    # Per https://docs.aws.amazon.com/nova/latest/userguide/embeddings-schema.html
+    VALID_DIMENSIONS = {256, 384, 1024, 3072}
     DEFAULT_DIMENSION = 3072
 
     def _parse_args(self, text: str, dimensions: int | None = None) -> dict:
         dim = dimensions if dimensions is not None else self.DEFAULT_DIMENSION
-        if dim not in self.VALID_DIMENSIONS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid dimensions {dim}. Must be one of {sorted(self.VALID_DIMENSIONS)}",
-            )
         return {
             "taskType": "SINGLE_EMBEDDING",
             "singleEmbeddingParams": {
+                # Nova supports 9 embeddingPurpose values; GENERIC_INDEX is the
+                # general-purpose default suitable for most retrieval use cases.
                 "embeddingPurpose": "GENERIC_INDEX",
                 "embeddingDimension": dim,
                 "text": {
@@ -1435,18 +1433,29 @@ class NovaEmbeddingsModel(BedrockEmbeddingsModel):
                     texts.append(item)
                 elif isinstance(item, int):
                     texts.append(ENCODER.decode([item]))
-                elif isinstance(item, Iterable):
-                    texts.append(ENCODER.decode(list(item)))
+                elif isinstance(item, list):
+                    texts.append(ENCODER.decode(item))
                 else:
-                    texts.append(str(item))
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Unsupported input item type: {type(item).__name__}. Expected str, int, or list of ints.",
+                    )
         else:
             raise HTTPException(status_code=400, detail="Unsupported input type")
 
-        dimensions = getattr(embeddings_request, "dimensions", None)
+        dimensions = embeddings_request.dimensions
+        # Validate dimensions once before the loop — it's constant across all texts
+        dim = dimensions if dimensions is not None else self.DEFAULT_DIMENSION
+        if dim not in self.VALID_DIMENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid dimensions {dim}. Must be one of {sorted(self.VALID_DIMENSIONS)}",
+            )
+
         all_embeddings = []
         total_tokens = 0
 
-        for text in texts:
+        for idx, text in enumerate(texts):
             response = self._invoke_model(
                 args=self._parse_args(text, dimensions),
                 model_id=embeddings_request.model,
@@ -1458,7 +1467,10 @@ class NovaEmbeddingsModel(BedrockEmbeddingsModel):
             # Response: {"embeddings": [{"embeddingType": "TEXT", "embedding": [...]}]}
             embeddings_list = response_body.get("embeddings", [])
             if not embeddings_list:
-                raise HTTPException(status_code=500, detail="No embeddings returned from Nova model")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"No embeddings returned from Nova model for input[{idx}]",
+                )
             all_embeddings.append(embeddings_list[0]["embedding"])
             # Nova doesn't return token counts in the response; approximate with cl100k_base
             total_tokens += len(ENCODER.encode(text))
