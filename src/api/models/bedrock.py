@@ -420,11 +420,26 @@ class BedrockModel(BaseChatModel):
             message_id = self.generate_message_id()
             stream = response.get("stream")
             self.think_emitted = False
+            reasoning_tokens = 0
             async for chunk in self._async_iterate(stream):
+                # Accumulate reasoning tokens from delta chunks before processing
+                if "contentBlockDelta" in chunk:
+                    delta = chunk["contentBlockDelta"].get("delta", {})
+                    if "reasoningContent" in delta and "text" in delta["reasoningContent"]:
+                        reasoning_tokens += len(ENCODER.encode(delta["reasoningContent"]["text"]))
+
                 args = {"model_id": chat_request.model, "message_id": message_id, "chunk": chunk}
                 stream_response = self._create_response_stream(**args)
                 if not stream_response:
                     continue
+
+                # Patch reasoning tokens into the final usage chunk
+                if stream_response.usage and reasoning_tokens > 0:
+                    stream_response.usage.completion_tokens_details = CompletionTokensDetails(
+                        reasoning_tokens=reasoning_tokens,
+                        audio_tokens=0,
+                    )
+
                 if DEBUG:
                     logger.info("Proxy response :" + stream_response.model_dump_json())
                 if stream_response.choices:
