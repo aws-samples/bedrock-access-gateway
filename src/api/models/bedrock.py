@@ -81,6 +81,7 @@ SUPPORTED_BEDROCK_EMBEDDING_MODELS = {
     "amazon.titan-embed-text-v2:0": "Titan Embeddings G2 - Text",
     # Disable Titan embedding.
     # "amazon.titan-embed-image-v1": "Titan Multimodal Embeddings G1"
+    "amazon.nova-2-multimodal-embeddings-v1:0": "Nova Multimodal Embeddings V2",
 }
 
 ENCODER = tiktoken.get_encoding("cl100k_base")
@@ -1398,6 +1399,90 @@ class TitanEmbeddingsModel(BedrockEmbeddingsModel):
         )
 
 
+class NovaEmbeddingsModel(BedrockEmbeddingsModel):
+    # Per https://docs.aws.amazon.com/nova/latest/userguide/embeddings-schema.html
+    VALID_DIMENSIONS = {256, 384, 1024, 3072}
+    DEFAULT_DIMENSION = 3072
+
+    def _parse_args(self, text: str, dimensions: int | None = None) -> dict:
+        dim = dimensions if dimensions is not None else self.DEFAULT_DIMENSION
+        return {
+            "taskType": "SINGLE_EMBEDDING",
+            "singleEmbeddingParams": {
+                # Nova supports 9 embeddingPurpose values; GENERIC_INDEX is the
+                # general-purpose default suitable for most retrieval use cases.
+                "embeddingPurpose": "GENERIC_INDEX",
+                "embeddingDimension": dim,
+                "text": {
+                    "truncationMode": "END",
+                    "value": text,
+                },
+            },
+        }
+
+    def embed(self, embeddings_request: EmbeddingsRequest) -> EmbeddingsResponse:
+        if isinstance(embeddings_request.input, str):
+            texts = [embeddings_request.input]
+        elif isinstance(embeddings_request.input, list):
+            if len(embeddings_request.input) == 0:
+                raise HTTPException(status_code=400, detail="Input list cannot be empty")
+            # Decode token arrays if needed
+            texts = []
+            for item in embeddings_request.input:
+                if isinstance(item, str):
+                    texts.append(item)
+                elif isinstance(item, int):
+                    texts.append(ENCODER.decode([item]))
+                elif isinstance(item, list):
+                    texts.append(ENCODER.decode(item))
+                else:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Unsupported input item type: {type(item).__name__}. Expected str, int, or list of ints.",
+                    )
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported input type")
+
+        dimensions = embeddings_request.dimensions
+        # Validate dimensions once before the loop — it's constant across all texts
+        dim = dimensions if dimensions is not None else self.DEFAULT_DIMENSION
+        if dim not in self.VALID_DIMENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid dimensions {dim}. Must be one of {sorted(self.VALID_DIMENSIONS)}",
+            )
+
+        all_embeddings = []
+        total_tokens = 0
+
+        for idx, text in enumerate(texts):
+            response = self._invoke_model(
+                args=self._parse_args(text, dimensions),
+                model_id=embeddings_request.model,
+            )
+            response_body = json.loads(response.get("body").read())
+            if DEBUG:
+                logger.info("Bedrock response body keys: " + str(list(response_body.keys())))
+
+            # Response: {"embeddings": [{"embeddingType": "TEXT", "embedding": [...]}]}
+            embeddings_list = response_body.get("embeddings", [])
+            if not embeddings_list:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"No embeddings returned from Nova model for input[{idx}]",
+                )
+            all_embeddings.append(embeddings_list[0]["embedding"])
+            # Nova doesn't return token counts in the response; approximate with cl100k_base
+            total_tokens += len(ENCODER.encode(text))
+
+        return self._create_response(
+            embeddings=all_embeddings,
+            model=embeddings_request.model,
+            input_tokens=total_tokens,
+            encoding_format=embeddings_request.encoding_format,
+        )
+
+
 def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
     model_name = SUPPORTED_BEDROCK_EMBEDDING_MODELS.get(model_id, "")
     if DEBUG:
@@ -1407,6 +1492,8 @@ def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
             return CohereEmbeddingsModel()
         case "Titan Embeddings G2 - Text":
             return TitanEmbeddingsModel()
+        case "Nova Multimodal Embeddings V2":
+            return NovaEmbeddingsModel()
         case _:
             logger.error("Unsupported model id " + model_id)
             raise HTTPException(
