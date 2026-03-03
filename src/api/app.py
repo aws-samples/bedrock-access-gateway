@@ -9,7 +9,7 @@ from fastapi.responses import PlainTextResponse
 from mangum import Mangum
 
 from api.routers import chat, embeddings, model
-from api.setting import API_ROUTE_PREFIX, DEBUG, DESCRIPTION, SUMMARY, TITLE, VERSION, TRACE
+from api.setting import API_ROUTE_PREFIX, DEBUG, DESCRIPTION, SUMMARY, TITLE, TRACE, TRACE_LEVEL, VERSION
 
 config = {
     "title": TITLE,
@@ -17,10 +17,6 @@ config = {
     "summary": SUMMARY,
     "version": VERSION,
 }
-
-# Register custom TRACE level (5) below DEBUG (10) for per-chunk streaming logs
-TRACE_LEVEL = 5
-logging.addLevelName(TRACE_LEVEL, "TRACE")
 
 # In ECS/Fargate, CloudWatch adds timestamps and metadata — use default format.
 # Outside ECS, add timestamp and level for human-readable local output.

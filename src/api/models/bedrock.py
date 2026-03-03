@@ -2,7 +2,6 @@ import base64
 import json
 import logging
 
-TRACE_LEVEL = 5  # Custom level below DEBUG(10) for per-chunk streaming logs
 import re
 import time
 from abc import ABC
@@ -50,6 +49,7 @@ from api.setting import (
     ENABLE_CROSS_REGION_INFERENCE,
     ENABLE_APPLICATION_INFERENCE_PROFILES,
     ENABLE_PROMPT_CACHING,
+    TRACE_LEVEL,
 )
 
 logger = logging.getLogger(__name__)

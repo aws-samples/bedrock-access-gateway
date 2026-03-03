@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from api.auth import api_key_auth
 from api.models.bedrock import BedrockModel
 from api.schema import ChatRequest, ChatResponse, ChatStreamResponse, Error
-from api.setting import DEFAULT_MODEL, USAGE_USER_HEADER, USAGE_CHAT_ID_HEADER
+from api.setting import DEFAULT_MODEL, TRACE_LEVEL, USAGE_USER_HEADER, USAGE_CHAT_ID_HEADER
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,6 @@ async def chat_completions(
         ),
     ],
 ):
-    TRACE_LEVEL = 5
     if logger.isEnabledFor(TRACE_LEVEL):
         logger.log(
             TRACE_LEVEL,
