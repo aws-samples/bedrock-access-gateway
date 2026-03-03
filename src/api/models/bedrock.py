@@ -366,13 +366,13 @@ class BedrockModel(BaseChatModel):
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug("Raw request: " + chat_request.model_dump_json())
 
-        # Log profile resolution for debugging
-        if chat_request.model in profile_metadata:
-            resolved = self._resolve_to_foundation_model(chat_request.model)
-            profile_type = profile_metadata[chat_request.model].get("profile_type", "UNKNOWN")
-            logger.debug(
-                f"Profile resolution: {chat_request.model} ({profile_type}) → {resolved}"
-            )
+            # Log profile resolution for debugging
+            if chat_request.model in profile_metadata:
+                resolved = self._resolve_to_foundation_model(chat_request.model)
+                profile_type = profile_metadata[chat_request.model].get("profile_type", "UNKNOWN")
+                logger.debug(
+                    f"Profile resolution: {chat_request.model} ({profile_type}) → {resolved}"
+                )
 
         # convert OpenAI chat request to Bedrock SDK request
         args = self._parse_request(chat_request)
