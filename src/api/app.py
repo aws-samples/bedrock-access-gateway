@@ -64,32 +64,19 @@ async def validation_exception_handler(request, exc):
 
     error_count = len(exc.errors()) if hasattr(exc, 'errors') else 'unknown'
     logger.warning(
-        "Request validation failed: %s %s - %s validation errors:\n%s",
+        "Request validation failed: %s %s - %s error(s)",
         request.method,
         request.url.path,
         error_count,
-        "\n".join(f"  - {e.get('loc', '?')}: {e.get('msg', '?')}" for e in exc.errors()) if hasattr(exc, 'errors') else str(exc),
     )
 
     # Log the raw body at TRACE level so we can see what the client actually sent
     if logger.isEnabledFor(TRACE_LEVEL):
         try:
-            body = await request.body()
-            raw = json.loads(body)
-            # Truncate message content for readability
-            if "messages" in raw:
-                for msg in raw["messages"]:
-                    if "content" in msg:
-                        c = msg["content"]
-                        if isinstance(c, str) and len(c) > 200:
-                            msg["content"] = c[:200] + f"... ({len(c)} chars)"
-                        elif isinstance(c, list):
-                            for item in c:
-                                if isinstance(item, dict) and "text" in item and len(item["text"]) > 200:
-                                    item["text"] = item["text"][:200] + f"... ({len(item['text'])} chars)"
-            logger.log(TRACE_LEVEL, "Rejected request body (truncated): %s", json.dumps(raw, indent=2, default=str))
+            body = (await request.body()).decode("utf-8", errors="replace")[:2000]
+            logger.log(TRACE_LEVEL, "Rejected request body: %s", body)
         except Exception:
-            logger.log(TRACE_LEVEL, "Rejected request body (raw): %s", (await request.body()).decode("utf-8", errors="replace")[:2000])
+            pass
 
     return PlainTextResponse(str(exc), status_code=400)
 
