@@ -775,7 +775,6 @@ class BedrockModel(BaseChatModel):
 
         # Base inference parameters.
         # Prefer max_completion_tokens (OpenAI newer field) over max_tokens (legacy).
-        # This ensures clients sending max_completion_tokens (e.g., RooCode) are respected.
         effective_max_tokens = (
             chat_request.max_completion_tokens
             if chat_request.max_completion_tokens is not None
