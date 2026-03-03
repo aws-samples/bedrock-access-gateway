@@ -22,12 +22,17 @@ config = {
 TRACE_LEVEL = 5
 logging.addLevelName(TRACE_LEVEL, "TRACE")
 
-logging.basicConfig(level=logging.INFO)
-# Only set DEBUG on our own 'api' loggers, not boto3/botocore/urllib3
-if TRACE:
-    logging.getLogger("api").setLevel(TRACE_LEVEL)
-elif DEBUG:
-    logging.getLogger("api").setLevel(logging.DEBUG)
+# In ECS/Fargate, CloudWatch adds timestamps and metadata — use default format.
+# Outside ECS, add timestamp and level for human-readable local output.
+_log_kwargs = {"level": logging.INFO}
+if not os.environ.get("ECS_CONTAINER_METADATA_URI"):
+    _log_kwargs["format"] = "%(asctime)s [%(levelname)s] %(message)s"
+logging.basicConfig(**_log_kwargs)
+
+# Only set DEBUG/TRACE on our own 'api' loggers, not boto3/botocore/urllib3
+if TRACE or DEBUG:
+    logging.getLogger("api").setLevel(TRACE_LEVEL if TRACE else logging.DEBUG)
+
 app = FastAPI(**config)
 
 allowed_origins = os.environ.get("ALLOWED_ORIGINS", "*")
