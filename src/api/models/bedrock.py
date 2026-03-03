@@ -1403,7 +1403,8 @@ class CohereEmbeddingsModel(BedrockEmbeddingsModel):
             args=self._parse_args(embeddings_request), model_id=embeddings_request.model
         )
         response_body = json.loads(response.get("body").read())
-        logger.debug("Bedrock response body: " + str(response_body))
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Bedrock response body: " + str(response_body))
 
         return self._create_response(
             embeddings=response_body["embeddings"],
@@ -1442,7 +1443,8 @@ class TitanEmbeddingsModel(BedrockEmbeddingsModel):
             args=self._parse_args(embeddings_request), model_id=embeddings_request.model
         )
         response_body = json.loads(response.get("body").read())
-        logger.debug("Bedrock response body: " + str(response_body))
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Bedrock response body: " + str(response_body))
 
         return self._create_response(
             embeddings=[response_body["embedding"]],
@@ -1513,7 +1515,8 @@ class NovaEmbeddingsModel(BedrockEmbeddingsModel):
                 model_id=embeddings_request.model,
             )
             response_body = json.loads(response.get("body").read())
-            logger.debug("Bedrock response body keys: " + str(list(response_body.keys())))
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Bedrock response body keys: " + str(list(response_body.keys())))
 
             # Response: {"embeddings": [{"embeddingType": "TEXT", "embedding": [...]}]}
             embeddings_list = response_body.get("embeddings", [])
@@ -1536,7 +1539,7 @@ class NovaEmbeddingsModel(BedrockEmbeddingsModel):
 
 def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
     model_name = SUPPORTED_BEDROCK_EMBEDDING_MODELS.get(model_id, "")
-    logger.debug("model name is " + model_name)
+    logger.debug(f"model name is {model_name}")
     match model_name:
         case "Cohere Embed Multilingual" | "Cohere Embed English":
             return CohereEmbeddingsModel()
