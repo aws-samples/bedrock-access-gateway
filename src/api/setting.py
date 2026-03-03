@@ -10,9 +10,16 @@ Use OpenAI-Compatible RESTful APIs for Amazon Bedrock models.
 """
 
 DEBUG = os.environ.get("DEBUG", "false").lower() != "false"
+TRACE = os.environ.get("TRACE", "false").lower() != "false"
 AWS_REGION = os.environ.get("AWS_REGION", "us-west-2")
 DEFAULT_MODEL = os.environ.get("DEFAULT_MODEL", "anthropic.claude-3-sonnet-20240229-v1:0")
 DEFAULT_EMBEDDING_MODEL = os.environ.get("DEFAULT_EMBEDDING_MODEL", "cohere.embed-multilingual-v3")
 ENABLE_CROSS_REGION_INFERENCE = os.environ.get("ENABLE_CROSS_REGION_INFERENCE", "true").lower() != "false"
 ENABLE_APPLICATION_INFERENCE_PROFILES = os.environ.get("ENABLE_APPLICATION_INFERENCE_PROFILES", "true").lower() != "false"
 ENABLE_PROMPT_CACHING = os.environ.get("ENABLE_PROMPT_CACHING", "false").lower() != "false"
+
+# HTTP headers to extract for USAGE logging (configurable for different frontends).
+# Leave unset to omit user/chat from USAGE lines. Set to the header names your
+# upstream proxy sends, e.g. USAGE_USER_HEADER=x-openwebui-user-email
+USAGE_USER_HEADER = os.environ.get("USAGE_USER_HEADER", "")
+USAGE_CHAT_ID_HEADER = os.environ.get("USAGE_CHAT_ID_HEADER", "")

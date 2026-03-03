@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 
@@ -9,7 +10,7 @@ from fastapi.responses import PlainTextResponse
 from mangum import Mangum
 
 from api.routers import chat, embeddings, model
-from api.setting import API_ROUTE_PREFIX, DESCRIPTION, SUMMARY, TITLE, VERSION
+from api.setting import API_ROUTE_PREFIX, DEBUG, DESCRIPTION, SUMMARY, TITLE, VERSION, TRACE
 
 config = {
     "title": TITLE,
@@ -18,10 +19,19 @@ config = {
     "version": VERSION,
 }
 
+# Register custom TRACE level (5) below DEBUG (10) for per-chunk streaming logs
+TRACE_LEVEL = 5
+logging.addLevelName(TRACE_LEVEL, "TRACE")
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
 )
+# Only set DEBUG on our own 'api' loggers, not boto3/botocore/urllib3
+if TRACE:
+    logging.getLogger("api").setLevel(TRACE_LEVEL)
+elif DEBUG:
+    logging.getLogger("api").setLevel(logging.DEBUG)
 app = FastAPI(**config)
 
 allowed_origins = os.environ.get("ALLOWED_ORIGINS", "*")
@@ -54,15 +64,36 @@ async def health():
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
     logger = logging.getLogger(__name__)
-    
-    # Log essential info only - avoid sensitive data and performance overhead
+
+    error_count = len(exc.errors()) if hasattr(exc, 'errors') else 'unknown'
     logger.warning(
-        "Request validation failed: %s %s - %s", 
-        request.method, 
+        "Request validation failed: %s %s - %s validation errors:\n%s",
+        request.method,
         request.url.path,
-        str(exc).split('\n')[0]  # First line only
+        error_count,
+        "\n".join(f"  - {e.get('loc', '?')}: {e.get('msg', '?')}" for e in exc.errors()) if hasattr(exc, 'errors') else str(exc),
     )
-    
+
+    # Log the raw body at TRACE level so we can see what the client actually sent
+    if logger.isEnabledFor(TRACE_LEVEL):
+        try:
+            body = await request.body()
+            raw = json.loads(body)
+            # Truncate message content for readability
+            if "messages" in raw:
+                for msg in raw["messages"]:
+                    if "content" in msg:
+                        c = msg["content"]
+                        if isinstance(c, str) and len(c) > 200:
+                            msg["content"] = c[:200] + f"... ({len(c)} chars)"
+                        elif isinstance(c, list):
+                            for item in c:
+                                if isinstance(item, dict) and "text" in item and len(item["text"]) > 200:
+                                    item["text"] = item["text"][:200] + f"... ({len(item['text'])} chars)"
+            logger.log(TRACE_LEVEL, "Rejected request body (truncated): %s", json.dumps(raw, indent=2, default=str))
+        except Exception:
+            logger.log(TRACE_LEVEL, "Rejected request body (raw): %s", (await request.body()).decode("utf-8", errors="replace")[:2000])
+
     return PlainTextResponse(str(exc), status_code=400)
 
 
