@@ -558,7 +558,7 @@ class BedrockModel(BaseChatModel):
         # Add cache checkpoint after system prompts
         system_prompts.append({"cachePoint": {"type": "default"}})
 
-        logger.debug(f"Added cachePoint to system prompts for model {chat_request.model}")
+        logger.debug("Added cachePoint to system prompts for model %s", chat_request.model)
 
         return system_prompts
 
@@ -771,7 +771,7 @@ class BedrockModel(BaseChatModel):
                     "role": "user",
                     "content": [{"text": "Please continue your response from where you left off."}]
                 })
-                logger.debug(f"Added continuation prompt for {chat_request.model} - conversation ended with assistant message")
+                logger.debug("Added continuation prompt for %s - conversation ended with assistant message", chat_request.model)
 
         # Add cachePoint to messages if enabled and supported
         if chat_request and reformatted_messages:
@@ -792,7 +792,7 @@ class BedrockModel(BaseChatModel):
                     if msg["role"] == "user" and msg.get("content"):
                         # Add cachePoint at the end of user message content
                         msg["content"].append({"cachePoint": {"type": "default"}})
-                        logger.debug(f"Added cachePoint to last user message for model {chat_request.model}")
+                        logger.debug("Added cachePoint to last user message for model %s", chat_request.model)
                         break
 
         return reformatted_messages
@@ -828,7 +828,7 @@ class BedrockModel(BaseChatModel):
         if "temperature" in inference_config and "topP" in inference_config:
             if any(conflict_model in model_lower for conflict_model in TEMPERATURE_TOPP_CONFLICT_MODELS):
                 inference_config.pop("topP", None)
-                logger.debug(f"Removed topP for {chat_request.model} (conflicts with temperature)")
+                logger.debug("Removed topP for %s (conflicts with temperature)", chat_request.model)
 
         if chat_request.stop is not None:
             stop = chat_request.stop
@@ -872,10 +872,10 @@ class BedrockModel(BaseChatModel):
                 args["additionalModelRequestFields"] = {
                     "reasoning_config": chat_request.reasoning_effort  # Direct string: low/medium/high
                 }
-                logger.debug(f"Applied reasoning_config={chat_request.reasoning_effort} for DeepSeek v3")
+                logger.debug("Applied reasoning_config=%s for DeepSeek v3", chat_request.reasoning_effort)
             else:
                 # For other models (Qwen, etc.), ignore reasoning_effort parameter
-                logger.debug(f"reasoning_effort parameter ignored for model {chat_request.model} (not supported)")
+                logger.debug("reasoning_effort parameter ignored for model %s (not supported)", chat_request.model)
         # add tool config
         if chat_request.tools:
             tool_config = {"tools": [self._convert_tool_spec(t.function) for t in chat_request.tools]}
@@ -1539,7 +1539,7 @@ class NovaEmbeddingsModel(BedrockEmbeddingsModel):
 
 def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
     model_name = SUPPORTED_BEDROCK_EMBEDDING_MODELS.get(model_id, "")
-    logger.debug(f"model name is {model_name}")
+    logger.debug("model name is %s", model_name)
     match model_name:
         case "Cohere Embed Multilingual" | "Cohere Embed English":
             return CohereEmbeddingsModel()
