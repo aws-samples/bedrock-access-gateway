@@ -23,10 +23,7 @@ config = {
 TRACE_LEVEL = 5
 logging.addLevelName(TRACE_LEVEL, "TRACE")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
-)
+logging.basicConfig(level=logging.INFO)
 # Only set DEBUG on our own 'api' loggers, not boto3/botocore/urllib3
 if TRACE:
     logging.getLogger("api").setLevel(TRACE_LEVEL)
