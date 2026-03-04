@@ -85,6 +85,8 @@ Resources:
           ENABLE_CROSS_REGION_INFERENCE: "true"
           ENABLE_APPLICATION_INFERENCE_PROFILES: "true"
           ENABLE_PROMPT_CACHING: !Ref EnablePromptCaching
+          BEDROCK_URL: ""
+          BEDROCK_RUNTIME_URL: ""
           API_ROUTE_PREFIX: /v1
       MemorySize: 1024
       PackageType: Image

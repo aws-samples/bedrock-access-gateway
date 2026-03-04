@@ -44,6 +44,8 @@ from api.schema import (
 )
 from api.setting import (
     AWS_REGION,
+    BEDROCK_RUNTIME_URL,
+    BEDROCK_URL,
     DEBUG,
     DEFAULT_MODEL,
     ENABLE_CROSS_REGION_INFERENCE,
@@ -66,11 +68,13 @@ config = Config(
 bedrock_runtime = boto3.client(
     service_name="bedrock-runtime",
     region_name=AWS_REGION,
+    endpoint_url=BEDROCK_RUNTIME_URL,
     config=config,
 )
 bedrock_client = boto3.client(
     service_name="bedrock",
     region_name=AWS_REGION,
+    endpoint_url=BEDROCK_URL,
     config=config,
 )
 
