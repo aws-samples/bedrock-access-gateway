@@ -7,6 +7,9 @@ Assuming you have set up below environment variables after deployed:
 ```bash
 export OPENAI_API_KEY=<API key>
 export OPENAI_BASE_URL=<API base url>
+# Optional: use VPC interface endpoints / custom Bedrock endpoints
+# export BEDROCK_URL=https://vpce-xxxxxxxx.bedrock.<region>.vpce.amazonaws.com
+# export BEDROCK_RUNTIME_URL=https://vpce-xxxxxxxx.bedrock-runtime.<region>.vpce.amazonaws.com
 ```
 
 **API Example:**

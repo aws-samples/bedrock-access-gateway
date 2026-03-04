@@ -261,6 +261,10 @@ Resources:
             - Name: ENABLE_PROMPT_CACHING
               Value:
                 Ref: EnablePromptCaching
+            - Name: BEDROCK_URL
+              Value: ""
+            - Name: BEDROCK_RUNTIME_URL
+              Value: ""
           Essential: true
           Image:
             Ref: ContainerImageUri

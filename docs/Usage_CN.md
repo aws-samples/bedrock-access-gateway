@@ -7,6 +7,9 @@
 ```bash
 export OPENAI_API_KEY=<API key>
 export OPENAI_BASE_URL=<API base url>
+# 可选：使用 VPC Interface Endpoint 或自定义 Bedrock Endpoint
+# export BEDROCK_URL=https://vpce-xxxxxxxx.bedrock.<region>.vpce.amazonaws.com
+# export BEDROCK_RUNTIME_URL=https://vpce-xxxxxxxx.bedrock-runtime.<region>.vpce.amazonaws.com
 ```
 
 **API 示例:**
