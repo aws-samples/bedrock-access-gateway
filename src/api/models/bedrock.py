@@ -48,6 +48,8 @@ from api.setting import (
     BEDROCK_URL,
     DEBUG,
     DEFAULT_MODEL,
+    MODEL_WHITELIST_FILE,
+    MODEL_WHITELIST_JSON,
     ENABLE_CROSS_REGION_INFERENCE,
     ENABLE_APPLICATION_INFERENCE_PROFILES,
     ENABLE_PROMPT_CACHING,
@@ -111,6 +113,56 @@ NO_ASSISTANT_PREFILL_MODELS = {
 }
 
 
+def _load_model_whitelist() -> dict:
+    """Load model whitelist config from env JSON string or JSON file."""
+    if MODEL_WHITELIST_JSON:
+        try:
+            return json.loads(MODEL_WHITELIST_JSON)
+        except json.JSONDecodeError as e:
+            logger.warning("Invalid MODEL_WHITELIST_JSON. Ignoring whitelist. error=%s", e)
+            return {}
+
+    if MODEL_WHITELIST_FILE:
+        try:
+            with open(MODEL_WHITELIST_FILE, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.warning("Unable to load MODEL_WHITELIST_FILE=%s. Ignoring whitelist. error=%s", MODEL_WHITELIST_FILE, e)
+            return {}
+
+    return {}
+
+
+def _is_allowed_by_whitelist(model_id: str, whitelist: dict) -> bool:
+    """Check if model id is allowed by whitelist rules.
+
+    Supported keys:
+      - model_ids: exact model ids/profile ids
+      - families: prefix match for foundation model ids (e.g. anthropic.claude, amazon.nova)
+      - profile_regions: prefix before first '.' for cross-region profiles (e.g. us, eu, apac, global)
+    """
+    if not whitelist:
+        return True
+
+    model_ids = set(whitelist.get("model_ids", []))
+    families = whitelist.get("families", [])
+    profile_regions = set(whitelist.get("profile_regions", []))
+
+    if model_ids and model_id in model_ids:
+        return True
+
+    if families and any(model_id.startswith(f"{family}.") or model_id.startswith(family) for family in families):
+        return True
+
+    if profile_regions and "." in model_id:
+        prefix = model_id.split(".", 1)[0]
+        if prefix in profile_regions:
+            return True
+
+    # If any selector is configured, default deny.
+    return not any((model_ids, families, profile_regions))
+
+
 def list_bedrock_models() -> dict:
     """Automatically getting a list of supported models.
 
@@ -120,6 +172,7 @@ def list_bedrock_models() -> dict:
         - Application Inference Profiles (if enabled via Env)
     """
     model_list = {}
+    whitelist = _load_model_whitelist()
     try:
         if ENABLE_CROSS_REGION_INFERENCE:
             # List system defined inference profile IDs and store underlying model mapping
@@ -206,6 +259,14 @@ def list_bedrock_models() -> dict:
     if not model_list:
         # In case stack not updated.
         model_list[DEFAULT_MODEL] = {"modalities": ["TEXT", "IMAGE"]}
+
+    if whitelist:
+        model_list = {
+            model_id: metadata
+            for model_id, metadata in model_list.items()
+            if _is_allowed_by_whitelist(model_id, whitelist)
+        }
+        logger.info("Applied model whitelist, allowed_models=%d", len(model_list))
 
     return model_list
 
