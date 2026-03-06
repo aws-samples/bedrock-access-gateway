@@ -151,7 +151,7 @@ def _is_allowed_by_whitelist(model_id: str, whitelist: dict) -> bool:
     if model_ids and model_id in model_ids:
         return True
 
-    if families and any(model_id.startswith(f"{family}.") or model_id.startswith(family) for family in families):
+    if families and any(model_id.startswith(family) for family in families):
         return True
 
     if profile_regions and "." in model_id:
@@ -163,6 +163,9 @@ def _is_allowed_by_whitelist(model_id: str, whitelist: dict) -> bool:
     return not any((model_ids, families, profile_regions))
 
 
+_MODEL_WHITELIST: dict = _load_model_whitelist()
+
+
 def list_bedrock_models() -> dict:
     """Automatically getting a list of supported models.
 
@@ -172,7 +175,7 @@ def list_bedrock_models() -> dict:
         - Application Inference Profiles (if enabled via Env)
     """
     model_list = {}
-    whitelist = _load_model_whitelist()
+    whitelist = _MODEL_WHITELIST
     try:
         if ENABLE_CROSS_REGION_INFERENCE:
             # List system defined inference profile IDs and store underlying model mapping
