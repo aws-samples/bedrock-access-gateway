@@ -481,9 +481,18 @@ class BedrockModel(BaseChatModel):
         for message in chat_request.messages:
             if message.role not in ("system", "developer"):
                 continue
-            if not isinstance(message.content, str):
-                raise TypeError(f"System message content must be a string, got {type(message.content).__name__}")
-            system_prompts.append({"text": message.content})
+            if isinstance(message.content, str):
+                system_prompts.append({"text": message.content})
+            elif isinstance(message.content, list):
+                # Handle list-format content (e.g., from prompt caching)
+                for part in message.content:
+                    if hasattr(part, "text"):
+                        system_prompts.append({"text": part.text})
+                        # Bedrock tagged unions require cachePoint as a SEPARATE block
+                        if hasattr(part, "cache_control") and part.cache_control is not None:
+                            system_prompts.append({"cachePoint": {"type": "default"}})
+            else:
+                raise TypeError(f"System message content must be a string or list, got {type(message.content).__name__}")
 
         if not system_prompts:
             return system_prompts
@@ -1192,11 +1201,10 @@ class BedrockModel(BaseChatModel):
         content_parts = []
         for part in message.content:
             if isinstance(part, TextContent):
-                content_parts.append(
-                    {
-                        "text": part.text,
-                    }
-                )
+                content_parts.append({"text": part.text})
+                # Bedrock tagged unions require cachePoint as a SEPARATE block
+                if hasattr(part, "cache_control") and part.cache_control is not None:
+                    content_parts.append({"cachePoint": {"type": "default"}})
             elif isinstance(part, ImageContent):
                 if not self.is_supported_modality(model_id, modality="IMAGE"):
                     raise HTTPException(
