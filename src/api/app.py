@@ -9,7 +9,7 @@ from fastapi.responses import PlainTextResponse
 from mangum import Mangum
 
 from api.routers import chat, embeddings, model
-from api.setting import API_ROUTE_PREFIX, DESCRIPTION, SUMMARY, TITLE, VERSION
+from api.setting import API_ROUTE_PREFIX, DEBUG, DESCRIPTION, SUMMARY, TITLE, TRACE, TRACE_LEVEL, VERSION
 
 config = {
     "title": TITLE,
@@ -18,10 +18,17 @@ config = {
     "version": VERSION,
 }
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
+# In ECS/Fargate, CloudWatch adds timestamps and metadata — use default format.
+# Outside ECS, add timestamp and level for human-readable local output.
+_log_kwargs = {"level": logging.INFO}
+if not os.environ.get("ECS_CONTAINER_METADATA_URI"):
+    _log_kwargs["format"] = "%(asctime)s [%(levelname)s] %(message)s"
+logging.basicConfig(**_log_kwargs)
+
+# Only set DEBUG/TRACE on our own 'api' loggers, not boto3/botocore/urllib3
+if TRACE or DEBUG:
+    logging.getLogger("api").setLevel(TRACE_LEVEL if TRACE else logging.DEBUG)
+
 app = FastAPI(**config)
 
 allowed_origins = os.environ.get("ALLOWED_ORIGINS", "*")
@@ -54,15 +61,23 @@ async def health():
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
     logger = logging.getLogger(__name__)
-    
-    # Log essential info only - avoid sensitive data and performance overhead
+
+    error_count = len(exc.errors()) if hasattr(exc, 'errors') else 'unknown'
     logger.warning(
-        "Request validation failed: %s %s - %s", 
-        request.method, 
+        "Request validation failed: %s %s - %s error(s)",
+        request.method,
         request.url.path,
-        str(exc).split('\n')[0]  # First line only
+        error_count,
     )
-    
+
+    # Log the raw body at TRACE level so we can see what the client actually sent
+    if logger.isEnabledFor(TRACE_LEVEL):
+        try:
+            body = (await request.body()).decode("utf-8", errors="replace")[:2000]
+            logger.log(TRACE_LEVEL, "Rejected request body: %s", body)
+        except Exception:
+            pass
+
     return PlainTextResponse(str(exc), status_code=400)
 
 
