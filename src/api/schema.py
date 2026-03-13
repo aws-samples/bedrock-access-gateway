@@ -41,7 +41,7 @@ class ImageUrl(BaseModel):
 
 
 class ImageContent(BaseModel):
-    type: Literal["image_url"] = "image"
+    type: Literal["image_url"] = "image_url"
     image_url: ImageUrl
 
 
