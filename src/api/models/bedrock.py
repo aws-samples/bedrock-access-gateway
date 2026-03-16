@@ -109,6 +109,8 @@ TEMPERATURE_TOPP_CONFLICT_MODELS = {
 # For these models, if conversation ends with assistant message (e.g., "continue response"),
 # a user message will be added to ask the model to continue
 NO_ASSISTANT_PREFILL_MODELS = {
+    "claude-sonnet-4-5",
+    "claude-sonnet-4-6",
     "claude-opus-4-6",
 }
 
@@ -1249,10 +1251,15 @@ class BedrockModel(BaseChatModel):
         message: UserMessage | AssistantMessage,
         model_id: str,
     ) -> list[dict]:
+        def _safe_text(text: str | None) -> str:
+            if text is None:
+                return ""
+            return text if text.strip() else "[empty message omitted by proxy]"
+
         if isinstance(message.content, str):
             return [
                 {
-                    "text": message.content,
+                    "text": _safe_text(message.content),
                 }
             ]
         content_parts = []
@@ -1260,7 +1267,7 @@ class BedrockModel(BaseChatModel):
             if isinstance(part, TextContent):
                 content_parts.append(
                     {
-                        "text": part.text,
+                        "text": _safe_text(part.text),
                     }
                 )
             elif isinstance(part, ImageContent):
