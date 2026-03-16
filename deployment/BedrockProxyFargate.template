@@ -18,6 +18,14 @@ Parameters:
       - "true"
       - "false"
     Description: Enable prompt caching for supported models (Claude, Nova). When enabled, adds cachePoint to system prompts and messages for cost savings.
+  BedrockUrl:
+    Type: String
+    Default: ""
+    Description: Optional custom endpoint URL for Bedrock control plane (e.g., VPC endpoint URL)
+  BedrockRuntimeUrl:
+    Type: String
+    Default: ""
+    Description: Optional custom endpoint URL for Bedrock runtime plane (e.g., VPC endpoint URL)
 Resources:
   VPCB9E5F0B4:
     Type: AWS::EC2::VPC
@@ -262,9 +270,11 @@ Resources:
               Value:
                 Ref: EnablePromptCaching
             - Name: BEDROCK_URL
-              Value: ""
+              Value:
+                Ref: BedrockUrl
             - Name: BEDROCK_RUNTIME_URL
-              Value: ""
+              Value:
+                Ref: BedrockRuntimeUrl
           Essential: true
           Image:
             Ref: ContainerImageUri
@@ -454,4 +464,3 @@ Outputs:
               - ProxyALB87756780
               - DNSName
           - /api/v1
-
