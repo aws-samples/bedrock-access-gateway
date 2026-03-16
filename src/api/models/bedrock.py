@@ -114,23 +114,54 @@ NO_ASSISTANT_PREFILL_MODELS = {
     "claude-opus-4-6",
 }
 
+VALID_WHITELIST_KEYS = {"model_ids", "families", "profile_regions"}
+
+
+def _validate_model_whitelist(whitelist: dict) -> dict:
+    """Validate model whitelist structure and values."""
+    if not isinstance(whitelist, dict):
+        raise RuntimeError(
+            f"Model whitelist must be a JSON object, got {type(whitelist).__name__}"
+        )
+
+    unknown_keys = set(whitelist.keys()) - VALID_WHITELIST_KEYS
+    if unknown_keys:
+        raise RuntimeError(
+            f"Unknown keys in model whitelist: {sorted(unknown_keys)}. "
+            f"Valid keys: {sorted(VALID_WHITELIST_KEYS)}"
+        )
+
+    for key in VALID_WHITELIST_KEYS:
+        if key not in whitelist:
+            continue
+
+        values = whitelist[key]
+        if not isinstance(values, list) or not all(isinstance(value, str) for value in values):
+            raise RuntimeError(f"Whitelist key '{key}' must be a list of strings")
+
+    return whitelist
+
 
 def _load_model_whitelist() -> dict:
     """Load model whitelist config from env JSON string or JSON file."""
     if MODEL_WHITELIST_JSON:
         try:
-            return json.loads(MODEL_WHITELIST_JSON)
+            return _validate_model_whitelist(json.loads(MODEL_WHITELIST_JSON))
         except json.JSONDecodeError as e:
-            logger.warning("Invalid MODEL_WHITELIST_JSON. Ignoring whitelist. error=%s", e)
-            return {}
+            raise RuntimeError(
+                "MODEL_WHITELIST_JSON contains invalid JSON. "
+                f"Refusing to start with a broken whitelist. Error: {e}"
+            ) from e
 
     if MODEL_WHITELIST_FILE:
         try:
             with open(MODEL_WHITELIST_FILE, encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            logger.warning("Unable to load MODEL_WHITELIST_FILE=%s. Ignoring whitelist. error=%s", MODEL_WHITELIST_FILE, e)
-            return {}
+                return _validate_model_whitelist(json.load(f))
+        except (FileNotFoundError, PermissionError, OSError, json.JSONDecodeError) as e:
+            raise RuntimeError(
+                f"Unable to load MODEL_WHITELIST_FILE={MODEL_WHITELIST_FILE}. "
+                f"Refusing to start with a broken whitelist. Error: {e}"
+            ) from e
 
     return {}
 
@@ -271,7 +302,10 @@ def list_bedrock_models() -> dict:
             for model_id, metadata in model_list.items()
             if _is_allowed_by_whitelist(model_id, whitelist)
         }
-        logger.info("Applied model whitelist, allowed_models=%d", len(model_list))
+        if not model_list:
+            logger.error("Model whitelist filtered out ALL models. Check whitelist configuration.")
+        else:
+            logger.info("Applied model whitelist, allowed_models=%d", len(model_list))
 
     return model_list
 
