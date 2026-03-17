@@ -988,8 +988,10 @@ class BedrockModel(BaseChatModel):
             }
 
             if additional_fields:
-                # Only set additionalModelRequestFields if there are actual fields to pass
-                args["additionalModelRequestFields"] = additional_fields
+                # Merge with existing additionalModelRequestFields (e.g., from reasoning_effort)
+                existing = args.get("additionalModelRequestFields", {})
+                existing.update(additional_fields)
+                args["additionalModelRequestFields"] = existing
 
                 # Extended thinking doesn't support both temperature and topP
                 # Remove topP to avoid validation error
