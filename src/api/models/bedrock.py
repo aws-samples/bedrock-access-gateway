@@ -114,6 +114,11 @@ NO_ASSISTANT_PREFILL_MODELS = {
     "claude-opus-4-6",
 }
 
+# Models that don't support stopSequences in Converse/ConverseStream inferenceConfig
+NO_STOP_SEQUENCES_MODELS = {
+    "qwen.qwen3-235b-a22b-2507-v1:0",
+}
+
 VALID_WHITELIST_KEYS = {"model_ids", "families", "profile_regions"}
 
 
@@ -905,7 +910,12 @@ class BedrockModel(BaseChatModel):
             stop = chat_request.stop
             if isinstance(stop, str):
                 stop = [stop]
-            inference_config["stopSequences"] = stop
+            # Some models reject stopSequences entirely (ValidationException)
+            if any(no_stop_model in model_lower for no_stop_model in NO_STOP_SEQUENCES_MODELS):
+                if DEBUG:
+                    logger.info(f"Skipped stopSequences for {chat_request.model} (not supported by model)")
+            else:
+                inference_config["stopSequences"] = stop
 
         args = {
             "modelId": chat_request.model,
