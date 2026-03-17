@@ -48,11 +48,11 @@ from api.setting import (
     BEDROCK_URL,
     DEBUG,
     DEFAULT_MODEL,
+    ENABLE_APPLICATION_INFERENCE_PROFILES,
+    ENABLE_CROSS_REGION_INFERENCE,
+    ENABLE_PROMPT_CACHING,
     MODEL_WHITELIST_FILE,
     MODEL_WHITELIST_JSON,
-    ENABLE_CROSS_REGION_INFERENCE,
-    ENABLE_APPLICATION_INFERENCE_PROFILES,
-    ENABLE_PROMPT_CACHING,
 )
 
 logger = logging.getLogger(__name__)
@@ -118,6 +118,30 @@ NO_ASSISTANT_PREFILL_MODELS = {
 NO_STOP_SEQUENCES_MODELS = {
     "qwen.qwen3-235b-a22b-2507-v1:0",
 }
+
+BEDROCK_TOOL_NAME_PATTERN = re.compile(r"[^a-zA-Z0-9_-]+")
+
+
+def _sanitize_tool_name(tool_name: str | None) -> str:
+    """Normalize tool names to Bedrock Converse constraint: [a-zA-Z0-9_-]+."""
+    if not tool_name:
+        return "tool"
+    sanitized = BEDROCK_TOOL_NAME_PATTERN.sub("_", tool_name).strip("_")
+    return sanitized or "tool"
+
+
+def _supports_stop_sequences(model_id: str) -> bool:
+    """Determine if a model supports stopSequences for Converse APIs."""
+    model_lower = model_id.lower()
+
+    # Known rejects from Bedrock Converse validation.
+    if model_lower.startswith("qwen."):
+        return False
+
+    if any(no_stop_model in model_lower for no_stop_model in NO_STOP_SEQUENCES_MODELS):
+        return False
+
+    return True
 
 VALID_WHITELIST_KEYS = {"model_ids", "families", "profile_regions"}
 
@@ -331,6 +355,10 @@ class BedrockModel(BaseChatModel):
         error = ""
         # check if model is supported
         if chat_request.model not in bedrock_model_list.keys():
+            # Refresh model catalog once to avoid stale startup cache causing false negatives.
+            self.list_models()
+
+        if chat_request.model not in bedrock_model_list.keys():
             # Provide helpful error for application profiles
             if "application-inference-profile" in chat_request.model:
                 error = (
@@ -468,8 +496,31 @@ class BedrockModel(BaseChatModel):
                 # Run the blocking boto3 call in a thread pool
                 response = await run_in_threadpool(bedrock_runtime.converse, **args)
         except bedrock_runtime.exceptions.ValidationException as e:
-            logger.error("Bedrock validation error for model %s: %s", chat_request.model, str(e))
-            raise HTTPException(status_code=400, detail=str(e))
+            error_msg = str(e)
+            logger.error("Bedrock validation error for model %s: %s", chat_request.model, error_msg)
+
+            # Resilient fallback: some models reject stopSequences entirely.
+            if "doesn't support the stopSequences field" in error_msg:
+                if args.get("inferenceConfig", {}).pop("stopSequences", None) is not None:
+                    logger.warning(
+                        "Retrying Bedrock request without stopSequences for model %s",
+                        chat_request.model,
+                    )
+                    try:
+                        if stream:
+                            return await run_in_threadpool(
+                                bedrock_runtime.converse_stream, **args
+                            )
+                        return await run_in_threadpool(bedrock_runtime.converse, **args)
+                    except bedrock_runtime.exceptions.ValidationException as retry_err:
+                        logger.error(
+                            "Retry without stopSequences also failed for model %s: %s",
+                            chat_request.model,
+                            str(retry_err),
+                        )
+                        raise HTTPException(status_code=400, detail=str(retry_err))
+
+            raise HTTPException(status_code=400, detail=error_msg)
         except bedrock_runtime.exceptions.ThrottlingException as e:
             logger.warning("Bedrock throttling for model %s: %s", chat_request.model, str(e))
             raise HTTPException(status_code=429, detail=str(e))
@@ -682,6 +733,13 @@ class BedrockModel(BaseChatModel):
                     # Tool use message
                     for tool_call in message.tool_calls:
                         tool_input = json.loads(tool_call.function.arguments)
+                        tool_name = _sanitize_tool_name(tool_call.function.name)
+                        if tool_name != tool_call.function.name:
+                            logger.warning(
+                                "Sanitized assistant tool call name for Bedrock: %s -> %s",
+                                tool_call.function.name,
+                                tool_name,
+                            )
                         messages.append(
                             {
                                 "role": message.role,
@@ -689,7 +747,7 @@ class BedrockModel(BaseChatModel):
                                     {
                                         "toolUse": {
                                             "toolUseId": tool_call.id,
-                                            "name": tool_call.function.name,
+                                            "name": tool_name,
                                             "input": tool_input,
                                         }
                                     }
@@ -911,7 +969,7 @@ class BedrockModel(BaseChatModel):
             if isinstance(stop, str):
                 stop = [stop]
             # Some models reject stopSequences entirely (ValidationException)
-            if any(no_stop_model in model_lower for no_stop_model in NO_STOP_SEQUENCES_MODELS):
+            if not _supports_stop_sequences(resolved_model):
                 if DEBUG:
                     logger.info(f"Skipped stopSequences for {chat_request.model} (not supported by model)")
             else:
@@ -977,7 +1035,15 @@ class BedrockModel(BaseChatModel):
                     # Specific tool to use
                     if "function" not in chat_request.tool_choice:
                         raise ValueError("tool_choice must contain 'function' key when specifying a specific tool")
-                    tool_config["toolChoice"] = {"tool": {"name": chat_request.tool_choice["function"].get("name", "")}}
+                    requested_tool_name = chat_request.tool_choice["function"].get("name", "")
+                    sanitized_tool_name = _sanitize_tool_name(requested_tool_name)
+                    if requested_tool_name != sanitized_tool_name:
+                        logger.warning(
+                            "Sanitized tool_choice name for Bedrock: %s -> %s",
+                            requested_tool_name,
+                            sanitized_tool_name,
+                        )
+                    tool_config["toolChoice"] = {"tool": {"name": sanitized_tool_name}}
             args["toolConfig"] = tool_config
         # Add additional fields to enable extend thinking or other model-specific features
         if chat_request.extra_body:
@@ -1345,9 +1411,16 @@ class BedrockModel(BaseChatModel):
         return False
 
     def _convert_tool_spec(self, func: Function) -> dict:
+        sanitized_tool_name = _sanitize_tool_name(func.name)
+        if func.name != sanitized_tool_name:
+            logger.warning(
+                "Sanitized tool spec name for Bedrock: %s -> %s",
+                func.name,
+                sanitized_tool_name,
+            )
         return {
             "toolSpec": {
-                "name": func.name,
+                "name": sanitized_tool_name,
                 "description": func.description,
                 "inputSchema": {
                     "json": func.parameters,
