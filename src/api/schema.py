@@ -106,7 +106,7 @@ class ChatRequest(BaseModel):
     temperature: float | None = Field(default=None, le=2.0, ge=0.0)
     top_p: float | None = Field(default=None, le=1.0, ge=0.0)
     user: str | None = None  # Not used
-    max_tokens: int | None = 2048
+    max_tokens: int | None = 128000
     max_completion_tokens: int | None = None
     reasoning_effort: Literal["low", "medium", "high"] | None = None
     n: int | None = 1  # Not used
