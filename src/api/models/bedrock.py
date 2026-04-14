@@ -95,6 +95,7 @@ profile_metadata = {}
 # When both are provided, temperature takes precedence and topP is removed
 TEMPERATURE_TOPP_CONFLICT_MODELS = {
     "claude-sonnet-4-5",
+    "claude-sonnet-4-6",
     "claude-haiku-4-5",
     "claude-opus-4-5",
 }
@@ -784,7 +785,7 @@ class BedrockModel(BaseChatModel):
         if chat_request.top_p is not None:
             inference_config["topP"] = chat_request.top_p
 
-        # Some models (Claude Sonnet 4.5, Haiku 4.5) don't support both temperature and topP
+        # Some models (Claude Sonnet 4.5, Claude Sonnet 4.6, Haiku 4.5) don't support both temperature and topP
         # When both are provided, keep temperature and remove topP
         # Resolve profile to underlying model for feature detection
         resolved_model = self._resolve_to_foundation_model(chat_request.model)
