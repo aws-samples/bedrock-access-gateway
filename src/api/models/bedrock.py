@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+
 import re
 import time
 from abc import ABC
@@ -44,11 +45,11 @@ from api.schema import (
 )
 from api.setting import (
     AWS_REGION,
-    DEBUG,
     DEFAULT_MODEL,
     ENABLE_CROSS_REGION_INFERENCE,
     ENABLE_APPLICATION_INFERENCE_PROFILES,
     ENABLE_PROMPT_CACHING,
+    TRACE_LEVEL,
 )
 
 logger = logging.getLogger(__name__)
@@ -212,6 +213,35 @@ bedrock_model_list = list_bedrock_models()
 
 
 class BedrockModel(BaseChatModel):
+    request_meta: dict = {}
+
+    def _log_usage_summary(
+        self,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+        cache_read_tokens: int = 0,
+        cache_write_tokens: int = 0,
+    ):
+        """Log a one-line usage summary with user/chat context from request headers."""
+        meta = getattr(self, "request_meta", {})
+        user_email = meta.get("user_email", "-")
+        chat_id = meta.get("chat_id", "-")
+        max_tokens = meta.get("max_tokens", "-")
+        user_agent = meta.get("user_agent", "-")
+        logger.info(
+            "USAGE | user=%s | chat=%s | model=%s | max_tokens=%s | in=%d | out=%d | cache_write=%d | cache_read=%d | ua=%s",
+            user_email,
+            chat_id,
+            model,
+            max_tokens,
+            input_tokens,
+            output_tokens,
+            cache_write_tokens,
+            cache_read_tokens,
+            user_agent,
+        )
+
     def list_models(self) -> list[str]:
         """Always refresh the latest model list"""
         global bedrock_model_list
@@ -334,21 +364,21 @@ class BedrockModel(BaseChatModel):
 
     async def _invoke_bedrock(self, chat_request: ChatRequest, stream=False):
         """Common logic for invoke bedrock models"""
-        if DEBUG:
-            logger.info("Raw request: " + chat_request.model_dump_json())
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Raw request: " + chat_request.model_dump_json())
 
             # Log profile resolution for debugging
             if chat_request.model in profile_metadata:
                 resolved = self._resolve_to_foundation_model(chat_request.model)
                 profile_type = profile_metadata[chat_request.model].get("profile_type", "UNKNOWN")
-                logger.info(
+                logger.debug(
                     f"Profile resolution: {chat_request.model} ({profile_type}) → {resolved}"
                 )
 
         # convert OpenAI chat request to Bedrock SDK request
         args = self._parse_request(chat_request)
-        if DEBUG:
-            logger.info("Bedrock request: " + json.dumps(str(args)))
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Bedrock request: " + json.dumps(str(args)))
 
         try:
             if stream:
@@ -404,8 +434,15 @@ class BedrockModel(BaseChatModel):
             cache_read_tokens=cache_read_tokens,
             cache_creation_tokens=cache_creation_tokens,
         )
-        if DEBUG:
-            logger.info("Proxy response :" + chat_response.model_dump_json())
+        self._log_usage_summary(
+            model=chat_request.model,
+            input_tokens=actual_prompt_tokens,
+            output_tokens=output_tokens,
+            cache_read_tokens=cache_read_tokens,
+            cache_write_tokens=cache_creation_tokens,
+        )
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Proxy response :" + chat_response.model_dump_json())
         return chat_response
 
     async def _async_iterate(self, stream):
@@ -441,8 +478,8 @@ class BedrockModel(BaseChatModel):
                         audio_tokens=0,
                     )
 
-                if DEBUG:
-                    logger.info("Proxy response :" + stream_response.model_dump_json())
+                if logger.isEnabledFor(TRACE_LEVEL):
+                    logger.log(TRACE_LEVEL, "Proxy response :" + stream_response.model_dump_json())
                 if stream_response.choices:
                     yield self.stream_response_to_bytes(stream_response)
                 elif chat_request.stream_options and chat_request.stream_options.include_usage:
@@ -522,8 +559,7 @@ class BedrockModel(BaseChatModel):
         # Add cache checkpoint after system prompts
         system_prompts.append({"cachePoint": {"type": "default"}})
 
-        if DEBUG:
-            logger.info(f"Added cachePoint to system prompts for model {chat_request.model}")
+        logger.debug("Added cachePoint to system prompts for model %s", chat_request.model)
 
         return system_prompts
 
@@ -736,8 +772,7 @@ class BedrockModel(BaseChatModel):
                     "role": "user",
                     "content": [{"text": "Please continue your response from where you left off."}]
                 })
-                if DEBUG:
-                    logger.info(f"Added continuation prompt for {chat_request.model} - conversation ended with assistant message")
+                logger.debug("Added continuation prompt for %s - conversation ended with assistant message", chat_request.model)
 
         # Add cachePoint to messages if enabled and supported
         if chat_request and reformatted_messages:
@@ -758,8 +793,7 @@ class BedrockModel(BaseChatModel):
                     if msg["role"] == "user" and msg.get("content"):
                         # Add cachePoint at the end of user message content
                         msg["content"].append({"cachePoint": {"type": "default"}})
-                        if DEBUG:
-                            logger.info(f"Added cachePoint to last user message for model {chat_request.model}")
+                        logger.debug("Added cachePoint to last user message for model %s", chat_request.model)
                         break
 
         return reformatted_messages
@@ -795,8 +829,7 @@ class BedrockModel(BaseChatModel):
         if "temperature" in inference_config and "topP" in inference_config:
             if any(conflict_model in model_lower for conflict_model in TEMPERATURE_TOPP_CONFLICT_MODELS):
                 inference_config.pop("topP", None)
-                if DEBUG:
-                    logger.info(f"Removed topP for {chat_request.model} (conflicts with temperature)")
+                logger.debug("Removed topP for %s (conflicts with temperature)", chat_request.model)
 
         if chat_request.stop is not None:
             stop = chat_request.stop
@@ -840,12 +873,10 @@ class BedrockModel(BaseChatModel):
                 args["additionalModelRequestFields"] = {
                     "reasoning_config": chat_request.reasoning_effort  # Direct string: low/medium/high
                 }
-                if DEBUG:
-                    logger.info(f"Applied reasoning_config={chat_request.reasoning_effort} for DeepSeek v3")
+                logger.debug("Applied reasoning_config=%s for DeepSeek v3", chat_request.reasoning_effort)
             else:
                 # For other models (Qwen, etc.), ignore reasoning_effort parameter
-                if DEBUG:
-                    logger.info(f"reasoning_effort parameter ignored for model {chat_request.model} (not supported)")
+                logger.debug("reasoning_effort parameter ignored for model %s (not supported)", chat_request.model)
         # add tool config
         if chat_request.tools:
             tool_config = {"tools": [self._convert_tool_spec(t.function) for t in chat_request.tools]}
@@ -1004,8 +1035,8 @@ class BedrockModel(BaseChatModel):
 
         Ref: https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html#message-inference-examples
         """
-        if DEBUG:
-            logger.info("Bedrock response chunk: " + str(chunk))
+        if logger.isEnabledFor(TRACE_LEVEL):
+            logger.log(TRACE_LEVEL, "Bedrock response chunk: " + str(chunk))
 
         finish_reason = None
         message = None
@@ -1120,6 +1151,14 @@ class BedrockModel(BaseChatModel):
                 total_tokens = usage_data["totalTokens"]
                 output_tokens = usage_data["outputTokens"]
                 actual_prompt_tokens = total_tokens - output_tokens
+
+                self._log_usage_summary(
+                    model=model_id,
+                    input_tokens=actual_prompt_tokens,
+                    output_tokens=output_tokens,
+                    cache_read_tokens=cache_read_tokens,
+                    cache_write_tokens=cache_creation_tokens,
+                )
 
                 return ChatStreamResponse(
                     id=message_id,
@@ -1282,9 +1321,9 @@ class BedrockEmbeddingsModel(BaseEmbeddingsModel, ABC):
 
     def _invoke_model(self, args: dict, model_id: str):
         body = json.dumps(args)
-        if DEBUG:
-            logger.info("Invoke Bedrock Model: " + model_id)
-            logger.info("Bedrock request body: " + body)
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Invoke Bedrock Model: " + model_id)
+            logger.debug("Bedrock request body: " + body)
         try:
             return bedrock_runtime.invoke_model(
                 body=body,
@@ -1327,8 +1366,8 @@ class BedrockEmbeddingsModel(BaseEmbeddingsModel, ABC):
                 total_tokens=input_tokens + output_tokens,
             ),
         )
-        if DEBUG:
-            logger.info("Proxy response :" + response.model_dump_json())
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Proxy response :" + response.model_dump_json())
         return response
 
 
@@ -1367,8 +1406,8 @@ class CohereEmbeddingsModel(BedrockEmbeddingsModel):
             args=self._parse_args(embeddings_request), model_id=embeddings_request.model
         )
         response_body = json.loads(response.get("body").read())
-        if DEBUG:
-            logger.info("Bedrock response body: " + str(response_body))
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Bedrock response body: " + str(response_body))
 
         return self._create_response(
             embeddings=response_body["embeddings"],
@@ -1407,8 +1446,8 @@ class TitanEmbeddingsModel(BedrockEmbeddingsModel):
             args=self._parse_args(embeddings_request), model_id=embeddings_request.model
         )
         response_body = json.loads(response.get("body").read())
-        if DEBUG:
-            logger.info("Bedrock response body: " + str(response_body))
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Bedrock response body: " + str(response_body))
 
         return self._create_response(
             embeddings=[response_body["embedding"]],
@@ -1479,8 +1518,8 @@ class NovaEmbeddingsModel(BedrockEmbeddingsModel):
                 model_id=embeddings_request.model,
             )
             response_body = json.loads(response.get("body").read())
-            if DEBUG:
-                logger.info("Bedrock response body keys: " + str(list(response_body.keys())))
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Bedrock response body keys: " + str(list(response_body.keys())))
 
             # Response: {"embeddings": [{"embeddingType": "TEXT", "embedding": [...]}]}
             embeddings_list = response_body.get("embeddings", [])
@@ -1503,8 +1542,7 @@ class NovaEmbeddingsModel(BedrockEmbeddingsModel):
 
 def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
     model_name = SUPPORTED_BEDROCK_EMBEDDING_MODELS.get(model_id, "")
-    if DEBUG:
-        logger.info("model name is " + model_name)
+    logger.debug("model name is %s", model_name)
     match model_name:
         case "Cohere Embed Multilingual" | "Cohere Embed English":
             return CohereEmbeddingsModel()
