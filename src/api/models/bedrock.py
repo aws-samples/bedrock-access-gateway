@@ -44,11 +44,15 @@ from api.schema import (
 )
 from api.setting import (
     AWS_REGION,
+    BEDROCK_RUNTIME_URL,
+    BEDROCK_URL,
     DEBUG,
     DEFAULT_MODEL,
-    ENABLE_CROSS_REGION_INFERENCE,
     ENABLE_APPLICATION_INFERENCE_PROFILES,
+    ENABLE_CROSS_REGION_INFERENCE,
     ENABLE_PROMPT_CACHING,
+    MODEL_WHITELIST_FILE,
+    MODEL_WHITELIST_JSON,
 )
 
 logger = logging.getLogger(__name__)
@@ -66,11 +70,13 @@ config = Config(
 bedrock_runtime = boto3.client(
     service_name="bedrock-runtime",
     region_name=AWS_REGION,
+    endpoint_url=BEDROCK_RUNTIME_URL,
     config=config,
 )
 bedrock_client = boto3.client(
     service_name="bedrock",
     region_name=AWS_REGION,
+    endpoint_url=BEDROCK_URL,
     config=config,
 )
 
@@ -104,8 +110,123 @@ TEMPERATURE_TOPP_CONFLICT_MODELS = {
 # For these models, if conversation ends with assistant message (e.g., "continue response"),
 # a user message will be added to ask the model to continue
 NO_ASSISTANT_PREFILL_MODELS = {
+    "claude-sonnet-4-5",
+    "claude-sonnet-4-6",
     "claude-opus-4-6",
 }
+
+# Models that don't support stopSequences in Converse/ConverseStream inferenceConfig
+NO_STOP_SEQUENCES_MODELS = {
+    "qwen.qwen3-235b-a22b-2507-v1:0",
+}
+
+BEDROCK_TOOL_NAME_PATTERN = re.compile(r"[^a-zA-Z0-9_-]+")
+
+
+def _sanitize_tool_name(tool_name: str | None) -> str:
+    """Normalize tool names to Bedrock Converse constraint: [a-zA-Z0-9_-]+."""
+    if not tool_name:
+        return "tool"
+    sanitized = BEDROCK_TOOL_NAME_PATTERN.sub("_", tool_name).strip("_")
+    return sanitized or "tool"
+
+
+def _supports_stop_sequences(model_id: str) -> bool:
+    """Determine if a model supports stopSequences for Converse APIs."""
+    model_lower = model_id.lower()
+
+    # Known rejects from Bedrock Converse validation.
+    if model_lower.startswith("qwen."):
+        return False
+
+    if any(no_stop_model in model_lower for no_stop_model in NO_STOP_SEQUENCES_MODELS):
+        return False
+
+    return True
+
+VALID_WHITELIST_KEYS = {"model_ids", "families", "profile_regions"}
+
+
+def _validate_model_whitelist(whitelist: dict) -> dict:
+    """Validate model whitelist structure and values."""
+    if not isinstance(whitelist, dict):
+        raise RuntimeError(
+            f"Model whitelist must be a JSON object, got {type(whitelist).__name__}"
+        )
+
+    unknown_keys = set(whitelist.keys()) - VALID_WHITELIST_KEYS
+    if unknown_keys:
+        raise RuntimeError(
+            f"Unknown keys in model whitelist: {sorted(unknown_keys)}. "
+            f"Valid keys: {sorted(VALID_WHITELIST_KEYS)}"
+        )
+
+    for key in VALID_WHITELIST_KEYS:
+        if key not in whitelist:
+            continue
+
+        values = whitelist[key]
+        if not isinstance(values, list) or not all(isinstance(value, str) for value in values):
+            raise RuntimeError(f"Whitelist key '{key}' must be a list of strings")
+
+    return whitelist
+
+
+def _load_model_whitelist() -> dict:
+    """Load model whitelist config from env JSON string or JSON file."""
+    if MODEL_WHITELIST_JSON:
+        try:
+            return _validate_model_whitelist(json.loads(MODEL_WHITELIST_JSON))
+        except json.JSONDecodeError as e:
+            raise RuntimeError(
+                "MODEL_WHITELIST_JSON contains invalid JSON. "
+                f"Refusing to start with a broken whitelist. Error: {e}"
+            ) from e
+
+    if MODEL_WHITELIST_FILE:
+        try:
+            with open(MODEL_WHITELIST_FILE, encoding="utf-8") as f:
+                return _validate_model_whitelist(json.load(f))
+        except (FileNotFoundError, PermissionError, OSError, json.JSONDecodeError) as e:
+            raise RuntimeError(
+                f"Unable to load MODEL_WHITELIST_FILE={MODEL_WHITELIST_FILE}. "
+                f"Refusing to start with a broken whitelist. Error: {e}"
+            ) from e
+
+    return {}
+
+
+def _is_allowed_by_whitelist(model_id: str, whitelist: dict) -> bool:
+    """Check if model id is allowed by whitelist rules.
+
+    Supported keys:
+      - model_ids: exact model ids/profile ids
+      - families: prefix match for foundation model ids (e.g. anthropic.claude, amazon.nova)
+      - profile_regions: prefix before first '.' for cross-region profiles (e.g. us, eu, apac, global)
+    """
+    if not whitelist:
+        return True
+
+    model_ids = set(whitelist.get("model_ids", []))
+    families = whitelist.get("families", [])
+    profile_regions = set(whitelist.get("profile_regions", []))
+
+    if model_ids and model_id in model_ids:
+        return True
+
+    if families and any(model_id.startswith(family) for family in families):
+        return True
+
+    if profile_regions and "." in model_id:
+        prefix = model_id.split(".", 1)[0]
+        if prefix in profile_regions:
+            return True
+
+    # If any selector is configured, default deny.
+    return not any((model_ids, families, profile_regions))
+
+
+_MODEL_WHITELIST: dict = _load_model_whitelist()
 
 
 def list_bedrock_models() -> dict:
@@ -117,6 +238,7 @@ def list_bedrock_models() -> dict:
         - Application Inference Profiles (if enabled via Env)
     """
     model_list = {}
+    whitelist = _MODEL_WHITELIST
     try:
         if ENABLE_CROSS_REGION_INFERENCE:
             # List system defined inference profile IDs and store underlying model mapping
@@ -204,6 +326,17 @@ def list_bedrock_models() -> dict:
         # In case stack not updated.
         model_list[DEFAULT_MODEL] = {"modalities": ["TEXT", "IMAGE"]}
 
+    if whitelist:
+        model_list = {
+            model_id: metadata
+            for model_id, metadata in model_list.items()
+            if _is_allowed_by_whitelist(model_id, whitelist)
+        }
+        if not model_list:
+            logger.error("Model whitelist filtered out ALL models. Check whitelist configuration.")
+        else:
+            logger.info("Applied model whitelist, allowed_models=%d", len(model_list))
+
     return model_list
 
 
@@ -222,6 +355,10 @@ class BedrockModel(BaseChatModel):
         """Perform basic validation on requests"""
         error = ""
         # check if model is supported
+        if chat_request.model not in bedrock_model_list.keys():
+            # Refresh model catalog once to avoid stale startup cache causing false negatives.
+            self.list_models()
+
         if chat_request.model not in bedrock_model_list.keys():
             # Provide helpful error for application profiles
             if "application-inference-profile" in chat_request.model:
@@ -360,8 +497,31 @@ class BedrockModel(BaseChatModel):
                 # Run the blocking boto3 call in a thread pool
                 response = await run_in_threadpool(bedrock_runtime.converse, **args)
         except bedrock_runtime.exceptions.ValidationException as e:
-            logger.error("Bedrock validation error for model %s: %s", chat_request.model, str(e))
-            raise HTTPException(status_code=400, detail=str(e))
+            error_msg = str(e)
+            logger.error("Bedrock validation error for model %s: %s", chat_request.model, error_msg)
+
+            # Resilient fallback: some models reject stopSequences entirely.
+            if "doesn't support the stopSequences field" in error_msg:
+                if args.get("inferenceConfig", {}).pop("stopSequences", None) is not None:
+                    logger.warning(
+                        "Retrying Bedrock request without stopSequences for model %s",
+                        chat_request.model,
+                    )
+                    try:
+                        if stream:
+                            return await run_in_threadpool(
+                                bedrock_runtime.converse_stream, **args
+                            )
+                        return await run_in_threadpool(bedrock_runtime.converse, **args)
+                    except bedrock_runtime.exceptions.ValidationException as retry_err:
+                        logger.error(
+                            "Retry without stopSequences also failed for model %s: %s",
+                            chat_request.model,
+                            str(retry_err),
+                        )
+                        raise HTTPException(status_code=400, detail=str(retry_err))
+
+            raise HTTPException(status_code=400, detail=error_msg)
         except bedrock_runtime.exceptions.ThrottlingException as e:
             logger.warning("Bedrock throttling for model %s: %s", chat_request.model, str(e))
             raise HTTPException(status_code=429, detail=str(e))
@@ -574,6 +734,13 @@ class BedrockModel(BaseChatModel):
                     # Tool use message
                     for tool_call in message.tool_calls:
                         tool_input = json.loads(tool_call.function.arguments)
+                        tool_name = _sanitize_tool_name(tool_call.function.name)
+                        if tool_name != tool_call.function.name:
+                            logger.warning(
+                                "Sanitized assistant tool call name for Bedrock: %s -> %s",
+                                tool_call.function.name,
+                                tool_name,
+                            )
                         messages.append(
                             {
                                 "role": message.role,
@@ -581,7 +748,7 @@ class BedrockModel(BaseChatModel):
                                     {
                                         "toolUse": {
                                             "toolUseId": tool_call.id,
-                                            "name": tool_call.function.name,
+                                            "name": tool_name,
                                             "input": tool_input,
                                         }
                                     }
@@ -802,7 +969,12 @@ class BedrockModel(BaseChatModel):
             stop = chat_request.stop
             if isinstance(stop, str):
                 stop = [stop]
-            inference_config["stopSequences"] = stop
+            # Some models reject stopSequences entirely (ValidationException)
+            if not _supports_stop_sequences(resolved_model):
+                if DEBUG:
+                    logger.info(f"Skipped stopSequences for {chat_request.model} (not supported by model)")
+            else:
+                inference_config["stopSequences"] = stop
 
         args = {
             "modelId": chat_request.model,
@@ -864,7 +1036,15 @@ class BedrockModel(BaseChatModel):
                     # Specific tool to use
                     if "function" not in chat_request.tool_choice:
                         raise ValueError("tool_choice must contain 'function' key when specifying a specific tool")
-                    tool_config["toolChoice"] = {"tool": {"name": chat_request.tool_choice["function"].get("name", "")}}
+                    requested_tool_name = chat_request.tool_choice["function"].get("name", "")
+                    sanitized_tool_name = _sanitize_tool_name(requested_tool_name)
+                    if requested_tool_name != sanitized_tool_name:
+                        logger.warning(
+                            "Sanitized tool_choice name for Bedrock: %s -> %s",
+                            requested_tool_name,
+                            sanitized_tool_name,
+                        )
+                    tool_config["toolChoice"] = {"tool": {"name": sanitized_tool_name}}
             args["toolConfig"] = tool_config
         # Add additional fields to enable extend thinking or other model-specific features
         if chat_request.extra_body:
@@ -1184,10 +1364,15 @@ class BedrockModel(BaseChatModel):
         message: UserMessage | AssistantMessage,
         model_id: str,
     ) -> list[dict]:
+        def _safe_text(text: str | None) -> str:
+            if text is None:
+                return ""
+            return text if text.strip() else "[empty message omitted by proxy]"
+
         if isinstance(message.content, str):
             return [
                 {
-                    "text": message.content,
+                    "text": _safe_text(message.content),
                 }
             ]
         content_parts = []
@@ -1195,7 +1380,7 @@ class BedrockModel(BaseChatModel):
             if isinstance(part, TextContent):
                 content_parts.append(
                     {
-                        "text": part.text,
+                        "text": _safe_text(part.text),
                     }
                 )
             elif isinstance(part, ImageContent):
@@ -1227,9 +1412,16 @@ class BedrockModel(BaseChatModel):
         return False
 
     def _convert_tool_spec(self, func: Function) -> dict:
+        sanitized_tool_name = _sanitize_tool_name(func.name)
+        if func.name != sanitized_tool_name:
+            logger.warning(
+                "Sanitized tool spec name for Bedrock: %s -> %s",
+                func.name,
+                sanitized_tool_name,
+            )
         return {
             "toolSpec": {
-                "name": func.name,
+                "name": sanitized_tool_name,
                 "description": func.description,
                 "inputSchema": {
                     "json": func.parameters,
