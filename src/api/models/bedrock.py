@@ -1230,7 +1230,7 @@ class BedrockModel(BaseChatModel):
         return {
             "toolSpec": {
                 "name": func.name,
-                "description": func.description,
+                "description": func.description if func.description else func.name,
                 "inputSchema": {
                     "json": func.parameters,
                 },
