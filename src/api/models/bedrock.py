@@ -764,6 +764,54 @@ class BedrockModel(BaseChatModel):
 
         return reformatted_messages
 
+    def _messages_contain_tool_blocks(self, messages: list) -> bool:
+        """Return True if any message content contains toolUse or toolResult blocks.
+
+        Bedrock's Converse API requires `toolConfig` to be present whenever
+        messages contain `toolUse` or `toolResult` content blocks, even if the
+        caller does not intend to invoke any tool in the current turn.
+        """
+        for m in messages:
+            content = m.get("content")
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and ("toolUse" in block or "toolResult" in block):
+                        return True
+        return False
+
+    def _reconstruct_tools_from_messages(self, messages: list) -> list[dict]:
+        """Build minimal placeholder toolSpec entries from toolUse blocks in history.
+
+        Used as a fallback when a client continues a tool-using conversation
+        without re-sending the original `tools` array (e.g., during
+        compaction/summarization). Bedrock requires `toolConfig` whenever
+        `toolUse`/`toolResult` blocks are present in messages; we synthesize
+        minimal specs matching the names already in the conversation.
+        """
+        seen: dict[str, dict] = {}
+        for m in messages:
+            content = m.get("content")
+            if not isinstance(content, list):
+                continue
+            for block in content:
+                if isinstance(block, dict) and "toolUse" in block:
+                    name = block["toolUse"].get("name")
+                    if name and name not in seen:
+                        seen[name] = {
+                            "toolSpec": {
+                                "name": name,
+                                "description": f"(reconstructed placeholder for prior tool use: {name})",
+                                "inputSchema": {
+                                    "json": {
+                                        "type": "object",
+                                        "properties": {},
+                                        "additionalProperties": True,
+                                    }
+                                },
+                            }
+                        }
+        return list(seen.values())
+
     def _parse_request(self, chat_request: ChatRequest) -> dict:
         """Create default converse request body.
 
@@ -866,6 +914,48 @@ class BedrockModel(BaseChatModel):
                         raise ValueError("tool_choice must contain 'function' key when specifying a specific tool")
                     tool_config["toolChoice"] = {"tool": {"name": chat_request.tool_choice["function"].get("name", "")}}
             args["toolConfig"] = tool_config
+        elif self._messages_contain_tool_blocks(messages):
+            # Bedrock requires toolConfig whenever messages contain toolUse/toolResult
+            # blocks, even when the current request does not supply a `tools` array.
+            # Common in conversation compaction/summarization flows where prior
+            # tool-calling turns are replayed as context but no tools are needed for
+            # the current response. Documented in many downstream projects; see
+            # strands-agents/sdk-python#998, langchain-ai/langchain-aws#591, and
+            # anomalyco/opencode#10259 for identical reproductions.
+            reconstructed = self._reconstruct_tools_from_messages(messages)
+            if reconstructed:
+                args["toolConfig"] = {"tools": reconstructed}
+                logger.warning(
+                    "Request contains toolUse/toolResult blocks but no `tools` array; "
+                    "reconstructed %d placeholder toolSpec(s) from message history to "
+                    "satisfy Bedrock's toolConfig requirement.",
+                    len(reconstructed),
+                )
+            else:
+                # Only toolResult blocks present with no toolUse names to reconstruct
+                # from (e.g., truncated history). Emit a single generic placeholder
+                # so Bedrock still accepts the request.
+                args["toolConfig"] = {
+                    "tools": [
+                        {
+                            "toolSpec": {
+                                "name": "placeholder_tool",
+                                "description": "(placeholder to satisfy Bedrock toolConfig requirement)",
+                                "inputSchema": {
+                                    "json": {
+                                        "type": "object",
+                                        "properties": {},
+                                        "additionalProperties": True,
+                                    }
+                                },
+                            }
+                        }
+                    ]
+                }
+                logger.warning(
+                    "Request contains toolResult blocks with no matching toolUse; "
+                    "emitting a single generic placeholder toolSpec."
+                )
         # Add additional fields to enable extend thinking or other model-specific features
         if chat_request.extra_body:
             # Filter out prompt_caching (our control field, not for Bedrock)
