@@ -164,11 +164,15 @@ def list_bedrock_models() -> dict:
                         # Extract model ID from ARN (works for both foundation models and cross-region profiles)
                         model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
 
+                        profile_name = profile.get("inferenceProfileName", "")
+                        profile_key = profile_name or profile_arn
+
                         # Store in unified profile metadata for feature detection
-                        profile_metadata[profile_arn] = {
+                        profile_metadata[profile_key] = {
                             "underlying_model_id": model_id,
                             "profile_type": "APPLICATION",
-                            "profile_name": profile.get("inferenceProfileName", ""),
+                            "profile_name": profile_name,
+                            "profile_arn": profile_arn,
                         }
                     except Exception as e:
                         logger.warning(f"Error processing application profile: {e}")
@@ -193,9 +197,9 @@ def list_bedrock_models() -> dict:
                 model_list[model_id] = {"modalities": input_modalities}
 
             # Add all inference profiles (cross-region and application) for this model
-            for profile_id, metadata in profile_metadata.items():
+            for profile_key, metadata in profile_metadata.items():
                 if metadata.get("underlying_model_id") == model_id:
-                    model_list[profile_id] = {"modalities": input_modalities}
+                    model_list[profile_key] = {"modalities": input_modalities}
 
     except Exception as e:
         logger.error(f"Unable to list models: {str(e)}")
@@ -250,20 +254,28 @@ class BedrockModel(BaseChatModel):
                 detail=error,
             )
 
+    @staticmethod
+    def _resolve_model_id_for_api(model_id: str) -> str:
+        """Resolve a profile name to its ARN for the Bedrock API call."""
+        metadata = profile_metadata.get(model_id)
+        if metadata and "profile_arn" in metadata:
+            return metadata["profile_arn"]
+        return model_id
+
     def _resolve_to_foundation_model(self, model_id: str) -> str:
         """
         Resolve any model identifier to foundation model ID for feature detection.
 
         Handles:
         - Cross-region profiles (us.*, eu.*, apac.*, global.*)
-        - Application profiles (arn:aws:bedrock:...:application-inference-profile/...)
+        - Application profiles (by name or ARN)
         - Foundation models (pass through unchanged)
 
         No pattern matching needed - just dictionary lookup.
         Unknown identifiers pass through unchanged (graceful fallback).
 
         Args:
-            model_id: Can be foundation model ID, cross-region profile, or app profile ARN
+            model_id: Can be foundation model ID, cross-region profile, app profile name, or ARN
 
         Returns:
             Foundation model ID if mapping exists, otherwise original model_id
@@ -805,7 +817,7 @@ class BedrockModel(BaseChatModel):
             inference_config["stopSequences"] = stop
 
         args = {
-            "modelId": chat_request.model,
+            "modelId": self._resolve_model_id_for_api(chat_request.model),
             "messages": messages,
             "system": system_prompts,
             "inferenceConfig": inference_config,
