@@ -832,7 +832,7 @@ class BedrockModel(BaseChatModel):
                     )
                 # unset topP - Not supported
                 inference_config.pop("topP", None)
-                
+
                 budget_tokens = self._calc_budget_tokens(
                     effective_max_tokens, chat_request.reasoning_effort
                 )
