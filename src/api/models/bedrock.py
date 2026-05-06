@@ -774,10 +774,16 @@ class BedrockModel(BaseChatModel):
         messages = self._parse_messages(chat_request)
         system_prompts = self._parse_system_prompts(chat_request)
 
+        effective_max_tokens = (
+            chat_request.max_completion_tokens
+            if chat_request.max_completion_tokens is not None
+            else chat_request.max_tokens
+        )
+
         # Base inference parameters.
-        inference_config = {
-            "maxTokens": chat_request.max_tokens,
-        }
+        inference_config = {}
+        if effective_max_tokens is not None:
+            inference_config["maxTokens"] = effective_max_tokens
 
         # Only include optional parameters when specified
         if chat_request.temperature is not None:
@@ -819,18 +825,17 @@ class BedrockModel(BaseChatModel):
 
             if "anthropic.claude" in model_lower:
                 # Claude format: reasoning_config = object with budget_tokens
-                max_tokens = (
-                    chat_request.max_completion_tokens
-                    if chat_request.max_completion_tokens
-                    else chat_request.max_tokens
-                )
-                budget_tokens = self._calc_budget_tokens(
-                    max_tokens, chat_request.reasoning_effort
-                )
-                inference_config["maxTokens"] = max_tokens
+                if effective_max_tokens is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="max_tokens or max_completion_tokens must be set when using reasoning_effort with Claude models",
+                    )
                 # unset topP - Not supported
                 inference_config.pop("topP", None)
 
+                budget_tokens = self._calc_budget_tokens(
+                    effective_max_tokens, chat_request.reasoning_effort
+                )
                 args["additionalModelRequestFields"] = {
                     "reasoning_config": {"type": "enabled", "budget_tokens": budget_tokens}
                 }
