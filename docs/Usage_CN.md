@@ -365,6 +365,8 @@ You can try it with different questions, such as:
 - Deepseek R1 会自动使用推理模式，不需要在中传递额外的 reasoning_effort 参数（否则会报错）
 - 推理结果（思维链结果、思考过程）被添加到名为 'reasoning_content' 的额外标签中，这不是 OpenAI 官方支持的格式。此设计遵循 [Deepseek Reasoning Model](https://api-docs.deepseek.com/guides/reasoning_model#api-example)  的规范。未来可能会有所变动。
 
+> **注意**: 现在如果省略 `max_tokens` （或 `max_completion_tokens`），Bedrock 将使用模型的原生最大输出限制（例如，Claude Sonnet 4 为 64K），而不是之前的 2048 隐式上限。如果您需要控制成本或延迟，请明确设置 `max_tokens`。
+
 **Request 示例**
 
 - Claude 3.7 Sonnet
