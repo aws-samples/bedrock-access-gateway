@@ -1,5 +1,9 @@
 FROM public.ecr.aws/lambda/python:3.12
 
+# Apply the latest OS security patches available at build time so rebuilt
+# images pick up CVE fixes that have not yet rolled into the base image.
+RUN dnf upgrade -y && dnf clean all
+
 # Add Lambda Web Adapter for API Gateway response streaming
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 /lambda-adapter /opt/extensions/lambda-adapter
 
