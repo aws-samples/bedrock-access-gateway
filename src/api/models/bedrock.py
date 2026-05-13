@@ -1513,7 +1513,7 @@ def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
     match model_name:
         case "Cohere Embed Multilingual" | "Cohere Embed English":
             return CohereEmbeddingsModel()
-        case "Titan Embeddings G2 - Text":
+        case "Titan Embeddings G1 - Text" | "Titan Embeddings G2 - Text":
             return TitanEmbeddingsModel()
         case "Nova Multimodal Embeddings V2":
             return NovaEmbeddingsModel()
