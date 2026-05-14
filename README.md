@@ -372,6 +372,12 @@ uvicorn api.app:app --host 0.0.0.0 --port 8000
 
 The API base url should look like `http://localhost:8000/api/v1`.
 
+You can disable the OpenAI key authentication entirely by setting the env var, `ACCEPT_ALL_OPENAI_KEY` to true and run the app, or run the `runlocal.sh` script from the `src` folder:
+
+```bash
+bash runlocal.sh
+```
+
 ### Any performance sacrifice or latency increase by using the proxy APIs
 
 Compared with direct AWS SDK calls, the proxy architecture will add some latency. The default API Gateway + Lambda deployment provides good streaming performance with Lambda response streaming.
