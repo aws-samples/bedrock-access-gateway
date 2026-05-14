@@ -155,6 +155,9 @@ Now, you can try out the proxy APIs. Let's say you want to test Claude 3 Sonnet 
 ```bash
 export OPENAI_API_KEY=<API key>
 export OPENAI_BASE_URL=<API base url>
+# Optional: use VPC interface endpoints / custom Bedrock endpoints
+# export BEDROCK_URL=https://vpce-xxxxxxxx.bedrock.<region>.vpce.amazonaws.com
+# export BEDROCK_RUNTIME_URL=https://vpce-xxxxxxxx.bedrock-runtime.<region>.vpce.amazonaws.com
 # For older versions
 # https://github.com/openai/openai-python/issues/624
 export OPENAI_API_BASE=<API base url>

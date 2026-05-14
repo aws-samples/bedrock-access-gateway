@@ -7,6 +7,9 @@ Assuming you have set up below environment variables after deployed:
 ```bash
 export OPENAI_API_KEY=<API key>
 export OPENAI_BASE_URL=<API base url>
+# Optional: use VPC interface endpoints / custom Bedrock endpoints
+# export BEDROCK_URL=https://vpce-xxxxxxxx.bedrock.<region>.vpce.amazonaws.com
+# export BEDROCK_RUNTIME_URL=https://vpce-xxxxxxxx.bedrock-runtime.<region>.vpce.amazonaws.com
 ```
 
 **API Example:**
@@ -23,6 +26,25 @@ You can use this API to get a list of supported model IDs.
 
 Also, you can use this API to refresh the model list if new models are added to Amazon Bedrock.
 
+You can optionally restrict which models are exposed by `/models` and accepted by chat requests using a whitelist JSON config:
+
+```bash
+export MODEL_WHITELIST_FILE=/app/config/model-whitelist.json
+# or inline JSON
+# export MODEL_WHITELIST_JSON='{"families":["anthropic.claude","amazon.nova"],"profile_regions":["us","global"],"model_ids":["arn:aws:bedrock:us-west-2:123456789012:application-inference-profile/my-profile"]}'
+```
+
+Example `model-whitelist.json`:
+
+```json
+{
+  "families": ["anthropic.claude", "amazon.nova"],
+  "profile_regions": ["us", "global"],
+  "model_ids": [
+    "arn:aws:bedrock:us-west-2:123456789012:application-inference-profile/my-profile"
+  ]
+}
+```
 
 **Example Request**
 
