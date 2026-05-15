@@ -421,6 +421,8 @@ class BedrockModel(BaseChatModel):
             message_id = self.generate_message_id()
             stream = response.get("stream")
             self.think_emitted = False
+            self._stream_tool_index_by_content_block = {}
+            self._next_stream_tool_index = 0
             reasoning_tokens = 0
             async for chunk in self._async_iterate(stream):
                 # Accumulate reasoning tokens from delta chunks before processing
@@ -457,6 +459,8 @@ class BedrockModel(BaseChatModel):
             # return an [DONE] message at the end.
             yield self.stream_response_to_bytes()
             self.think_emitted = False  # Cleanup
+            self._stream_tool_index_by_content_block = {}
+            self._next_stream_tool_index = 0
         except Exception as e:
             logger.error("Stream error for model %s: %s", chat_request.model, str(e))
             error_event = Error(error=ErrorMessage(message=str(e)))
@@ -1026,8 +1030,13 @@ class BedrockModel(BaseChatModel):
             # tool call start
             delta = chunk["contentBlockStart"]["start"]
             if "toolUse" in delta:
-                # first index is content
-                index = chunk["contentBlockStart"]["contentBlockIndex"] - 1
+                content_block_index = chunk["contentBlockStart"]["contentBlockIndex"]
+                tool_index_map = getattr(self, "_stream_tool_index_by_content_block", {})
+                if content_block_index not in tool_index_map:
+                    tool_index_map[content_block_index] = getattr(self, "_next_stream_tool_index", 0)
+                    self._next_stream_tool_index = tool_index_map[content_block_index] + 1
+                    self._stream_tool_index_by_content_block = tool_index_map
+                index = tool_index_map[content_block_index]
                 message = ChatResponseMessage(
                     tool_calls=[
                         ToolCall(
@@ -1069,7 +1078,13 @@ class BedrockModel(BaseChatModel):
                         return None  # Ignore signature if no <think> started
             else:
                 # tool use
-                index = chunk["contentBlockDelta"]["contentBlockIndex"] - 1
+                content_block_index = chunk["contentBlockDelta"]["contentBlockIndex"]
+                tool_index_map = getattr(self, "_stream_tool_index_by_content_block", {})
+                if content_block_index not in tool_index_map:
+                    tool_index_map[content_block_index] = getattr(self, "_next_stream_tool_index", 0)
+                    self._next_stream_tool_index = tool_index_map[content_block_index] + 1
+                    self._stream_tool_index_by_content_block = tool_index_map
+                index = tool_index_map[content_block_index]
                 message = ChatResponseMessage(
                     tool_calls=[
                         ToolCall(
