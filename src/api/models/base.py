@@ -33,12 +33,12 @@ class BaseChatModel(ABC):
         pass
 
     @abstractmethod
-    async def chat(self, chat_request: ChatRequest) -> ChatResponse:
+    async def chat(self, chat_request: ChatRequest, request_metadata: dict | None = None) -> ChatResponse:
         """Handle a basic chat completion requests."""
         pass
 
     @abstractmethod
-    async def chat_stream(self, chat_request: ChatRequest) -> AsyncIterable[bytes]:
+    async def chat_stream(self, chat_request: ChatRequest, request_metadata: dict | None = None) -> AsyncIterable[bytes]:
         """Handle a basic chat completion requests with stream response."""
         pass
 

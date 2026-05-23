@@ -332,7 +332,7 @@ class BedrockModel(BaseChatModel):
 
         return None
 
-    async def _invoke_bedrock(self, chat_request: ChatRequest, stream=False):
+    async def _invoke_bedrock(self, chat_request: ChatRequest, stream=False, request_metadata: dict | None = None):
         """Common logic for invoke bedrock models"""
         if DEBUG:
             logger.info("Raw request: " + chat_request.model_dump_json())
@@ -347,6 +347,11 @@ class BedrockModel(BaseChatModel):
 
         # convert OpenAI chat request to Bedrock SDK request
         args = self._parse_request(chat_request)
+
+        # Attach request metadata for cost attribution (appears in model invocation logs)
+        if request_metadata:
+            args["requestMetadata"] = request_metadata
+
         if DEBUG:
             logger.info("Bedrock request: " + json.dumps(str(args)))
 
@@ -370,11 +375,11 @@ class BedrockModel(BaseChatModel):
             raise HTTPException(status_code=500, detail=str(e))
         return response
 
-    async def chat(self, chat_request: ChatRequest) -> ChatResponse:
+    async def chat(self, chat_request: ChatRequest, request_metadata: dict | None = None) -> ChatResponse:
         """Default implementation for Chat API."""
 
         message_id = self.generate_message_id()
-        response = await self._invoke_bedrock(chat_request)
+        response = await self._invoke_bedrock(chat_request, request_metadata=request_metadata)
 
         output_message = response["output"]["message"]
         usage = response["usage"]
@@ -414,10 +419,10 @@ class BedrockModel(BaseChatModel):
             await run_in_threadpool(lambda: chunk)
             yield chunk
 
-    async def chat_stream(self, chat_request: ChatRequest) -> AsyncIterable[bytes]:
+    async def chat_stream(self, chat_request: ChatRequest, request_metadata: dict | None = None) -> AsyncIterable[bytes]:
         """Default implementation for Chat Stream API"""
         try:
-            response = await self._invoke_bedrock(chat_request, stream=True)
+            response = await self._invoke_bedrock(chat_request, stream=True, request_metadata=request_metadata)
             message_id = self.generate_message_id()
             stream = response.get("stream")
             self.think_emitted = False
