@@ -101,6 +101,7 @@ profile_metadata = {}
 # When both are provided, temperature takes precedence and topP is removed
 TEMPERATURE_TOPP_CONFLICT_MODELS = {
     "claude-sonnet-4-5",
+    "claude-sonnet-4-6",
     "claude-haiku-4-5",
     "claude-opus-4-5",
 }
@@ -940,10 +941,16 @@ class BedrockModel(BaseChatModel):
         messages = self._parse_messages(chat_request)
         system_prompts = self._parse_system_prompts(chat_request)
 
+        effective_max_tokens = (
+            chat_request.max_completion_tokens
+            if chat_request.max_completion_tokens is not None
+            else chat_request.max_tokens
+        )
+
         # Base inference parameters.
-        inference_config = {
-            "maxTokens": chat_request.max_tokens,
-        }
+        inference_config = {}
+        if effective_max_tokens is not None:
+            inference_config["maxTokens"] = effective_max_tokens
 
         # Only include optional parameters when specified
         if chat_request.temperature is not None:
@@ -951,7 +958,7 @@ class BedrockModel(BaseChatModel):
         if chat_request.top_p is not None:
             inference_config["topP"] = chat_request.top_p
 
-        # Some models (Claude Sonnet 4.5, Haiku 4.5) don't support both temperature and topP
+        # Some models (Claude Sonnet 4.5, Claude Sonnet 4.6, Haiku 4.5) don't support both temperature and topP
         # When both are provided, keep temperature and remove topP
         # Resolve profile to underlying model for feature detection
         resolved_model = self._resolve_to_foundation_model(chat_request.model)
@@ -990,18 +997,17 @@ class BedrockModel(BaseChatModel):
 
             if "anthropic.claude" in model_lower:
                 # Claude format: reasoning_config = object with budget_tokens
-                max_tokens = (
-                    chat_request.max_completion_tokens
-                    if chat_request.max_completion_tokens
-                    else chat_request.max_tokens
-                )
-                budget_tokens = self._calc_budget_tokens(
-                    max_tokens, chat_request.reasoning_effort
-                )
-                inference_config["maxTokens"] = max_tokens
+                if effective_max_tokens is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="max_tokens or max_completion_tokens must be set when using reasoning_effort with Claude models",
+                    )
                 # unset topP - Not supported
                 inference_config.pop("topP", None)
 
+                budget_tokens = self._calc_budget_tokens(
+                    effective_max_tokens, chat_request.reasoning_effort
+                )
                 args["additionalModelRequestFields"] = {
                     "reasoning_config": {"type": "enabled", "budget_tokens": budget_tokens}
                 }
@@ -1699,7 +1705,7 @@ def get_embeddings_model(model_id: str) -> BedrockEmbeddingsModel:
     match model_name:
         case "Cohere Embed Multilingual" | "Cohere Embed English":
             return CohereEmbeddingsModel()
-        case "Titan Embeddings G2 - Text":
+        case "Titan Embeddings G1 - Text" | "Titan Embeddings G2 - Text":
             return TitanEmbeddingsModel()
         case "Nova Multimodal Embeddings V2":
             return NovaEmbeddingsModel()
