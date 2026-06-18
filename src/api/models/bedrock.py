@@ -100,11 +100,22 @@ TEMPERATURE_TOPP_CONFLICT_MODELS = {
     "claude-opus-4-5",
 }
 
+# Models that use adaptive thinking (thinking.type=adaptive + output_config.effort)
+ADAPTIVE_THINKING_MODELS = {
+    "claude-opus-4-7",
+}
+
+# Models that do not support sampling parameters (temperature, topP)
+NO_SAMPLING_PARAMS_MODELS = {
+    "claude-opus-4-7",
+}
+
 # Models that don't support assistant message prefill
 # For these models, if conversation ends with assistant message (e.g., "continue response"),
 # a user message will be added to ask the model to continue
 NO_ASSISTANT_PREFILL_MODELS = {
     "claude-opus-4-6",
+    "claude-opus-4-7",
 }
 
 
@@ -804,6 +815,11 @@ class BedrockModel(BaseChatModel):
                 if DEBUG:
                     logger.info(f"Removed topP for {chat_request.model} (conflicts with temperature)")
 
+        # Strip sampling parameters for models that don't support them
+        if any(m in model_lower for m in NO_SAMPLING_PARAMS_MODELS):
+            inference_config.pop("temperature", None)
+            inference_config.pop("topP", None)
+
         if chat_request.stop is not None:
             stop = chat_request.stop
             if isinstance(stop, str):
@@ -823,7 +839,13 @@ class BedrockModel(BaseChatModel):
             resolved_model = self._resolve_to_foundation_model(chat_request.model)
             model_lower = resolved_model.lower()
 
-            if "anthropic.claude" in model_lower:
+            if any(m in model_lower for m in ADAPTIVE_THINKING_MODELS):
+                # Opus 4.7+: adaptive thinking format
+                args["additionalModelRequestFields"] = {
+                    "thinking": {"type": "adaptive", "display": "summarized"},
+                    "output_config": {"effort": chat_request.reasoning_effort},
+                }
+            elif "anthropic.claude" in model_lower:
                 # Claude format: reasoning_config = object with budget_tokens
                 if effective_max_tokens is None:
                     raise HTTPException(
