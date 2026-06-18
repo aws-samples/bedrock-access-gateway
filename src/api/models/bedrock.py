@@ -527,6 +527,83 @@ class BedrockModel(BaseChatModel):
 
         return system_prompts
 
+    def _sanitize_tool_pairs(self, openai_messages: list) -> list:
+        """Drop orphan ``tool_calls``/``ToolMessage`` items.
+
+        Bedrock's Converse API rejects message sequences where a ``toolUse``
+        block has no matching ``toolResult`` (or vice versa) with a
+        ``ValidationException``. The OpenAI history coming from clients can
+        become unbalanced when the conversation is rewritten on the client
+        side, leaving orphan assistant ``tool_calls`` whose paired
+        ``ToolMessage`` entries were dropped.
+
+        This pre-pass keeps only those tool_call ids that have BOTH a
+        ``tool_calls`` entry on an assistant message AND a corresponding
+        ``ToolMessage`` later in the history. Anything else is removed before
+        the message list is translated to Bedrock blocks, so the gateway
+        always emits a balanced sequence regardless of the client's behaviour.
+
+        :param openai_messages: messages exactly as received from the client.
+        :return: a new list with orphan tool_use / tool_result entries removed.
+        """
+        # First pass: collect every tool_call_id that has a matching tool result.
+        result_ids: set[str] = set()
+        call_ids: set[str] = set()
+        for msg in openai_messages:
+            if isinstance(msg, ToolMessage) and msg.tool_call_id:
+                result_ids.add(msg.tool_call_id)
+            elif isinstance(msg, AssistantMessage) and msg.tool_calls:
+                for tc in msg.tool_calls:
+                    if tc.id:
+                        call_ids.add(tc.id)
+
+        paired_ids = call_ids & result_ids
+        orphan_calls = call_ids - result_ids
+        orphan_results = result_ids - call_ids
+
+        if not orphan_calls and not orphan_results:
+            return openai_messages
+
+        if DEBUG:
+            logger.info(
+                "Sanitising orphan tool pairs: orphan_calls=%s orphan_results=%s",
+                sorted(orphan_calls),
+                sorted(orphan_results),
+            )
+
+        sanitized: list = []
+        for msg in openai_messages:
+            if isinstance(msg, ToolMessage):
+                # Drop tool results that have no matching tool_call.
+                if msg.tool_call_id in paired_ids:
+                    sanitized.append(msg)
+                continue
+
+            if isinstance(msg, AssistantMessage) and msg.tool_calls:
+                kept_calls = [
+                    tc for tc in msg.tool_calls
+                    if tc.id and tc.id in paired_ids
+                ]
+                # Preserve the assistant message itself when it still carries
+                # text content; only drop it entirely when the only payload
+                # was orphaned tool_calls.
+                has_text = (
+                    (isinstance(msg.content, str) and msg.content.strip() != "")
+                    or (isinstance(msg.content, list) and len(msg.content) > 0)
+                )
+                if not kept_calls and not has_text:
+                    continue
+                if kept_calls != msg.tool_calls:
+                    msg = msg.model_copy(
+                        update={"tool_calls": kept_calls or None}
+                    )
+                sanitized.append(msg)
+                continue
+
+            sanitized.append(msg)
+
+        return sanitized
+
     def _parse_messages(self, chat_request: ChatRequest) -> list[dict]:
         """
         Converse API only support user and assistant messages.
@@ -540,7 +617,11 @@ class BedrockModel(BaseChatModel):
         https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html#message-inference-examples
         """
         messages = []
-        for message in chat_request.messages:
+        # Strip orphan tool_use / tool_result pairs so Bedrock's strict
+        # pairing requirement is satisfied even when the client sends a
+        # rewritten history.
+        sanitized_messages = self._sanitize_tool_pairs(chat_request.messages)
+        for message in sanitized_messages:
             if isinstance(message, UserMessage):
                 messages.append(
                     {
