@@ -18,6 +18,14 @@ Parameters:
       - "true"
       - "false"
     Description: Enable prompt caching for supported models (Claude, Nova). When enabled, adds cachePoint to system prompts and messages for cost savings.
+  BedrockUrl:
+    Type: String
+    Default: ""
+    Description: Optional custom endpoint URL for Bedrock control plane (e.g., VPC endpoint URL)
+  BedrockRuntimeUrl:
+    Type: String
+    Default: ""
+    Description: Optional custom endpoint URL for Bedrock runtime plane (e.g., VPC endpoint URL)
 Resources:
   # IAM Role for Lambda
   ProxyApiHandlerServiceRole:
@@ -85,6 +93,8 @@ Resources:
           ENABLE_CROSS_REGION_INFERENCE: "true"
           ENABLE_APPLICATION_INFERENCE_PROFILES: "true"
           ENABLE_PROMPT_CACHING: !Ref EnablePromptCaching
+          BEDROCK_URL: !Ref BedrockUrl
+          BEDROCK_RUNTIME_URL: !Ref BedrockRuntimeUrl
           API_ROUTE_PREFIX: /v1
       MemorySize: 1024
       PackageType: Image
