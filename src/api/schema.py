@@ -30,9 +30,14 @@ class ToolCall(BaseModel):
     function: ResponseFunction
 
 
+class CacheControl(BaseModel):
+    type: str = "ephemeral"
+
+
 class TextContent(BaseModel):
     type: Literal["text"] = "text"
     text: str
+    cache_control: CacheControl | None = None
 
 
 class ImageUrl(BaseModel):
@@ -53,7 +58,7 @@ class ToolContent(BaseModel):
 class SystemMessage(BaseModel):
     name: str | None = None
     role: Literal["system"] = "system"
-    content: str
+    content: str | list[TextContent]
 
 
 class UserMessage(BaseModel):
@@ -78,7 +83,7 @@ class ToolMessage(BaseModel):
 class DeveloperMessage(BaseModel):
     name: str | None = None
     role: Literal["developer"] = "developer"
-    content: str
+    content: str | list[TextContent]
 
 
 class Function(BaseModel):
