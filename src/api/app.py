@@ -29,7 +29,9 @@ origins_list = [origin.strip() for origin in allowed_origins.split(",")] if allo
 
 # Warn if CORS allows all origins
 if origins_list == ["*"]:
-    logging.warning("CORS is configured to allow all origins (*). Set ALLOWED_ORIGINS environment variable to restrict access.")
+    logging.warning(
+        "CORS is configured to allow all origins (*). Set ALLOWED_ORIGINS environment variable to restrict access."
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -54,15 +56,15 @@ async def health():
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
     logger = logging.getLogger(__name__)
-    
+
     # Log essential info only - avoid sensitive data and performance overhead
     logger.warning(
-        "Request validation failed: %s %s - %s", 
-        request.method, 
+        "Request validation failed: %s %s - %s",
+        request.method,
         request.url.path,
-        str(exc).split('\n')[0]  # First line only
+        str(exc).split("\n")[0],  # First line only
     )
-    
+
     return PlainTextResponse(str(exc), status_code=400)
 
 

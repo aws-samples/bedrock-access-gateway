@@ -96,6 +96,20 @@ class StreamOptions(BaseModel):
     include_usage: bool = True
 
 
+class JsonSchema(BaseModel):
+    name: str
+    description: str | None = None
+    schema_: dict = Field(alias="schema")
+    strict: bool | None = None
+
+    model_config = {"populate_by_name": True}
+
+
+class ResponseFormat(BaseModel):
+    type: Literal["text", "json_object", "json_schema"]
+    json_schema: JsonSchema | None = None
+
+
 class ChatRequest(BaseModel):
     messages: list[SystemMessage | UserMessage | AssistantMessage | ToolMessage | DeveloperMessage]
     model: str = DEFAULT_MODEL
@@ -109,6 +123,7 @@ class ChatRequest(BaseModel):
     max_tokens: int | None = Field(default=None, ge=1)
     max_completion_tokens: int | None = Field(default=None, ge=1)
     reasoning_effort: Literal["low", "medium", "high"] | None = None
+    response_format: ResponseFormat | None = None
     n: int | None = 1  # Not used
     tools: list[Tool] | None = None
     tool_choice: str | object = "auto"
@@ -118,12 +133,14 @@ class ChatRequest(BaseModel):
 
 class PromptTokensDetails(BaseModel):
     """Details about prompt tokens usage, following OpenAI API format."""
+
     cached_tokens: int = 0
     audio_tokens: int = 0
 
 
 class CompletionTokensDetails(BaseModel):
     """Details about completion tokens usage, following OpenAI API format."""
+
     reasoning_tokens: int = 0
     audio_tokens: int = 0
 

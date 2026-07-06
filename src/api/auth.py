@@ -29,9 +29,7 @@ elif api_key_secret_arn:
 elif api_key_env:
     api_key = api_key_env
 else:
-    raise RuntimeError(
-        "API Key is not configured. Please set up your API Key."
-    )
+    raise RuntimeError("API Key is not configured. Please set up your API Key.")
 
 security = HTTPBearer()
 
