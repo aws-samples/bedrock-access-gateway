@@ -573,7 +573,19 @@ class BedrockModel(BaseChatModel):
                 if message.tool_calls:
                     # Tool use message
                     for tool_call in message.tool_calls:
-                        tool_input = json.loads(tool_call.function.arguments)
+                        # OpenAI clients send arguments="" for tool calls that take no
+                        # arguments, so json.loads() would raise. Treat empty or
+                        # unparsable arguments as an empty input object rather than
+                        # failing the whole request.
+                        raw_arguments = tool_call.function.arguments or ""
+                        try:
+                            tool_input = json.loads(raw_arguments) if raw_arguments.strip() else {}
+                        except json.JSONDecodeError:
+                            logger.warning(
+                                "Unparsable arguments for tool call %s, using empty input",
+                                tool_call.id,
+                            )
+                            tool_input = {}
                         messages.append(
                             {
                                 "role": message.role,
