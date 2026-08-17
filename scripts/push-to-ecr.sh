@@ -7,6 +7,9 @@ set -o errexit  # exit on first error
 set -o nounset  # exit on using unset variables
 set -o pipefail # exit on any error in a pipeline
 
+# Change to the directory where the script is located
+cd "$(dirname "$0")"
+
 # Prompt user for inputs
 echo "================================================"
 echo "Bedrock Access Gateway - Build and Push to ECR"
@@ -75,7 +78,19 @@ build_and_push_image() {
     echo "Building $IMAGE_NAME:$TAG..."
 
     # Build Docker image
-    docker buildx build --platform linux/$ARCH -t $IMAGE_NAME:$TAG -f $DOCKERFILE_PATH --load ../src/
+    # Note: --provenance=false and --sbom=false are required for Lambda compatibility
+    # Without these flags, Docker BuildKit (especially with docker-container driver) may create
+    # OCI image manifests with attestations that AWS Lambda does not support.
+    # Lambda requires Docker V2 Schema 2 format without multi-manifest index.
+    # See: https://github.com/aws-samples/bedrock-access-gateway/issues/206
+    docker buildx build \
+        --platform linux/$ARCH \
+        --provenance=false \
+        --sbom=false \
+        -t $IMAGE_NAME:$TAG \
+        -f $DOCKERFILE_PATH \
+        --load \
+        ../src/
 
     # Get the account ID
     ACCOUNT_ID=$(aws sts get-caller-identity --region $REGION --query Account --output text)

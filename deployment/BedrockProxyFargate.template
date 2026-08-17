@@ -11,6 +11,13 @@ Parameters:
     Type: String
     Default: anthropic.claude-3-sonnet-20240229-v1:0
     Description: The default model ID, please make sure the model ID is supported in the current region
+  EnablePromptCaching:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Enable prompt caching for supported models (Claude, Nova). When enabled, adds cachePoint to system prompts and messages for cost savings.
 Resources:
   VPCB9E5F0B4:
     Type: AWS::EC2::VPC
@@ -251,13 +258,16 @@ Resources:
               Value: "true"
             - Name: ENABLE_APPLICATION_INFERENCE_PROFILES
               Value: "true"
+            - Name: ENABLE_PROMPT_CACHING
+              Value:
+                Ref: EnablePromptCaching
           Essential: true
           Image:
             Ref: ContainerImageUri
           Name: proxy-api
           PortMappings:
-            - ContainerPort: 80
-              HostPort: 80
+            - ContainerPort: 8080
+              HostPort: 8080
               Protocol: tcp
           Secrets:
             - Name: API_KEY
@@ -303,7 +313,7 @@ Resources:
       HealthCheckGracePeriodSeconds: 60
       LoadBalancers:
         - ContainerName: proxy-api
-          ContainerPort: 80
+          ContainerPort: 8080
           TargetGroupArn:
             Ref: ProxyALBListenerTargetsGroup187739FA
       NetworkConfiguration:
@@ -340,7 +350,7 @@ Resources:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       Description: Load balancer to target
-      FromPort: 80
+      FromPort: 8080
       GroupId:
         Fn::GetAtt:
           - ProxyApiServiceSecurityGroup51EBD9B8
@@ -350,7 +360,7 @@ Resources:
         Fn::GetAtt:
           - ProxyALBSecurityGroup0D6CA3DA
           - GroupId
-      ToPort: 80
+      ToPort: 8080
     DependsOn:
       - ProxyTaskRoleDefaultPolicy933321B8
       - ProxyTaskRole5DB6A540
@@ -396,13 +406,13 @@ Resources:
         Fn::GetAtt:
           - ProxyApiServiceSecurityGroup51EBD9B8
           - GroupId
-      FromPort: 80
+      FromPort: 8080
       GroupId:
         Fn::GetAtt:
           - ProxyALBSecurityGroup0D6CA3DA
           - GroupId
       IpProtocol: tcp
-      ToPort: 80
+      ToPort: 8080
   ProxyALBListener933E9515:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
@@ -421,7 +431,7 @@ Resources:
       HealthCheckIntervalSeconds: 60
       HealthCheckPath: /health
       HealthCheckTimeoutSeconds: 30
-      Port: 80
+      Port: 8080
       Protocol: HTTP
       TargetGroupAttributes:
         - Key: stickiness.enabled
