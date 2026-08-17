@@ -41,7 +41,7 @@ class ImageUrl(BaseModel):
 
 
 class ImageContent(BaseModel):
-    type: Literal["image_url"] = "image"
+    type: Literal["image_url"] = "image_url"
     image_url: ImageUrl
 
 
@@ -75,6 +75,12 @@ class ToolMessage(BaseModel):
     tool_call_id: str
 
 
+class DeveloperMessage(BaseModel):
+    name: str | None = None
+    role: Literal["developer"] = "developer"
+    content: str
+
+
 class Function(BaseModel):
     name: str
     description: str | None = None
@@ -91,17 +97,17 @@ class StreamOptions(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    messages: list[SystemMessage | UserMessage | AssistantMessage | ToolMessage]
+    messages: list[SystemMessage | UserMessage | AssistantMessage | ToolMessage | DeveloperMessage]
     model: str = DEFAULT_MODEL
     frequency_penalty: float | None = Field(default=0.0, le=2.0, ge=-2.0)  # Not used
     presence_penalty: float | None = Field(default=0.0, le=2.0, ge=-2.0)  # Not used
     stream: bool | None = False
     stream_options: StreamOptions | None = None
-    temperature: float | None = Field(default=1.0, le=2.0, ge=0.0)
-    top_p: float | None = Field(default=1.0, le=1.0, ge=0.0)
+    temperature: float | None = Field(default=None, le=2.0, ge=0.0)
+    top_p: float | None = Field(default=None, le=1.0, ge=0.0)
     user: str | None = None  # Not used
-    max_tokens: int | None = 2048
-    max_completion_tokens: int | None = None
+    max_tokens: int | None = Field(default=None, ge=1)
+    max_completion_tokens: int | None = Field(default=None, ge=1)
     reasoning_effort: Literal["low", "medium", "high"] | None = None
     n: int | None = 1  # Not used
     tools: list[Tool] | None = None
@@ -110,10 +116,24 @@ class ChatRequest(BaseModel):
     extra_body: dict | None = None
 
 
+class PromptTokensDetails(BaseModel):
+    """Details about prompt tokens usage, following OpenAI API format."""
+    cached_tokens: int = 0
+    audio_tokens: int = 0
+
+
+class CompletionTokensDetails(BaseModel):
+    """Details about completion tokens usage, following OpenAI API format."""
+    reasoning_tokens: int = 0
+    audio_tokens: int = 0
+
+
 class Usage(BaseModel):
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
+    prompt_tokens_details: PromptTokensDetails | None = None
+    completion_tokens_details: CompletionTokensDetails | None = None
 
 
 class ChatResponseMessage(BaseModel):
@@ -162,7 +182,7 @@ class EmbeddingsRequest(BaseModel):
     input: str | list[str] | Iterable[int | Iterable[int]]
     model: str
     encoding_format: Literal["float", "base64"] = "float"
-    dimensions: int | None = None  # not used.
+    dimensions: int | None = None  # Used by Nova embeddings; ignored by other models.
     user: str | None = None  # not used.
 
 

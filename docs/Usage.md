@@ -368,6 +368,8 @@ You can try it with different questions, such as:
 - For DeepSeek R1, you don't need additional reasoning_effort parameter, otherwise, you may get an error.
 - The reasoning response (CoT, thoughts) is added in an additional tag 'reasoning_content' which is not officially supported by OpenAI. This is to follow [Deepseek Reasoning Model](https://api-docs.deepseek.com/guides/reasoning_model#api-example). This may be changed in the future.
 
+> **Note**: Omitting `max_tokens` (or `max_completion_tokens`) now allows Bedrock to use the model's native maximum output (e.g., 64K for Claude Sonnet 4) rather than the previous 2048 implicit cap. Please set `max_tokens` explicitly if you need to control costs or latency.
+
 **Example Request**
 
 - Claude 3.7 Sonnet
