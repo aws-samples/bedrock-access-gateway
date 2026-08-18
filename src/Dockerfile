@@ -20,4 +20,4 @@ RUN python3 -c 'import tiktoken_ext.openai_public as tke; tke.cl100k_base()'
 # Lambda Web Adapter requires overriding the Lambda base image entrypoint
 # to run the web app directly instead of the Lambda runtime handler
 ENTRYPOINT []
-CMD ["python", "-m", "uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["python", "-m", "uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8080"]:

@@ -37,7 +37,6 @@ from api.schema import (
     ResponseFunction,
     TextContent,
     ToolCall,
-    ToolContent,
     ToolMessage,
     Usage,
     UserMessage,
@@ -53,15 +52,7 @@ from api.setting import (
 
 logger = logging.getLogger(__name__)
 
-config = Config(
-            connect_timeout=60,      # Connection timeout: 60 seconds
-            read_timeout=900,        # Read timeout: 15 minutes (suitable for long streaming responses)
-            retries={
-                'max_attempts': 8,   # Maximum retry attempts
-                'mode': 'adaptive'   # Adaptive retry mode
-            },
-            max_pool_connections=50  # Maximum connection pool size
-        )
+config = Config(connect_timeout=60, read_timeout=120, retries={"max_attempts": 1})
 
 bedrock_runtime = boto3.client(
     service_name="bedrock-runtime",
@@ -116,7 +107,10 @@ def list_bedrock_models() -> dict:
         - Cross-Region Inference Profiles (if enabled via Env)
         - Application Inference Profiles (if enabled via Env)
     """
+    global unsupport_top_p_models_in_app_profiles
     model_list = {}
+    # Clear and store application profiles for claude-sonnet-4-5 as an exception
+    unsupport_top_p_models_in_app_profiles.clear()
     try:
         if ENABLE_CROSS_REGION_INFERENCE:
             # List system defined inference profile IDs and store underlying model mapping
@@ -154,22 +148,21 @@ def list_bedrock_models() -> dict:
                         if not models:
                             logger.warning(f"Application profile {profile_arn} has no models")
                             continue
-
-                        # Take first model - all models in array are same type (regional instances)
-                        first_model = models[0]
-                        model_arn = first_model.get("modelArn", "")
-                        if not model_arn:
-                            continue
-
-                        # Extract model ID from ARN (works for both foundation models and cross-region profiles)
-                        model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
-
-                        # Store in unified profile metadata for feature detection
-                        profile_metadata[profile_arn] = {
-                            "underlying_model_id": model_id,
-                            "profile_type": "APPLICATION",
-                            "profile_name": profile.get("inferenceProfileName", ""),
-                        }
+                        for model in models:
+                            model_arn = model.get("modelArn", "")
+                            if model_arn:
+                                model_id = model_arn.split('/')[-1] if '/' in model_arn else model_arn
+                                # Store in unified profile metadata for feature detection
+                                
+                                if model_id:
+                                    profile_metadata[profile_arn] = {
+                                        "underlying_model_id": model_id,
+                                        "profile_type": "APPLICATION",
+                                        "profile_name": profile.get("inferenceProfileName", ""),
+                                    }
+                                    # Store application profiles for models that don't support top_p
+                                    if model_id in MODELS_WITHOUT_TOP_P_SUPPORT:
+                                        unsupport_top_p_models_in_app_profiles.add(profile_arn)
                     except Exception as e:
                         logger.warning(f"Error processing application profile: {e}")
                         continue
@@ -206,6 +199,17 @@ def list_bedrock_models() -> dict:
 
     return model_list
 
+# List of model IDs and patterns that don't support top_p parameter
+# Can be full model IDs or substrings for pattern matching
+MODELS_WITHOUT_TOP_P_SUPPORT = [
+    "anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "claude-sonnet-4-5", # Short pattern to match any variant containing this name
+    "anthropic.claude-haiku-4-5-20251001-v1:0",
+    "claude-haiku-4-5", # Short pattern to match any variant containing this name
+]
+
+# Global variable to store application profiles for models that don't support top_p
+unsupport_top_p_models_in_app_profiles = set()
 
 # Initialize the model list.
 bedrock_model_list = list_bedrock_models()
@@ -221,6 +225,12 @@ class BedrockModel(BaseChatModel):
     def validate(self, chat_request: ChatRequest):
         """Perform basic validation on requests"""
         error = ""
+        # Regex check for model_id ARN pattern
+        arn_pattern = r"^.*application-inference-profile.*"
+        arn_match = re.match(arn_pattern, chat_request.model)
+        
+        if not arn_match:
+            error = f"model_id must match pattern: {arn_pattern}"
         # check if model is supported
         if chat_request.model not in bedrock_model_list.keys():
             # Provide helpful error for application profiles
@@ -360,13 +370,13 @@ class BedrockModel(BaseChatModel):
                 # Run the blocking boto3 call in a thread pool
                 response = await run_in_threadpool(bedrock_runtime.converse, **args)
         except bedrock_runtime.exceptions.ValidationException as e:
-            logger.error("Bedrock validation error for model %s: %s", chat_request.model, str(e))
+            logger.error("Validation Error: " + str(e))
             raise HTTPException(status_code=400, detail=str(e))
         except bedrock_runtime.exceptions.ThrottlingException as e:
-            logger.warning("Bedrock throttling for model %s: %s", chat_request.model, str(e))
+            logger.error("Throttling Error: " + str(e))
             raise HTTPException(status_code=429, detail=str(e))
         except Exception as e:
-            logger.error("Bedrock invocation failed for model %s: %s", chat_request.model, str(e))
+            logger.error(e)
             raise HTTPException(status_code=500, detail=str(e))
         return response
 
@@ -458,7 +468,6 @@ class BedrockModel(BaseChatModel):
             yield self.stream_response_to_bytes()
             self.think_emitted = False  # Cleanup
         except Exception as e:
-            logger.error("Stream error for model %s: %s", chat_request.model, str(e))
             error_event = Error(error=ErrorMessage(message=str(e)))
             yield self.stream_response_to_bytes(error_event)
 
@@ -603,7 +612,7 @@ class BedrockModel(BaseChatModel):
                             {
                                 "toolResult": {
                                     "toolUseId": message.tool_call_id,
-                                    "content": [{"text": tool_content}],
+                                    "content": [{"text": message.content}],
                                 }
                             }
                         ],
@@ -803,6 +812,14 @@ class BedrockModel(BaseChatModel):
                 inference_config.pop("topP", None)
                 if DEBUG:
                     logger.info(f"Removed topP for {chat_request.model} (conflicts with temperature)")
+
+        global unsupport_top_p_models_in_app_profiles
+        should_remove_top_p = (
+            any(model_id in chat_request.model.lower() for model_id in MODELS_WITHOUT_TOP_P_SUPPORT) or
+            chat_request.model in unsupport_top_p_models_in_app_profiles
+        )
+        if should_remove_top_p:
+            inference_config.pop("topP", None)
 
         if chat_request.stop is not None:
             stop = chat_request.stop

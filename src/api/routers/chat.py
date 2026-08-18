@@ -1,12 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from api.auth import api_key_auth
 from api.models.bedrock import BedrockModel
 from api.schema import ChatRequest, ChatResponse, ChatStreamResponse, Error
 from api.setting import DEFAULT_MODEL
+from api.utils import check_content_safety, get_last_user_message
 
 router = APIRouter(
     prefix="/chat",
@@ -34,6 +35,19 @@ async def chat_completions(
         ),
     ],
 ):
+    last_user_message = get_last_user_message(chat_request.messages)
+    if last_user_message and not check_content_safety(last_user_message):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": {
+                    "message": "The response was filtered due to the prompt triggering Freshworks content management policy. Please modify your prompt and retry.",
+                    "type": "null",
+                    "param": "null",
+                    "code": "content_filter"
+                }
+            }
+        )
     if chat_request.model.lower().startswith("gpt-"):
         chat_request.model = DEFAULT_MODEL
 
