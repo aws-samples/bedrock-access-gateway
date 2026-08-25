@@ -1002,6 +1002,20 @@ class BedrockModel(BaseChatModel):
         response.created = int(time.time())
         return response
 
+    @staticmethod
+    def _serialize_tool_use_input(tool_input: object) -> str:
+        """Convert Bedrock tool-use input to OpenAI-compatible arguments."""
+        if isinstance(tool_input, str):
+            return tool_input
+
+        try:
+            return json.dumps(tool_input, allow_nan=False)
+        except (TypeError, ValueError):
+            logger.warning(
+                "Bedrock returned a non-JSON tool-use input; using an empty object"
+            )
+            return "{}"
+
     def _create_response_stream(
         self, model_id: str, message_id: str, chunk: dict
     ) -> ChatStreamResponse | None:
@@ -1070,12 +1084,13 @@ class BedrockModel(BaseChatModel):
             else:
                 # tool use
                 index = chunk["contentBlockDelta"]["contentBlockIndex"] - 1
+                tool_input = delta["toolUse"].get("input", "")
                 message = ChatResponseMessage(
                     tool_calls=[
                         ToolCall(
                             index=index,
                             function=ResponseFunction(
-                                arguments=delta["toolUse"]["input"],
+                                arguments=self._serialize_tool_use_input(tool_input),
                             ),
                         )
                     ]
