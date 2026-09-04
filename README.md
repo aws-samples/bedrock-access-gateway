@@ -5,37 +5,16 @@ OpenAI-compatible RESTful APIs for Amazon Bedrock
 > [!IMPORTANT]
 > **This project is deprecated.** Amazon Bedrock now serves OpenAI-compatible and
 > Anthropic-compatible APIs natively, which is the reason this proxy existed. Call Amazon Bedrock
-> directly instead of deploying this gateway. Existing deployments keep working, but no further
-> features are planned.
+> directly instead of deploying this gateway.
 
 ## Migrating to native Amazon Bedrock APIs
 
-Point your SDK at the [`bedrock-mantle`](https://docs.aws.amazon.com/bedrock/latest/userguide/endpoints.html)
-endpoint, `https://bedrock-mantle.{region}.api.aws`:
+Point your SDK at the [`bedrock-mantle`](https://docs.aws.amazon.com/bedrock/latest/userguide/endpoints.html) endpoint:
 
-- **Claude models** — native [Anthropic Messages API](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-messages-api.html)
-  on `/anthropic/v1/messages`, so the Anthropic SDKs work unchanged.
-- **GPT and other first- and third-party models** — OpenAI-compatible
-  [Chat Completions](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-chat-completions-mantle.html)
-  and [Responses](https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-mantle.html) APIs on
-  `/v1`, so the OpenAI SDKs work unchanged.
-- **Auth** — AWS credentials (SigV4) or an
-  [Amazon Bedrock API key](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html) as a bearer token.
+- **Claude models** — native [Anthropic Messages API](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-messages-api.html), so the Anthropic SDKs work unchanged.
+- **GPT and other first- and third-party models** — OpenAI-compatible [Chat Completions](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-chat-completions-mantle.html) and [Responses](https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-mantle.html) APIs, so the OpenAI SDKs work unchanged.
 
-Beyond replacing this proxy, `bedrock-mantle` adds:
-
-- **Cost attribution** per application or workload via
-  [Projects](https://docs.aws.amazon.com/bedrock/latest/userguide/cost-mgmt-projects.html) and
-  [Workspaces](https://docs.aws.amazon.com/bedrock/latest/userguide/cost-mgmt-workspaces.html) — tags
-  flow to AWS Cost Explorer and Cost and Usage Reports 2.0.
-- **Server-side and pre-configured tools**, including web search.
-- **Background inference** for long-running workloads.
-- **Higher initial throughput limits** and the broadest model catalog.
-
-`bedrock-runtime` serves the same three APIs and is what AWS recommends for most new applications,
-since it adds InvokeModel/Converse, Guardrails, intelligent prompt routing and cross-Region
-inference. See [Endpoints supported by Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/endpoints.html)
-to choose.
+Beyond replacing this proxy, `bedrock-mantle` adds per-application [cost attribution](https://docs.aws.amazon.com/bedrock/latest/userguide/cost-mgmt-projects.html), server-side tools, background inference and higher throughput limits. See [Endpoints supported by Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/endpoints.html) to compare it with `bedrock-runtime`.
 
 ## Overview
 
