@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Re-run the dependency audit weekly so newly published advisories against
+    # already-pinned versions are surfaced without waiting for a code change.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: check
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r src/requirements.txt pytest
+      - run: pytest test -q
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install pinned dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r src/requirements.txt
+      - name: Audit the resolved dependency tree
+        run: |
+          pip install pip-audit
+          .venv/bin/pip freeze > resolved-requirements.txt
+          # Audits transitive dependencies as actually resolved, which catches
+          # advisories against packages that requirements.txt does not name.
+          pip-audit --strict -r resolved-requirements.txt
