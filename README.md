@@ -392,7 +392,11 @@ To use the latest features, you need follow the deployment guide to redeploy the
 
 ## Security
 
-See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
+See the [Security Guide](./docs/Security.md) for how to enable HTTPS on the ALB and how to configure the
+controls around remote image URL fetching in the multimodal API. If you deployed before those controls
+were added, read [If you deployed an earlier version](./docs/Security.md#if-you-deployed-an-earlier-version).
+
+To report a security issue, see [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications).
 
 ## License
 

@@ -167,6 +167,11 @@ print(doc_result[0][:5])
 
 ## Multimodal API
 
+> [!NOTE]
+> 当你传入远程 `image_url` 时，由网关在服务端发起请求获取图片。只有解析到公网可路由地址的 `http(s)` URL 才会被获取；
+> 指向实例元数据服务、`localhost` 或内网地址段的 URL 会返回 `400`。你可以用 `IMAGE_URL_ALLOWED_HOSTS` 进一步限制，
+> 或用 `ENABLE_IMAGE_URL_FETCH=false` 完全关闭该功能，详见[安全指南](./Security.md#2-image-url-fetching-ssrf)。
+
 **Request 示例**
 
 ```bash
