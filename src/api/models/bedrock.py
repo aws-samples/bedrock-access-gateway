@@ -1,19 +1,18 @@
 import base64
 import json
 import logging
-import re
 import time
 from abc import ABC
 from typing import AsyncIterable, Iterable, Literal
 
 import boto3
 import numpy as np
-import requests
 import tiktoken
 from botocore.config import Config
 from fastapi import HTTPException
 from starlette.concurrency import run_in_threadpool
 
+from api.image_url import parse_image_url
 from api.models.base import BaseChatModel, BaseEmbeddingsModel
 from api.schema import (
     AssistantMessage,
@@ -1158,31 +1157,15 @@ class BedrockModel(BaseChatModel):
     def _parse_image(self, image_url: str) -> tuple[bytes, str]:
         """Try to get the raw data from an image url.
 
+        Accepts an inline base64 data url, or a remote http(s) url which the
+        gateway validates before fetching so that a caller cannot reach internal
+        endpoints through the proxy. Only supports 'image/jpeg', 'image/png',
+        'image/gif' or 'image/webp'.
+
         Ref: https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ImageSource.html
         returns a tuple of (Image Data, Content Type)
         """
-        pattern = r"^data:(image/[a-z]*);base64,\s*"
-        content_type = re.search(pattern, image_url)
-        # if already base64 encoded.
-        # Only supports 'image/jpeg', 'image/png', 'image/gif' or 'image/webp'
-        if content_type:
-            image_data = re.sub(pattern, "", image_url)
-            return base64.b64decode(image_data), content_type.group(1)
-
-        # Send a request to the image URL
-        response = requests.get(image_url, timeout=30)
-        # Check if the request was successful
-        if response.status_code == 200:
-            content_type = response.headers.get("Content-Type")
-            if not content_type.startswith("image"):
-                content_type = "image/jpeg"
-            # Get the image content
-            image_content = response.content
-            return image_content, content_type
-        else:
-            raise HTTPException(
-                status_code=500, detail="Unable to access the image url"
-            )
+        return parse_image_url(image_url)
 
     def _parse_content_parts(
         self,

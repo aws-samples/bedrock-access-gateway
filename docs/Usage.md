@@ -170,6 +170,12 @@ print(doc_result[0][:5])
 
 ## Multimodal API
 
+> [!NOTE]
+> When you pass a remote `image_url`, the gateway fetches it server-side. Only `http(s)` URLs that resolve
+> to a publicly routable address are fetched; URLs pointing at the instance metadata service, `localhost`,
+> or private ranges are rejected with a `400`. You can restrict this further with `IMAGE_URL_ALLOWED_HOSTS`
+> or turn it off with `ENABLE_IMAGE_URL_FETCH=false` — see the [Security Guide](./Security.md#2-image-url-fetching-ssrf).
+
 **Example Request**
 
 ```bash
