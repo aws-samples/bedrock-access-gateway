@@ -8,3 +8,8 @@ requests==2.34.2
 numpy==2.4.6
 boto3==1.43.15
 botocore==1.43.15
+
+# Transitive dependencies pinned to keep a build from resolving a vulnerable version.
+# uvicorn only requires h11>=0.8, which allows versions affected by the request
+# smuggling issue fixed in 0.16.0 (CVE-2025-43859).
+h11>=0.16.0
