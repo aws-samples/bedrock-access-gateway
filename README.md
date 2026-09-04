@@ -2,18 +2,39 @@
 
 OpenAI-compatible RESTful APIs for Amazon Bedrock
 
-## What's New 🔥
+> [!IMPORTANT]
+> **This project is deprecated.** Amazon Bedrock now serves OpenAI-compatible and
+> Anthropic-compatible APIs natively, which is the reason this proxy existed. Call Amazon Bedrock
+> directly instead of deploying this gateway.
 
-**API Gateway Response Streaming Support** - You can now deploy with Amazon API Gateway REST API instead of ALB, enabling true response streaming for better latency and cost optimization. See [Deployment Options](#deployment-options) for details.
+## Migrating to native Amazon Bedrock APIs
 
-**Latest Models Supported:**
-- **Claude 4.5 Family**: Opus 4.5, Sonnet 4.5, Haiku 4.5 - Anthropic's most intelligent models with enhanced coding and agent capabilities
-- **Amazon Nova**: Nova Micro, Nova Lite, Nova Pro, Nova Premier - Amazon's native foundation models with multimodal support
-- **DeepSeek**: DeepSeek-R1 (reasoning), DeepSeek-V3.1 - Advanced reasoning and general-purpose models
-- **Qwen 3**: Qwen3-32B, Qwen3-235B, Qwen3-Coder-30B, Qwen3-Coder-480B - Alibaba's latest language and coding models
-- **OpenAI OSS**: gpt-oss-20b, gpt-oss-120b - Open-source GPT models available via Bedrock
+Point your SDK at the [`bedrock-mantle`](https://docs.aws.amazon.com/bedrock/latest/userguide/endpoints.html)
+endpoint, `https://bedrock-mantle.{region}.api.aws`:
 
-It also supports reasoning for **Claude 4/4.5** (extended thinking and interleaved thinking) and **DeepSeek R1**. Check [How to Use](./docs/Usage.md#reasoning) for more details. You need to first run the Models API to refresh the model list.
+- **Claude models** — native [Anthropic Messages API](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-messages-api.html)
+  on `/anthropic/v1/messages`, so the Anthropic SDKs work unchanged.
+- **GPT and other first- and third-party models** — OpenAI-compatible
+  [Chat Completions](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-chat-completions-mantle.html)
+  and [Responses](https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-mantle.html) APIs on
+  `/v1`, so the OpenAI SDKs work unchanged.
+- **Auth** — AWS credentials (SigV4) or an
+  [Amazon Bedrock API key](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html) as a bearer token.
+
+Beyond replacing this proxy, `bedrock-mantle` adds:
+
+- **Cost attribution** per application or workload via
+  [Projects](https://docs.aws.amazon.com/bedrock/latest/userguide/cost-mgmt-projects.html) and
+  [Workspaces](https://docs.aws.amazon.com/bedrock/latest/userguide/cost-mgmt-workspaces.html) — tags
+  flow to AWS Cost Explorer and Cost and Usage Reports 2.0.
+- **Server-side and pre-configured tools**, including web search.
+- **Background inference** for long-running workloads.
+- **Higher initial throughput limits** and the broadest model catalog.
+
+`bedrock-runtime` serves the same three APIs and is what AWS recommends for most new applications,
+since it adds InvokeModel/Converse, Guardrails, intelligent prompt routing and cross-Region
+inference. See [Endpoints supported by Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/endpoints.html)
+to choose.
 
 ## Overview
 
